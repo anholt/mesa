@@ -35,6 +35,7 @@
 #include "c11/threads.h"
 
 #include "eglglobals.h"
+#include "egldevice.h"
 #include "egldisplay.h"
 #include "egldriver.h"
 #include "egllog.h"
@@ -51,11 +52,12 @@ struct _egl_global _eglGlobal =
 {
    .Mutex = &_eglGlobalMutex,
    .DisplayList = NULL,
-   .NumAtExitCalls = 2,
+   .NumAtExitCalls = 3,
    .AtExitCalls = {
       /* default AtExitCalls, called in reverse order */
-      _eglUnloadDrivers, /* always called last */
-      _eglFiniDisplay
+      _eglFiniDevice, /* always called last */
+      _eglUnloadDrivers,
+      _eglFiniDisplay,
    },
 
    .ClientOnlyExtensionString =

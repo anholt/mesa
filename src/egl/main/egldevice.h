@@ -1,8 +1,6 @@
 /**************************************************************************
  *
- * Copyright 2008 VMware, Inc.
- * Copyright 2009-2010 Chia-I Wu <olvaffe@gmail.com>
- * Copyright 2010 LunarG, Inc.
+ * Copyright 2015, 2018 Collabora
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,51 +26,58 @@
  **************************************************************************/
 
 
-#ifndef EGLTYPEDEFS_INCLUDED
-#define EGLTYPEDEFS_INCLUDED
+#ifndef EGLDEVICE_INCLUDED
+#define EGLDEVICE_INCLUDED
 
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
+
+#include <stdbool.h>
+#include "egltypedefs.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct _egl_api _EGLAPI;
+void
+_eglFiniDevice(void);
 
-typedef struct _egl_array _EGLArray;
+EGLBoolean
+_eglCheckDeviceHandle(EGLDeviceEXT device);
 
-typedef struct _egl_config _EGLConfig;
+static inline _EGLDevice *
+_eglLookupDevice(EGLDeviceEXT device)
+{
+   _EGLDevice *dev = (_EGLDevice *) device;
+   if (!_eglCheckDeviceHandle(device))
+      dev = NULL;
+   return dev;
+}
 
-typedef struct _egl_context _EGLContext;
+_EGLDevice *
+_eglAddDevice(int fd, bool software);
 
-typedef struct _egl_device _EGLDevice;
+enum _egl_device_extension {
+   EGL_FOOBAR, /* A temporary entry, since enum with zero entries is illegal */
+};
 
-typedef struct _egl_display _EGLDisplay;
+typedef enum _egl_device_extension _EGLDeviceExtension;
 
-typedef struct _egl_driver _EGLDriver;
+EGLBoolean
+_eglDeviceSupports(_EGLDevice *dev, _EGLDeviceExtension ext);
 
-typedef struct _egl_extensions _EGLExtensions;
+EGLBoolean
+_eglQueryDeviceAttribEXT(_EGLDevice *dev, EGLint attribute,
+                         EGLAttrib *value);
 
-typedef struct _egl_image _EGLImage;
+const char *
+_eglQueryDeviceStringEXT(_EGLDevice *dev, EGLint name);
 
-typedef struct _egl_image_attribs _EGLImageAttribs;
-
-typedef struct _egl_mode _EGLMode;
-
-typedef struct _egl_resource _EGLResource;
-
-typedef struct _egl_screen _EGLScreen;
-
-typedef struct _egl_surface _EGLSurface;
-
-typedef struct _egl_sync _EGLSync;
-
-typedef struct _egl_thread_info _EGLThreadInfo;
-
+EGLBoolean
+_eglQueryDevicesEXT(EGLint max_devices, _EGLDevice **devices,
+                    EGLint *num_devices);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* EGLTYPEDEFS_INCLUDED */
+#endif /* EGLDEVICE_INCLUDED */

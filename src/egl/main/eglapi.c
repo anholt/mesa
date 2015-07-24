@@ -95,6 +95,7 @@
 #include "egldisplay.h"
 #include "egltypedefs.h"
 #include "eglcurrent.h"
+#include "egldevice.h"
 #include "egldriver.h"
 #include "eglsurface.h"
 #include "eglconfig.h"
@@ -2581,6 +2582,69 @@ eglSetBlobCacheFuncsANDROID(EGLDisplay *dpy, EGLSetBlobFuncANDROID set,
    drv->API.SetBlobCacheFuncsANDROID(drv, disp, set, get);
 
    _eglUnlockDisplay(disp);
+}
+
+static EGLBoolean EGLAPIENTRY
+eglQueryDeviceAttribEXT(EGLDeviceEXT device,
+                        EGLint attribute,
+                        EGLAttrib *value)
+{
+   _EGLDevice *dev = _eglLookupDevice(device);
+   EGLBoolean ret;
+
+   _EGL_FUNC_START(NULL, EGL_NONE, NULL, EGL_FALSE);
+   if (!dev)
+      RETURN_EGL_ERROR(NULL, EGL_BAD_DEVICE_EXT, EGL_FALSE);
+
+   ret = _eglQueryDeviceAttribEXT(dev, attribute, value);
+   RETURN_EGL_EVAL(NULL, ret);
+}
+
+static const char * EGLAPIENTRY
+eglQueryDeviceStringEXT(EGLDeviceEXT device,
+                        EGLint name)
+{
+   _EGLDevice *dev = _eglLookupDevice(device);
+
+   _EGL_FUNC_START(NULL, EGL_NONE, NULL, NULL);
+   if (!dev)
+      RETURN_EGL_ERROR(NULL, EGL_BAD_DEVICE_EXT, NULL);
+
+   RETURN_EGL_EVAL(NULL, _eglQueryDeviceStringEXT(dev, name));
+}
+
+static EGLBoolean EGLAPIENTRY
+eglQueryDevicesEXT(EGLint max_devices,
+                   EGLDeviceEXT *devices,
+                   EGLint *num_devices)
+{
+   EGLBoolean ret;
+
+   _EGL_FUNC_START(NULL, EGL_NONE, NULL, EGL_FALSE);
+   ret = _eglQueryDevicesEXT(max_devices, (_EGLDevice **) devices,
+                             num_devices);
+   RETURN_EGL_EVAL(NULL, ret);
+}
+
+static EGLBoolean EGLAPIENTRY
+eglQueryDisplayAttribEXT(EGLDisplay dpy,
+                         EGLint attribute,
+                         EGLAttrib *value)
+{
+   _EGLDisplay *disp = _eglLockDisplay(dpy);
+   _EGLDriver *drv;
+
+   _EGL_FUNC_START(NULL, EGL_NONE, NULL, EGL_FALSE);
+   _EGL_CHECK_DISPLAY(disp, EGL_FALSE, drv);
+
+   switch (attribute) {
+   case EGL_DEVICE_EXT:
+      *value = (EGLAttrib) disp->Device;
+      break;
+   default:
+      RETURN_EGL_ERROR(disp, EGL_BAD_ATTRIBUTE, EGL_FALSE);
+   }
+   RETURN_EGL_SUCCESS(disp, EGL_TRUE);
 }
 
 __eglMustCastToProperFunctionPointerType EGLAPIENTRY
