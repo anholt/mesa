@@ -136,7 +136,7 @@ vc4_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
         vc4_draw_init(pctx);
         vc4_state_init(pctx);
         vc4_program_init(pctx);
-        vc4_query_init(pctx);
+        vc4_query_context_init(pctx);
         vc4_resource_context_init(pctx);
 
         vc4_job_init(vc4);

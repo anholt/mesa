@@ -690,6 +690,7 @@ vc4_screen_create(int fd, struct renderonly *ro)
 #endif
 
         vc4_resource_screen_init(pscreen);
+        vc4_query_screen_init(pscreen);
 
         pscreen->get_name = vc4_screen_get_name;
         pscreen->get_vendor = vc4_screen_get_vendor;

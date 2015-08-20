@@ -353,6 +353,15 @@ struct vc4_context {
 
         struct u_upload_mgr *uploader;
 
+        struct {
+                uint64_t draws;
+                uint64_t jobs;
+                uint64_t load_color;
+                uint64_t store_color;
+                uint64_t load_depth;
+                uint64_t store_depth;
+        } stats;
+
         /** @{ Current pipeline state objects */
         struct pipe_scissor_state scissor;
         struct pipe_blend_state *blend;
@@ -437,7 +446,8 @@ void vc4_draw_init(struct pipe_context *pctx);
 void vc4_state_init(struct pipe_context *pctx);
 void vc4_program_init(struct pipe_context *pctx);
 void vc4_program_fini(struct pipe_context *pctx);
-void vc4_query_init(struct pipe_context *pctx);
+void vc4_query_screen_init(struct pipe_screen *pscreen);
+void vc4_query_context_init(struct pipe_context *pctx);
 void vc4_simulator_init(struct vc4_screen *screen);
 void vc4_simulator_destroy(struct vc4_screen *screen);
 int vc4_simulator_flush(struct vc4_context *vc4,

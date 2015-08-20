@@ -265,10 +265,11 @@ vc4_get_job_for_fbo(struct vc4_context *vc4)
 }
 
 static void
-vc4_submit_setup_rcl_surface(struct vc4_job *job,
+vc4_submit_setup_rcl_surface(struct vc4_context *vc4, struct vc4_job *job,
                              struct drm_vc4_submit_rcl_surface *submit_surf,
                              struct pipe_surface *psurf,
-                             bool is_depth, bool is_write)
+                             bool is_depth, bool is_write,
+                             unsigned num_tiles)
 {
         struct vc4_surface *surf = vc4_surface(psurf);
 
@@ -302,14 +303,29 @@ vc4_submit_setup_rcl_surface(struct vc4_job *job,
                 submit_surf->flags |= VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES;
         }
 
+        unsigned size = rsc->cpp * 64 * 64 * num_tiles;
+        if (is_write) {
+                if (is_depth)
+                        vc4->stats.store_depth += size;
+                else
+                        vc4->stats.store_color += size;
+        } else {
+                if (is_depth)
+                        vc4->stats.load_depth += size;
+                else
+                        vc4->stats.load_color += size;
+        }
+
         if (is_write)
                 rsc->writes++;
 }
 
 static void
-vc4_submit_setup_rcl_render_config_surface(struct vc4_job *job,
+vc4_submit_setup_rcl_render_config_surface(struct vc4_context *vc4,
+                                           struct vc4_job *job,
                                            struct drm_vc4_submit_rcl_surface *submit_surf,
-                                           struct pipe_surface *psurf)
+                                           struct pipe_surface *psurf,
+                                           unsigned num_tiles)
 {
         struct vc4_surface *surf = vc4_surface(psurf);
 
@@ -330,13 +346,16 @@ vc4_submit_setup_rcl_render_config_surface(struct vc4_job *job,
                                       VC4_RENDER_CONFIG_MEMORY_FORMAT);
         }
 
+        vc4->stats.store_color += rsc->cpp * 64 * 64 * num_tiles;
         rsc->writes++;
 }
 
 static void
-vc4_submit_setup_rcl_msaa_surface(struct vc4_job *job,
+vc4_submit_setup_rcl_msaa_surface(struct vc4_context *vc4, struct vc4_job *job,
                                   struct drm_vc4_submit_rcl_surface *submit_surf,
-                                  struct pipe_surface *psurf)
+                                  struct pipe_surface *psurf,
+                                  bool is_depth,
+                                  unsigned num_tiles)
 {
         struct vc4_surface *surf = vc4_surface(psurf);
 
@@ -347,6 +366,11 @@ vc4_submit_setup_rcl_msaa_surface(struct vc4_job *job,
         submit_surf->hindex = vc4_gem_hindex(job, rsc->bo);
         submit_surf->offset = surf->offset;
         submit_surf->bits = 0;
+
+        if (is_depth)
+                vc4->stats.store_depth += rsc->cpp * 64 * 64 * num_tiles;
+        else
+                vc4->stats.store_color += rsc->cpp * 64 * 64 * num_tiles;
         rsc->writes++;
 }
 
@@ -396,28 +420,48 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
         cl_ensure_space(&job->bo_handles, 6 * sizeof(uint32_t));
         cl_ensure_space(&job->bo_pointers, 6 * sizeof(struct vc4_bo *));
 
+        assert(job->draw_min_x != ~0 && job->draw_min_y != ~0);
+        submit.min_x_tile = job->draw_min_x / job->tile_width;
+        submit.min_y_tile = job->draw_min_y / job->tile_height;
+        submit.max_x_tile = (job->draw_max_x - 1) / job->tile_width;
+        submit.max_y_tile = (job->draw_max_y - 1) / job->tile_height;
+
+        unsigned num_tiles = ((submit.max_x_tile - submit.min_x_tile + 1) *
+                              (submit.max_y_tile - submit.min_y_tile + 1));
+
         if (job->resolve & PIPE_CLEAR_COLOR) {
                 if (!(job->cleared & PIPE_CLEAR_COLOR)) {
-                        vc4_submit_setup_rcl_surface(job, &submit.color_read,
+                        vc4_submit_setup_rcl_surface(vc4, job,
+                                                     &submit.color_read,
                                                      job->color_read,
-                                                     false, false);
+                                                     false, false,
+                                                     num_tiles);
                 }
-                vc4_submit_setup_rcl_render_config_surface(job,
+                vc4_submit_setup_rcl_render_config_surface(vc4, job,
                                                            &submit.color_write,
-                                                           job->color_write);
-                vc4_submit_setup_rcl_msaa_surface(job,
+                                                           job->color_write,
+                                                           num_tiles);
+                vc4_submit_setup_rcl_msaa_surface(vc4, job,
                                                   &submit.msaa_color_write,
-                                                  job->msaa_color_write);
+                                                  job->msaa_color_write,
+                                                  false,
+                                                  num_tiles);
         }
         if (job->resolve & (PIPE_CLEAR_DEPTH | PIPE_CLEAR_STENCIL)) {
                 if (!(job->cleared & (PIPE_CLEAR_DEPTH | PIPE_CLEAR_STENCIL))) {
-                        vc4_submit_setup_rcl_surface(job, &submit.zs_read,
-                                                     job->zs_read, true, false);
+                        vc4_submit_setup_rcl_surface(vc4, job, &submit.zs_read,
+                                                     job->zs_read, true, false,
+                                                     num_tiles);
                 }
-                vc4_submit_setup_rcl_surface(job, &submit.zs_write,
-                                             job->zs_write, true, true);
-                vc4_submit_setup_rcl_msaa_surface(job, &submit.msaa_zs_write,
-                                                  job->msaa_zs_write);
+                vc4_submit_setup_rcl_surface(vc4, job,
+                                             &submit.zs_write,
+                                             job->zs_write, true, true,
+                                             num_tiles);
+                vc4_submit_setup_rcl_msaa_surface(vc4, job,
+                                                  &submit.msaa_zs_write,
+                                                  job->msaa_zs_write,
+                                                  true,
+                                                  num_tiles);
         }
 
         if (job->msaa) {
@@ -442,11 +486,6 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
         submit.uniforms = (uintptr_t)job->uniforms.base;
         submit.uniforms_size = cl_offset(&job->uniforms);
 
-        assert(job->draw_min_x != ~0 && job->draw_min_y != ~0);
-        submit.min_x_tile = job->draw_min_x / job->tile_width;
-        submit.min_y_tile = job->draw_min_y / job->tile_height;
-        submit.max_x_tile = (job->draw_max_x - 1) / job->tile_width;
-        submit.max_y_tile = (job->draw_max_y - 1) / job->tile_height;
         submit.width = job->draw_width;
         submit.height = job->draw_height;
         if (job->cleared) {
@@ -474,6 +513,8 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
                         vc4->last_emit_seqno = submit.seqno;
                 }
         }
+
+        vc4->stats.jobs++;
 
         if (vc4->last_emit_seqno - vc4->screen->finished_seqno > 5) {
                 if (!vc4_wait_seqno(vc4->screen,

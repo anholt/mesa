@@ -450,6 +450,7 @@ vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
                         start = 0;
                 }
         }
+        vc4->stats.draws++;
 
         /* We shouldn't have tripped the HW_2116 bug with the GFXH-515
          * workaround.
