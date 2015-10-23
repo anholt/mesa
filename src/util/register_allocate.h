@@ -26,6 +26,7 @@
  */
 
 #include <stdbool.h>
+#include "util/bitset.h"
 
 
 #ifdef __cplusplus
@@ -72,6 +73,11 @@ void ra_set_finalize(struct ra_regs *regs, unsigned int **conflicts);
 struct ra_graph *ra_alloc_interference_graph(struct ra_regs *regs,
 					     unsigned int count);
 void ra_set_node_class(struct ra_graph *g, unsigned int n, unsigned int c);
+void ra_set_select_reg_callback(struct ra_graph *g,
+                                unsigned int (*callback)(struct ra_graph *g,
+                                                         BITSET_WORD *regs,
+                                                         void *data),
+                                void *data);
 void ra_add_node_interference(struct ra_graph *g,
 			      unsigned int n1, unsigned int n2);
 /** @} */
