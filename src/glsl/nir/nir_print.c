@@ -439,21 +439,15 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
 
    switch (instr->intrinsic) {
    case nir_intrinsic_load_uniform:
-   case nir_intrinsic_load_uniform_indirect:
       var_list = &state->shader->uniforms;
       break;
    case nir_intrinsic_load_input:
-   case nir_intrinsic_load_input_indirect:
    case nir_intrinsic_load_per_vertex_input:
-   case nir_intrinsic_load_per_vertex_input_indirect:
       var_list = &state->shader->inputs;
       break;
    case nir_intrinsic_load_output:
-   case nir_intrinsic_load_output_indirect:
    case nir_intrinsic_store_output:
-   case nir_intrinsic_store_output_indirect:
    case nir_intrinsic_store_per_vertex_output:
-   case nir_intrinsic_store_per_vertex_output_indirect:
       var_list = &state->shader->outputs;
       break;
    default:
@@ -461,8 +455,7 @@ print_intrinsic_instr(nir_intrinsic_instr *instr, print_state *state)
    }
 
    nir_foreach_variable(var, var_list) {
-      if ((var->data.driver_location == instr->const_index[0]) &&
-          var->name) {
+      if ((var->data.driver_location == instr->const_index[0]) && var->name) {
          fprintf(fp, "\t/* %s */", var->name);
          break;
       }
