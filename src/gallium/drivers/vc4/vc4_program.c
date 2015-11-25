@@ -1516,7 +1516,8 @@ static void
 ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
 {
         const nir_intrinsic_info *info = &nir_intrinsic_infos[instr->intrinsic];
-        int dword_offset;
+        nir_const_value *const_offset;
+        unsigned offset;
         struct qreg *dest = NULL;
 
         if (info->has_dest) {
@@ -1526,21 +1527,23 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
         switch (instr->intrinsic) {
         case nir_intrinsic_load_uniform:
                 assert(instr->num_components == 1);
-                /* The offset is in bytes, but we need dwords */
-                assert(instr->const_index[0] % 4 == 0);
-                dword_offset = instr->const_index[0] / 4;
-                if (dword_offset < VC4_NIR_STATE_UNIFORM_OFFSET) {
-                        *dest = qir_uniform(c, QUNIFORM_UNIFORM, dword_offset);
+                const_offset = nir_src_as_const_value(instr->src[0]);
+                if (const_offset) {
+                        offset = instr->const_index[0] + const_offset->u[0];
+                        assert(offset % 4 == 0);
+                        /* We need dwords */
+                        offset = offset / 4;
+                        if (offset < VC4_NIR_STATE_UNIFORM_OFFSET) {
+                                *dest = qir_uniform(c, QUNIFORM_UNIFORM,
+                                                    offset);
+                        } else {
+                                *dest = qir_uniform(c, offset -
+                                                    VC4_NIR_STATE_UNIFORM_OFFSET,
+                                                    0);
+                        }
                 } else {
-                        *dest = qir_uniform(c, dword_offset -
-                                            VC4_NIR_STATE_UNIFORM_OFFSET,
-                                            0);
+                        *dest = indirect_uniform_load(c, instr);
                 }
-                break;
-
-        case nir_intrinsic_load_uniform_indirect:
-                *dest = indirect_uniform_load(c, instr);
-
                 break;
 
         case nir_intrinsic_load_user_clip_plane:
@@ -1554,7 +1557,10 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
 
         case nir_intrinsic_load_input:
                 assert(instr->num_components == 1);
+                const_offset = nir_src_as_const_value(instr->src[0]);
+                assert(const_offset && "vc4 doesn't support indirect inputs");
                 if (instr->const_index[0] >= VC4_NIR_TLB_COLOR_READ_INPUT) {
+                        assert(const_offset->u[0] == 0);
                         /* Reads of the per-sample color need to be done in
                          * order.
                          */
@@ -1568,17 +1574,22 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                         }
                         *dest = c->color_reads[sample_index];
                 } else {
-                        *dest = c->inputs[instr->const_index[0]];
+                        offset = instr->const_index[0] + const_offset->u[0];
+                        *dest = c->inputs[offset];
                 }
                 break;
 
         case nir_intrinsic_store_output:
+                const_offset = nir_src_as_const_value(instr->src[1]);
+                assert(const_offset && "vc4 doesn't support indirect outputs");
+                offset = instr->const_index[0] + const_offset->u[0];
+
                 /* MSAA color outputs are the only case where we have an
                  * output that's not lowered to being a store of a single 32
                  * bit value.
                  */
                 if (c->stage == QSTAGE_FRAG && instr->num_components == 4) {
-                        assert(instr->const_index[0] == c->output_color_index);
+                        assert(offset == c->output_color_index);
                         for (int i = 0; i < 4; i++) {
                                 c->sample_colors[i] =
                                         qir_MOV(c, ntq_get_src(c, instr->src[0],
@@ -1586,9 +1597,9 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                         }
                 } else {
                         assert(instr->num_components == 1);
-                        c->outputs[instr->const_index[0]] =
+                        c->outputs[offset] =
                                 qir_MOV(c, ntq_get_src(c, instr->src[0], 0));
-                        c->num_outputs = MAX2(c->num_outputs, instr->const_index[0] + 1);
+                        c->num_outputs = MAX2(c->num_outputs, offset + 1);
                 }
                 break;
 
