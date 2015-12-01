@@ -16,6 +16,7 @@ addons:
       - libxcb-dri2-0-dev
       - libx11-xcb-dev
       - llvm-3.4-dev
+      - scons
 
 env:
   global:
@@ -90,3 +91,6 @@ script:
     --with-dri-drivers=i915,i965,radeon,r200,swrast,nouveau
     --with-gallium-drivers=svga,swrast,vc4,virgl
   - make && make check
+  - git clone . mesa-scons
+  - cd mesa-scons
+  - scons
