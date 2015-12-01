@@ -156,14 +156,17 @@ _mesa_lookup_prim_by_nr(GLuint nr)
         print '# define LONGSTRING'
         print '#endif'
         print ''
-        print 'LONGSTRING static const char enum_string_table[] = '
+        print 'LONGSTRING static const char enum_string_table[] = {'
         for enum in sorted_enum_values:
             (name, pri) = self.enum_table[enum]
-            print '   "%s\\0"' % (name)
+            for ch in name:
+                print "'%c'," % ch,
+            print "'\\0',"
+
             string_offsets[ enum ] = i
             i += len(name) + 1
 
-        print '   ;'
+        print '};'
         print ''
 
 
