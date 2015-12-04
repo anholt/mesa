@@ -29,17 +29,31 @@ vc4_emit_state(struct pipe_context *pctx)
         struct vc4_context *vc4 = vc4_context(pctx);
 
         struct vc4_cl_out *bcl = cl_start(&vc4->bcl);
-        if (vc4->dirty & (VC4_DIRTY_SCISSOR | VC4_DIRTY_VIEWPORT)) {
+        if (vc4->dirty & (VC4_DIRTY_SCISSOR | VC4_DIRTY_VIEWPORT |
+                          VC4_DIRTY_RASTERIZER)) {
                 float *vpscale = vc4->viewport.scale;
                 float *vptranslate = vc4->viewport.translate;
                 float vp_minx = -fabsf(vpscale[0]) + vptranslate[0];
                 float vp_maxx = fabsf(vpscale[0]) + vptranslate[0];
                 float vp_miny = -fabsf(vpscale[1]) + vptranslate[1];
                 float vp_maxy = fabsf(vpscale[1]) + vptranslate[1];
-                uint32_t minx = MAX2(vc4->scissor.minx, vp_minx);
-                uint32_t miny = MAX2(vc4->scissor.miny, vp_miny);
-                uint32_t maxx = MIN2(vc4->scissor.maxx, vp_maxx);
-                uint32_t maxy = MIN2(vc4->scissor.maxy, vp_maxy);
+
+                /* Always clip the rendering to the viewport, since the
+                 * hardware does guardband clipping, meaning primitives would
+                 * rasterize outside of the view volume.
+                 */
+                uint32_t minx = vp_minx;
+                uint32_t miny = vp_miny;
+                uint32_t maxx = vp_maxx;
+                uint32_t maxy = vp_maxy;
+
+                /* Also clip to the scissor if it's enabled. */
+                if (vc4->rasterizer->base.scissor) {
+                        minx = MAX2(vc4->scissor.minx, vp_minx);
+                        miny = MAX2(vc4->scissor.miny, vp_miny);
+                        maxx = MIN2(vc4->scissor.maxx, vp_maxx);
+                        maxy = MIN2(vc4->scissor.maxy, vp_maxy);
+                }
 
                 cl_u8(&bcl, VC4_PACKET_CLIP_WINDOW);
                 cl_u16(&bcl, minx);
