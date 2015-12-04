@@ -340,8 +340,8 @@ static void
 vc4_nir_lower_uniform(struct vc4_compile *c, nir_builder *b,
                       nir_intrinsic_instr *intr)
 {
-        /* All TGSI-to-NIR uniform loads are vec4, but we may create dword
-         * loads in our lowering passes.
+        /* All TGSI-to-NIR uniform loads are vec4, but we need byte offsets
+         * in the backend.
          */
         if (intr->num_components == 1)
                 return;
@@ -357,6 +357,9 @@ vc4_nir_lower_uniform(struct vc4_compile *c, nir_builder *b,
                 intr_comp->num_components = 1;
                 nir_ssa_dest_init(&intr_comp->instr, &intr_comp->dest, 1, NULL);
 
+                /* Convert the base offset to bytes and add the component */
+                intr_comp->const_index[0] = (intr->const_index[0] * 16 + i * 4);
+
                 if (intr->intrinsic == nir_intrinsic_load_uniform_indirect) {
                         /* Convert the variable TGSI register index to a byte
                          * offset.
@@ -365,16 +368,6 @@ vc4_nir_lower_uniform(struct vc4_compile *c, nir_builder *b,
                                 nir_src_for_ssa(nir_ishl(b,
                                                          intr->src[0].ssa,
                                                          nir_imm_int(b, 4)));
-
-                        /* Convert the offset to be a byte index, too. */
-                        intr_comp->const_index[0] = (intr->const_index[0] * 16 +
-                                                     i * 4);
-                } else {
-                        /* We want a dword index for non-indirect uniform
-                         * loads.
-                         */
-                        intr_comp->const_index[0] = (intr->const_index[0] * 4 +
-                                                     i);
                 }
 
                 dests[i] = &intr_comp->dest.ssa;

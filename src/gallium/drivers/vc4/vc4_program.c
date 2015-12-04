@@ -1516,6 +1516,7 @@ static void
 ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
 {
         const nir_intrinsic_info *info = &nir_intrinsic_infos[instr->intrinsic];
+        int dword_offset;
         struct qreg *dest = NULL;
 
         if (info->has_dest) {
@@ -1525,11 +1526,13 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
         switch (instr->intrinsic) {
         case nir_intrinsic_load_uniform:
                 assert(instr->num_components == 1);
-                if (instr->const_index[0] < VC4_NIR_STATE_UNIFORM_OFFSET) {
-                        *dest = qir_uniform(c, QUNIFORM_UNIFORM,
-                                            instr->const_index[0]);
+                /* The offset is in bytes, but we need dwords */
+                assert(instr->const_index[0] % 4 == 0);
+                dword_offset = instr->const_index[0] / 4;
+                if (dword_offset < VC4_NIR_STATE_UNIFORM_OFFSET) {
+                        *dest = qir_uniform(c, QUNIFORM_UNIFORM, dword_offset);
                 } else {
-                        *dest = qir_uniform(c, instr->const_index[0] -
+                        *dest = qir_uniform(c, dword_offset -
                                             VC4_NIR_STATE_UNIFORM_OFFSET,
                                             0);
                 }
