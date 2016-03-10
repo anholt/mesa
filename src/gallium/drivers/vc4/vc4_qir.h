@@ -38,6 +38,7 @@
 
 #include "vc4_screen.h"
 #include "vc4_qpu_defines.h"
+#include "vc4_qpu.h"
 #include "kernel/vc4_packet.h"
 #include "pipe/p_state.h"
 
@@ -353,6 +354,14 @@ struct qblock {
         struct qblock *successors[2];
 
         int index;
+
+        /** @{ used by vc4_qir_live_variables.c */
+        BITSET_WORD *def;
+        BITSET_WORD *use;
+        BITSET_WORD *live_in;
+        BITSET_WORD *live_out;
+        int start_ip, end_ip;
+        /** @} */
 };
 
 struct vc4_compile {
@@ -422,6 +431,9 @@ struct vc4_compile {
         struct vc4_fs_key *fs_key;
         struct vc4_vs_key *vs_key;
 
+        /* Live ranges of temps. */
+        int *temp_start, *temp_end;
+
         uint32_t *uniform_data;
         enum quniform_contents *uniform_contents;
         uint32_t uniform_array_size;
@@ -488,6 +500,7 @@ struct qreg qir_emit_def(struct vc4_compile *c, struct qinst *inst);
 struct qinst *qir_emit_nondef(struct vc4_compile *c, struct qinst *inst);
 
 struct qreg qir_get_temp(struct vc4_compile *c);
+void qir_calculate_live_intervals(struct vc4_compile *c);
 int qir_get_op_nsrc(enum qop qop);
 bool qir_reg_equals(struct qreg a, struct qreg b);
 bool qir_has_side_effects(struct vc4_compile *c, struct qinst *inst);
@@ -667,7 +680,7 @@ qir_SEL(struct vc4_compile *c, uint8_t cond, struct qreg src0, struct qreg src1)
         struct qinst *a = qir_MOV_dest(c, t, src0);
         struct qinst *b = qir_MOV_dest(c, t, src1);
         a->cond = cond;
-        b->cond = cond ^ 1;
+        b->cond = qpu_cond_complement(cond);
         return t;
 }
 
