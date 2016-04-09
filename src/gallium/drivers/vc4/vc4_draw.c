@@ -255,6 +255,36 @@ vc4_hw_2116_workaround(struct pipe_context *pctx)
         }
 }
 
+static bool
+vc4_draw_fallback_polygon_mode(struct pipe_context *pctx,
+                               const struct pipe_draw_info *info)
+{
+        struct vc4_context *vc4 = vc4_context(pctx);
+
+        if (info->mode < PIPE_PRIM_TRIANGLES)
+                return false;
+
+        if (vc4->rasterizer->base.fill_front !=
+            vc4->rasterizer->base.fill_back) {
+                debug_warn_once("Unsupported polygon fill mode back != front");
+        }
+
+        if (vc4->rasterizer->base.fill_front == PIPE_POLYGON_MODE_FILL)
+                return false;
+
+        struct pipe_draw_info new_info = *info;
+
+        if (vc4->rasterizer->base.fill_front == PIPE_POLYGON_MODE_POINT &&
+            info->mode == PIPE_PRIM_TRIANGLES) {
+                new_info.mode = PIPE_PRIM_POINTS;
+                pctx->draw_vbo(pctx, &new_info);
+                return true;
+        }
+
+        debug_warn_once("Unsupported polygon front/back modes");
+        return false;
+}
+
 static void
 vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 {
@@ -268,6 +298,9 @@ vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
                            info->count, u_prim_name(info->mode));
                 return;
         }
+
+        if (vc4_draw_fallback_polygon_mode(pctx, info))
+                return;
 
         /* Before setting up the draw, do any fixup blits necessary. */
         vc4_update_shadow_textures(pctx, &vc4->verttex);
