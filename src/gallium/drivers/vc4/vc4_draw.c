@@ -22,11 +22,13 @@
  * IN THE SOFTWARE.
  */
 
+#include "util/u_draw.h"
 #include "util/u_prim.h"
 #include "util/u_format.h"
 #include "util/u_pack_color.h"
 #include "util/u_upload_mgr.h"
 #include "indices/u_primconvert.h"
+#include "indices/u_indices.h"
 
 #include "vc4_context.h"
 #include "vc4_resource.h"
@@ -272,23 +274,103 @@ vc4_draw_fallback_polygon_mode(struct pipe_context *pctx,
         if (vc4->rasterizer->base.fill_front == PIPE_POLYGON_MODE_FILL)
                 return false;
 
-        struct pipe_draw_info new_info = *info;
-
-        if (vc4->rasterizer->base.fill_front == PIPE_POLYGON_MODE_POINT &&
-            info->mode == PIPE_PRIM_TRIANGLES) {
+        struct pipe_draw_info new_info;
+        if (vc4->rasterizer->base.fill_front == PIPE_POLYGON_MODE_POINT) {
+                new_info = *info;
                 new_info.mode = PIPE_PRIM_POINTS;
                 pctx->draw_vbo(pctx, &new_info);
                 return true;
         }
 
-        debug_warn_once("Unsupported polygon front/back modes");
-        return false;
+        perf_debug("Fallback polygon fill mode by rewriting index buffers "
+                   "(%d verts).\n", info->count);
+
+        util_draw_init_info(&new_info);
+        new_info.indexed = true;
+        new_info.min_index = info->min_index;
+        new_info.max_index = info->max_index;
+        new_info.index_bias = info->index_bias;
+        new_info.start_instance = info->start_instance;
+        new_info.instance_count = info->instance_count;
+        new_info.primitive_restart = info->primitive_restart;
+        new_info.restart_index = info->restart_index;
+
+        struct pipe_index_buffer *ib = &vc4->indexbuf;
+        struct pipe_index_buffer saved_ib;
+        memset(&saved_ib, 0, sizeof(saved_ib));
+        pipe_resource_reference(&saved_ib.buffer, ib->buffer);
+        saved_ib.index_size = ib->index_size;
+        saved_ib.offset = ib->offset;
+        saved_ib.user_buffer = ib->user_buffer;
+
+        struct pipe_index_buffer new_ib;
+        memset(&new_ib, 0, sizeof(new_ib));
+        u_translate_func trans_func = NULL;
+        u_generate_func gen_func = NULL;
+        if (info->indexed) {
+                u_unfilled_translator(info->mode,
+                                      saved_ib.index_size,
+                                      info->count,
+                                      vc4->rasterizer->base.fill_front,
+                                      &new_info.mode,
+                                      &new_ib.index_size,
+                                      &new_info.count,
+                                      &trans_func);
+        } else {
+                u_unfilled_generator(info->mode,
+                                     info->start,
+                                     info->count,
+                                     vc4->rasterizer->base.fill_front,
+                                     &new_info.mode,
+                                     &new_ib.index_size,
+                                     &new_info.count,
+                                     &gen_func);
+        }
+
+        void *dst;
+        u_upload_alloc(vc4->uploader, 0, new_ib.index_size * new_info.count, 4,
+                       &new_ib.offset, &new_ib.buffer, &dst);
+
+        if (info->indexed) {
+                struct pipe_transfer *src_transfer = NULL;
+                const void *src;
+
+                src = saved_ib.user_buffer;
+                if (!src) {
+                        src = pipe_buffer_map(pctx, saved_ib.buffer,
+                                              PIPE_TRANSFER_READ, &src_transfer);
+                }
+                src = (const uint8_t *)src + saved_ib.offset;
+
+                trans_func(src, info->start, info->count, new_info.count,
+                           info->restart_index, dst);
+
+                if (src_transfer)
+                        pipe_buffer_unmap(pctx, src_transfer);
+        } else {
+                gen_func(info->start, new_info.count, dst);
+        }
+
+        u_upload_unmap(vc4->uploader);
+
+        pctx->set_index_buffer(pctx, &new_ib);
+
+        pctx->draw_vbo(pctx, &new_info);
+
+        pctx->set_index_buffer(pctx, &saved_ib);
+
+        pipe_resource_reference(&new_ib.buffer, NULL);
+
+        return true;
 }
 
 static void
 vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 {
         struct vc4_context *vc4 = vc4_context(pctx);
+
+        if (vc4_draw_fallback_polygon_mode(pctx, info))
+                return;
 
         if (info->mode >= PIPE_PRIM_QUADS) {
                 util_primconvert_save_index_buffer(vc4->primconvert, &vc4->indexbuf);
@@ -298,9 +380,6 @@ vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
                            info->count, u_prim_name(info->mode));
                 return;
         }
-
-        if (vc4_draw_fallback_polygon_mode(pctx, info))
-                return;
 
         /* Before setting up the draw, do any fixup blits necessary. */
         vc4_update_shadow_textures(pctx, &vc4->verttex);
