@@ -2250,6 +2250,13 @@ bool nir_lower_vec_to_movs(nir_shader *shader);
 void nir_lower_alu_to_scalar(nir_shader *shader);
 void nir_lower_load_const_to_scalar(nir_shader *shader);
 
+typedef enum {
+   nir_lower_alu_newton_raphson_frsq = (1 << 0),
+   nir_lower_alu_newton_raphson_frcp = (1 << 1),
+} nir_lower_alu_newton_raphson_flags;
+bool nir_lower_alu_newton_raphson(nir_shader *shader,
+                                  nir_lower_alu_newton_raphson_flags flags);
+
 void nir_lower_phis_to_scalar(nir_shader *shader);
 
 void nir_lower_samplers(nir_shader *shader,

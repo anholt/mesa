@@ -184,6 +184,7 @@ NIR_FILES = \
 	nir/nir_intrinsics.c \
 	nir/nir_intrinsics.h \
 	nir/nir_liveness.c \
+	nir/nir_lower_alu_newton_raphson.c \
 	nir/nir_lower_alu_to_scalar.c \
 	nir/nir_lower_atomics.c \
 	nir/nir_lower_clip.c \
