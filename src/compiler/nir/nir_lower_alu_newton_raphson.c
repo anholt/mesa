@@ -73,12 +73,12 @@ lower_alu_instr_scalar(nir_alu_instr *instr,
                          nir_fsub(b,
                                   nir_imm_float(b, 1.5),
                                   nir_fmul(b,
-                                           nir_imm_float(b, 0.5),
                                            nir_fmul(b,
                                                     arg0,
-                                                    nir_fmul(b,
-                                                             approx,
-                                                             approx)))));
+                                                    nir_imm_float(b, 0.5)),
+                                           nir_fmul(b,
+                                                    approx,
+                                                    approx))));
       break;
 
    default:
