@@ -29,12 +29,30 @@
 
 #define QPU_R(file, index) { QPU_MUX_##file, index }
 
+/* Full set of QPU registers available.  Listed in priority order for the
+ * register allocator to choose them (since we don't set the round robin
+ * flag).
+ */
 static const struct qpu_reg vc4_regs[] = {
+        /* Prefer putting temps in r4 if possible, since QPU instructions
+         * generate values in r4 and we'll have to generate an extra mov from
+         * r4 to the result otherwise.
+         */
+        { QPU_MUX_R4, 0},
+
+        /* Otherwise, prefer an accumulator, since it means not having to have
+         * an extra cycle between when it's written and when it can be read.
+         */
         { QPU_MUX_R0, 0},
         { QPU_MUX_R1, 0},
         { QPU_MUX_R2, 0},
         { QPU_MUX_R3, 0},
-        { QPU_MUX_R4, 0},
+
+        /* Now, all of the normal registers.  These are interleaved so that
+         * the register allocator will choose from both.  This means that
+         * we'll have fewer raddr conflicts in instructions, and thus fewer
+         * extra moves generated.
+         */
         QPU_R(A, 0),
         QPU_R(B, 0),
         QPU_R(A, 1),
