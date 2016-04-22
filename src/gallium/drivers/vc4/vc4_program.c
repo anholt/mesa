@@ -212,35 +212,6 @@ qir_SAT(struct vc4_compile *c, struct qreg val)
 }
 
 static struct qreg
-ntq_rcp(struct vc4_compile *c, struct qreg x)
-{
-        struct qreg r = qir_RCP(c, x);
-
-        /* Apply a Newton-Raphson step to improve the accuracy. */
-        r = qir_FMUL(c, r, qir_FSUB(c,
-                                    qir_uniform_f(c, 2.0),
-                                    qir_FMUL(c, x, r)));
-
-        return r;
-}
-
-static struct qreg
-ntq_rsq(struct vc4_compile *c, struct qreg x)
-{
-        struct qreg r = qir_RSQ(c, x);
-
-        /* Apply a Newton-Raphson step to improve the accuracy. */
-        r = qir_FMUL(c, r, qir_FSUB(c,
-                                    qir_uniform_f(c, 1.5),
-                                    qir_FMUL(c,
-                                             qir_uniform_f(c, 0.5),
-                                             qir_FMUL(c, x,
-                                                      qir_FMUL(c, r, r)))));
-
-        return r;
-}
-
-static struct qreg
 ntq_umul(struct vc4_compile *c, struct qreg src0, struct qreg src1)
 {
         struct qreg src0_hi = qir_SHR(c, src0,
@@ -1069,10 +1040,10 @@ ntq_emit_alu(struct vc4_compile *c, nir_alu_instr *instr)
                 break;
 
         case nir_op_frcp:
-                *dest = ntq_rcp(c, src[0]);
+                *dest = qir_RCP(c, src[0]);
                 break;
         case nir_op_frsq:
-                *dest = ntq_rsq(c, src[0]);
+                *dest = qir_RSQ(c, src[0]);
                 break;
         case nir_op_fexp2:
                 *dest = qir_EXP2(c, src[0]);
@@ -1815,6 +1786,16 @@ vc4_shader_ntq(struct vc4_context *vc4, enum qstage stage,
         c->s = tgsi_to_nir(tokens, &nir_options);
         NIR_PASS_V(c->s, nir_opt_global_to_local);
         NIR_PASS_V(c->s, nir_convert_to_ssa);
+
+        /* Add Newton-Raphson improvements to math before we do any texture
+         * lowering.  We also need to run a round of algebraic beforehand so
+         * that we get our fdiv/fsqrt lowered to frcp/frsq for the
+         * Newton/Raphson pass.
+         */
+        NIR_PASS_V(c->s, nir_opt_algebraic);
+        NIR_PASS_V(c->s, nir_lower_alu_newton_raphson,
+                   nir_lower_alu_newton_raphson_frcp |
+                   nir_lower_alu_newton_raphson_frsq);
 
         if (stage == QSTAGE_FRAG)
                 NIR_PASS_V(c->s, vc4_nir_lower_blend, c);
