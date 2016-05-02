@@ -475,6 +475,8 @@ struct vc4_compile {
         struct list_head blocks;
         int next_block_index;
         struct qblock *cur_block;
+        struct qblock *loop_cont_block;
+        struct qblock *loop_break_block;
 
         struct list_head qpu_inst_list;
 
