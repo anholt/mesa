@@ -1963,7 +1963,15 @@ static const nir_shader_compiler_options nir_options = {
         .lower_fsat = true,
         .lower_fsqrt = true,
         .lower_negate = true,
+        .native_integers = true,
 };
+
+const void *
+vc4_screen_get_compiler_options(struct pipe_screen *pscreen,
+                                enum pipe_shader_ir ir, unsigned shader)
+{
+        return &nir_options;
+}
 
 static int
 count_nir_instrs(nir_shader *nir)
@@ -2171,14 +2179,24 @@ vc4_shader_state_create(struct pipe_context *pctx,
 
         so->program_id = vc4->next_uncompiled_program_id++;
 
-        nir_shader *s = tgsi_to_nir(cso->tokens, &nir_options);
+        nir_shader *s;
 
-        if (vc4_debug & VC4_DEBUG_TGSI) {
-                fprintf(stderr, "%s prog %d TGSI:\n",
-                        gl_shader_stage_name(s->stage),
-                        so->program_id);
-                tgsi_dump(cso->tokens, 0);
-                fprintf(stderr, "\n");
+        if (cso->type == PIPE_SHADER_IR_NIR) {
+                /* The backend takes ownership of the NIR shader on state
+                 * creation.
+                 */
+                s = cso->ir.nir;
+        } else {
+                assert(cso->type == PIPE_SHADER_IR_TGSI);
+                s = tgsi_to_nir(cso->tokens, &nir_options);
+
+                if (vc4_debug & VC4_DEBUG_TGSI) {
+                        fprintf(stderr, "%s prog %d TGSI:\n",
+                                gl_shader_stage_name(s->stage),
+                                so->program_id);
+                        tgsi_dump(cso->tokens, 0);
+                        fprintf(stderr, "\n");
+                }
         }
 
         so->base.type = PIPE_SHADER_IR_NIR;
