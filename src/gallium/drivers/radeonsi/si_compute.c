@@ -441,6 +441,21 @@ static void si_launch_grid(
 	struct si_context *sctx = (struct si_context*)ctx;
 	struct si_compute *program = sctx->cs_shader_state.program;
 	int i;
+	/* HW bug workaround when CS threadgroups > 256 threads and async
+	 * compute isn't used, i.e. only one compute job can run at a time.
+	 * If async compute is possible, the threadgroup size must be limited
+	 * to 256 threads on all queues to avoid the bug.
+	 * Only SI and certain CIK chips are affected.
+	 */
+	bool cs_regalloc_hang =
+		(sctx->b.chip_class == SI ||
+		 sctx->b.family == CHIP_BONAIRE ||
+		 sctx->b.family == CHIP_KABINI) &&
+		info->block[0] * info->block[1] * info->block[2] > 256;
+
+	if (cs_regalloc_hang)
+		sctx->b.flags |= SI_CONTEXT_PS_PARTIAL_FLUSH |
+				 SI_CONTEXT_CS_PARTIAL_FLUSH;
 
 	si_decompress_compute_textures(sctx);
 
@@ -487,6 +502,9 @@ static void si_launch_grid(
 	si_emit_dispatch_packets(sctx, info);
 
 	si_ce_post_draw_synchronization(sctx);
+
+	if (cs_regalloc_hang)
+		sctx->b.flags |= SI_CONTEXT_CS_PARTIAL_FLUSH;
 }
 
 
