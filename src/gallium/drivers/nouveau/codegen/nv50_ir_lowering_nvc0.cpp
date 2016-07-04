@@ -1673,7 +1673,7 @@ NVC0LoweringPass::processSurfaceCoordsNVE4(TexInstruction *su)
    const int idx = su->tex.r;
    const int dim = su->tex.target.getDim();
    const int arg = dim + (su->tex.target.isArray() || su->tex.target.isCube());
-   const uint16_t base = idx * NVE4_SU_INFO__STRIDE;
+   uint16_t base = idx * NVE4_SU_INFO__STRIDE;
    int c;
    Value *zero = bld.mkImm(0);
    Value *p1 = NULL;
@@ -1700,6 +1700,7 @@ NVC0LoweringPass::processSurfaceCoordsNVE4(TexInstruction *su)
       }
       ind = bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(), ind, bld.mkImm(7));
       ind = bld.mkOp2v(OP_SHL, TYPE_U32, bld.getSSA(), ind, bld.mkImm(6));
+      base = 0;
    }
 
    // calculate clamped coordinates
@@ -2037,7 +2038,7 @@ NVC0LoweringPass::processSurfaceCoordsNVC0(TexInstruction *su)
    const int idx = su->tex.r;
    const int dim = su->tex.target.getDim();
    const int arg = dim + (su->tex.target.isArray() || su->tex.target.isCube());
-   const uint16_t base = idx * NVE4_SU_INFO__STRIDE;
+   uint16_t base = idx * NVE4_SU_INFO__STRIDE;
    int c;
    Value *zero = bld.mkImm(0);
    Value *src[3];
@@ -2052,6 +2053,7 @@ NVC0LoweringPass::processSurfaceCoordsNVC0(TexInstruction *su)
       }
       ind = bld.mkOp2v(OP_AND, TYPE_U32, bld.getSSA(), ind, bld.mkImm(7));
       ind = bld.mkOp2v(OP_SHL, TYPE_U32, bld.getSSA(), ind, bld.mkImm(6));
+      base = 0;
    }
 
    // get surface coordinates
