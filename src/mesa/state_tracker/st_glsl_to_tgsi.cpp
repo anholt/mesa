@@ -818,7 +818,7 @@ glsl_to_tgsi_visitor::emit_asm(ir_instruction *ir, unsigned op,
 
             if (dinst->src[j].type == GLSL_TYPE_DOUBLE) {
                dinst->src[j].index = initial_src_idx[j];
-               if (swz > 1 && dinst->src[j].file != PROGRAM_IMMEDIATE) {
+               if (swz > 1) {
                   dinst->src[j].double_reg2 = true;
                   dinst->src[j].index++;
 	       }
