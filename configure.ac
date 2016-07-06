@@ -2330,45 +2330,6 @@ swr_llvm_check() {
     fi
 }
 
-swr_require_cxx_feature_flags() {
-    feature_name="$1"
-    preprocessor_test="$2"
-    option_list="$3"
-    output_var="$4"
-
-    AC_MSG_CHECKING([whether $CXX supports $feature_name])
-    AC_LANG_PUSH([C++])
-    save_CXXFLAGS="$CXXFLAGS"
-    save_IFS="$IFS"
-    IFS=","
-    found=0
-    for opts in $option_list
-    do
-        unset IFS
-        CXXFLAGS="$opts $save_CXXFLAGS"
-        AC_COMPILE_IFELSE(
-            [AC_LANG_PROGRAM(
-                [   #if !($preprocessor_test)
-                    #error
-                    #endif
-                ])],
-            [found=1; break],
-            [])
-        IFS=","
-    done
-    IFS="$save_IFS"
-    CXXFLAGS="$save_CXXFLAGS"
-    AC_LANG_POP([C++])
-    if test $found -eq 1; then
-        AC_MSG_RESULT([$opts])
-        eval "$output_var=\$opts"
-        return 0
-    fi
-    AC_MSG_RESULT([no])
-    AC_MSG_ERROR([swr requires $feature_name support])
-    return 1
-}
-
 dnl Duplicates in GALLIUM_DRIVERS_DIRS are removed by sorting it after this block
 if test -n "$with_gallium_drivers"; then
     gallium_drivers=`IFS=', '; echo $with_gallium_drivers`
@@ -2438,7 +2399,6 @@ if test -n "$with_gallium_drivers"; then
         xswr)
             swr_llvm_check "swr"
 
-<<<<<<< HEAD
             AC_MSG_CHECKING([whether $CXX supports c++11/AVX/AVX2])
             AVX_CXXFLAGS="-march=core-avx-i"
             AVX2_CXXFLAGS="-march=core-avx2"
@@ -2463,23 +2423,6 @@ if test -n "$with_gallium_drivers"; then
             CXXFLAGS="$save_CXXFLAGS"
             AC_LANG_POP([C++])
 
-=======
-            swr_require_cxx_feature_flags "C++11" "__cplusplus >= 201103L" \
-                ",-std=c++11" \
-                SWR_CXX11_CXXFLAGS
-            AC_SUBST([SWR_CXX11_CXXFLAGS])
-
-            swr_require_cxx_feature_flags "AVX" "defined(__AVX__)" \
-                ",-mavx,-march=core-avx" \
-                SWR_AVX_CXXFLAGS
-            AC_SUBST([SWR_AVX_CXXFLAGS])
-
-            swr_require_cxx_feature_flags "AVX2" "defined(__AVX2__)" \
-                ",-mavx2 -mfma -mbmi2 -mf16c,-march=core-avx2" \
-                SWR_AVX2_CXXFLAGS
-            AC_SUBST([SWR_AVX2_CXXFLAGS])
-
->>>>>>> c1bf669... swr: Refactor checks for compiler feature flags
             HAVE_GALLIUM_SWR=yes
             ;;
         xvc4)
