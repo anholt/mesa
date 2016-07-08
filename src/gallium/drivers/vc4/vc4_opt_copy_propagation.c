@@ -59,6 +59,15 @@ qir_opt_copy_propagation(struct vc4_compile *c)
                                 continue;
                         }
 
+                        /* In the presence of control flow, we can't
+                         * necessarily copy propagate a mov from a non-SSA
+                         * value.
+                         */
+                        if (mov->src[0].file == QFILE_TEMP &&
+                            !c->defs[mov->src[0].index]) {
+                                continue;
+                        }
+
                         if (mov->dst.pack)
                                 continue;
 
