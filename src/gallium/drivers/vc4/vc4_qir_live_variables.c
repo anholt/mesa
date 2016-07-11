@@ -29,6 +29,11 @@
 #include "vc4_context.h"
 #include "vc4_qir.h"
 
+struct partial_update_state {
+        struct qinst *insts[4];
+        uint8_t channels;
+};
+
 static uint32_t
 int_hash(const void *key)
 {
@@ -69,9 +74,27 @@ qir_setup_use(struct vc4_compile *c, struct qblock *block, int ip,
                 BITSET_SET(block->use, var);
 }
 
+static struct partial_update_state *
+get_partial_update_state(struct hash_table *partial_update_ht,
+                         struct qinst *inst)
+{
+        struct hash_entry *entry =
+                _mesa_hash_table_search(partial_update_ht,
+                                        &inst->dst.index);
+        if (entry)
+                return entry->data;
+
+        struct partial_update_state *state =
+                rzalloc(partial_update_ht, struct partial_update_state);
+
+        _mesa_hash_table_insert(partial_update_ht, &inst->dst.index, state);
+
+        return state;
+}
+
 static void
 qir_setup_def(struct vc4_compile *c, struct qblock *block, int ip,
-              struct hash_table *cond_update_ht, struct qinst *inst)
+              struct hash_table *partial_update_ht, struct qinst *inst)
 {
         /* The def[] bitset marks when an initialization in a
          * block completely screens off previous updates of
@@ -90,37 +113,65 @@ qir_setup_def(struct vc4_compile *c, struct qblock *block, int ip,
         if (BITSET_TEST(block->use, var) || BITSET_TEST(block->def, var))
                 return;
 
-        /* If it's a weird write, then don't try to track it as a def. */
-        if (inst->dst.pack) {
-                struct hash_entry *entry =
-                        _mesa_hash_table_search(cond_update_ht,
-                                                &inst->dst.index);
-                _mesa_hash_table_remove(cond_update_ht,
-                                        entry);
+        /* Easy, common case: unconditional full register update. */
+        if (inst->cond == QPU_COND_ALWAYS && !inst->dst.pack) {
+                BITSET_SET(block->def, var);
                 return;
         }
 
-        /* Finally, look at the condition code and mark it as a def.  We need
-         * to make sure that we understand pairs of instructions like "mov.zs
-         * dst, src0; mov.zc dst, src1" as being defined within the block,
-         * because otherwise dst's live range will get extended up the control
-         * flow to the top of the program.
+        /* Finally, look at the condition code and packing and mark it as a
+         * def.  We need to make sure that we understand sequences
+         * instructions like:
+         *
+         *     mov.zs t0, t1
+         *     mov.zc t0, t2
+         *
+         * or:
+         *
+         *     mmov t0.8a, t1
+         *     mmov t0.8b, t2
+         *     mmov t0.8c, t3
+         *     mmov t0.8d, t4
+         *
+         * as defining the temp within the block, because otherwise dst's live
+         * range will get extended up the control flow to the top of the
+         * program.
          */
-        if (inst->cond == QPU_COND_ALWAYS) {
-                BITSET_SET(block->def, var);
-        } else {
-                struct hash_entry *entry =
-                        _mesa_hash_table_search(cond_update_ht,
-                                                &inst->dst.index);
-                struct qinst *prev_write = entry ? entry->data : NULL;
+        struct partial_update_state *state =
+                get_partial_update_state(partial_update_ht, inst);
+        uint8_t mask = qir_channels_written(inst);
 
-                if (prev_write &&
-                    prev_write->cond == qpu_cond_complement(inst->cond)) {
-                        BITSET_SET(block->def, var);
-                } else {
-                        _mesa_hash_table_insert(cond_update_ht,
-                                                &inst->dst.index,
-                                                inst);
+        if (inst->cond == QPU_COND_ALWAYS) {
+                state->channels |= mask;
+        } else {
+                for (int i = 0; i < 4; i++) {
+                        if (!(mask & (1 << i)))
+                                continue;
+
+                        if (state->insts[i] &&
+                            state->insts[i]->cond ==
+                            qpu_cond_complement(inst->cond))
+                                state->channels |= 1 << i;
+                        else
+                                state->insts[i] = inst;
+                }
+        }
+
+        if (state->channels == 0xf)
+                BITSET_SET(block->def, var);
+}
+
+static void
+sf_state_clear(struct hash_table *partial_update_ht)
+{
+        struct hash_entry *entry;
+
+        hash_table_foreach(partial_update_ht, entry) {
+                struct partial_update_state *state = entry->data;
+
+                for (int i = 0; i < 4; i++) {
+                        if (state->insts[i] && state->insts[i]->cond)
+                                state->insts[i] = NULL;
                 }
         }
 }
@@ -135,23 +186,23 @@ qir_setup_def(struct vc4_compile *c, struct qblock *block, int ip,
 static void
 qir_setup_def_use(struct vc4_compile *c)
 {
-        struct hash_table *cond_update_ht =
+        struct hash_table *partial_update_ht =
                 _mesa_hash_table_create(c, int_hash, int_compare);
         int ip = 0;
 
         qir_for_each_block(block, c) {
                 block->start_ip = ip;
 
-                _mesa_hash_table_clear(cond_update_ht, NULL);
+                _mesa_hash_table_clear(partial_update_ht, NULL);
 
                 qir_for_each_inst(inst, block) {
                         for (int i = 0; i < qir_get_op_nsrc(inst->op); i++)
                                 qir_setup_use(c, block, ip, inst->src[i]);
 
-                        qir_setup_def(c, block, ip, cond_update_ht, inst);
+                        qir_setup_def(c, block, ip, partial_update_ht, inst);
 
                         if (inst->sf)
-                                _mesa_hash_table_clear(cond_update_ht, NULL);
+                                sf_state_clear(partial_update_ht);
 
                         switch (inst->op) {
                         case QOP_FRAG_Z:
@@ -171,7 +222,7 @@ qir_setup_def_use(struct vc4_compile *c)
                 block->end_ip = ip;
         }
 
-        _mesa_hash_table_destroy(cond_update_ht, NULL);
+        _mesa_hash_table_destroy(partial_update_ht, NULL);
 }
 
 static bool
