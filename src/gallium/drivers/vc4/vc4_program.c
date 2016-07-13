@@ -227,12 +227,17 @@ ntq_get_src(struct vc4_compile *c, nir_src src, int i)
         return qregs[i];
 }
 
+static int ntq_alu_swizzle_chan(nir_alu_instr *instr)
+{
+        assert(util_is_power_of_two(instr->dest.write_mask));
+        return ffs(instr->dest.write_mask) - 1;
+}
+
 static struct qreg
 ntq_get_alu_src(struct vc4_compile *c, nir_alu_instr *instr,
                 unsigned src)
 {
-        assert(util_is_power_of_two(instr->dest.write_mask));
-        unsigned chan = ffs(instr->dest.write_mask) - 1;
+        unsigned chan = ntq_alu_swizzle_chan(instr);
         struct qreg r = ntq_get_src(c, instr->src[src].src,
                                     instr->src[src].swizzle[chan]);
 
@@ -809,38 +814,32 @@ ntq_emit_pack_unorm_4x8(struct vc4_compile *c, nir_alu_instr *instr)
         ntq_store_dest(c, &instr->dest.dest, 0, result);
 }
 
-/** Handles sign-extended bitfield extracts for 16 bits. */
+/** Handles bitfield extracts.
+ *
+ * We only generate bitfield extracts in the NIR from vc4_nir_lower_io, so we
+ * know that the arguments are constants we can handle using our unpack flags.
+ */
 static struct qreg
-ntq_emit_ibfe(struct vc4_compile *c, struct qreg base, struct qreg offset,
-              struct qreg bits)
+ntq_emit_bfe(struct vc4_compile *c, nir_alu_instr *instr, struct qreg base)
 {
-        assert(bits.file == QFILE_UNIF &&
-               c->uniform_contents[bits.index] == QUNIFORM_CONSTANT &&
-               c->uniform_data[bits.index] == 16);
+        uint32_t chan = ntq_alu_swizzle_chan(instr);
+        nir_const_value *offset = nir_src_as_const_value(instr->src[1].src);
+        nir_const_value *bits = nir_src_as_const_value(instr->src[2].src);
+        uint32_t offset_val = offset->u32[instr->src[1].swizzle[chan]];
+        uint32_t bits_val = bits->u32[instr->src[2].swizzle[chan]];
 
-        assert(offset.file == QFILE_UNIF &&
-               c->uniform_contents[offset.index] == QUNIFORM_CONSTANT);
-        int offset_bit = c->uniform_data[offset.index];
-        assert(offset_bit % 16 == 0);
-
-        return qir_UNPACK_16_I(c, base, offset_bit / 16);
-}
-
-/** Handles unsigned bitfield extracts for 8 bits. */
-static struct qreg
-ntq_emit_ubfe(struct vc4_compile *c, struct qreg base, struct qreg offset,
-              struct qreg bits)
-{
-        assert(bits.file == QFILE_UNIF &&
-               c->uniform_contents[bits.index] == QUNIFORM_CONSTANT &&
-               c->uniform_data[bits.index] == 8);
-
-        assert(offset.file == QFILE_UNIF &&
-               c->uniform_contents[offset.index] == QUNIFORM_CONSTANT);
-        int offset_bit = c->uniform_data[offset.index];
-        assert(offset_bit % 8 == 0);
-
-        return qir_UNPACK_8_I(c, base, offset_bit / 8);
+        switch (instr->op) {
+        case nir_op_ibitfield_extract:
+                assert(offset_val % 16 == 0);
+                assert(bits_val == 16);
+                return qir_UNPACK_16_I(c, base, offset_val / 16);
+        case nir_op_ubitfield_extract:
+                assert(offset_val % 8 == 0);
+                assert(bits_val == 8);
+                return qir_UNPACK_8_I(c, base, offset_val / 8);
+        default:
+                unreachable("Bad bitfield extract type");
+        }
 }
 
 /**
@@ -1138,11 +1137,8 @@ ntq_emit_alu(struct vc4_compile *c, nir_alu_instr *instr)
                 break;
 
         case nir_op_ibitfield_extract:
-                result = ntq_emit_ibfe(c, src[0], src[1], src[2]);
-                break;
-
         case nir_op_ubitfield_extract:
-                result = ntq_emit_ubfe(c, src[0], src[1], src[2]);
+                result = ntq_emit_bfe(c, instr, src[0]);
                 break;
 
         case nir_op_usadd_4x8:
