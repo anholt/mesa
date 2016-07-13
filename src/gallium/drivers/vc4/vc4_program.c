@@ -1523,8 +1523,13 @@ static void
 ntq_emit_load_const(struct vc4_compile *c, nir_load_const_instr *instr)
 {
         struct qreg *qregs = ntq_init_ssa_def(c, &instr->def);
-        for (int i = 0; i < instr->def.num_components; i++)
-                qregs[i] = qir_uniform_ui(c, instr->value.u32[i]);
+        for (int i = 0; i < instr->def.num_components; i++) {
+                if (qpu_encode_small_immediate(instr->value.u32[i]) != ~0) {
+                        qregs[i] = qir_uniform_ui(c, instr->value.u32[i]);
+                } else {
+                        qregs[i] = qir_LOAD_IMM(c, instr->value.u32[i]);
+                }
+        }
 
         _mesa_hash_table_insert(c->def_ht, &instr->def, qregs);
 }
