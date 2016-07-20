@@ -33,6 +33,7 @@
 
 #include "vc4_context.h"
 #include "vc4_screen.h"
+#include "i915_drm.h"
 
 static bool dump_stats = false;
 
@@ -150,14 +151,11 @@ retry:
                 ret = drmIoctl(screen->fd, DRM_IOCTL_VC4_CREATE_BO, &create);
                 bo->handle = create.handle;
         } else {
-                struct drm_mode_create_dumb create;
-                memset(&create, 0, sizeof(create));
+                struct drm_i915_gem_create create = {
+                        .size = size,
+                };
 
-                create.width = 128;
-                create.bpp = 8;
-                create.height = (size + 127) / 128;
-
-                ret = drmIoctl(screen->fd, DRM_IOCTL_MODE_CREATE_DUMB, &create);
+                ret = drmIoctl(screen->fd, DRM_IOCTL_I915_GEM_CREATE, &create);
                 bo->handle = create.handle;
                 assert(create.size >= size);
         }
@@ -430,14 +428,11 @@ vc4_bo_alloc_shader(struct vc4_screen *screen, const void *data, uint32_t size)
                                &create);
                 bo->handle = create.handle;
         } else {
-                struct drm_mode_create_dumb create;
-                memset(&create, 0, sizeof(create));
+                struct drm_i915_gem_create create = {
+                        .size = size,
+                };
 
-                create.width = 128;
-                create.bpp = 8;
-                create.height = (size + 127) / 128;
-
-                ret = drmIoctl(screen->fd, DRM_IOCTL_MODE_CREATE_DUMB, &create);
+                ret = drmIoctl(screen->fd, DRM_IOCTL_I915_GEM_CREATE, &create);
                 bo->handle = create.handle;
                 assert(create.size >= size);
 
@@ -582,10 +577,10 @@ vc4_bo_map_unsynchronized(struct vc4_bo *bo)
                 ret = drmIoctl(bo->screen->fd, DRM_IOCTL_VC4_MMAP_BO, &map);
                 offset = map.offset;
         } else {
-                struct drm_mode_map_dumb map;
+                struct drm_i915_gem_mmap_gtt map;
                 memset(&map, 0, sizeof(map));
                 map.handle = bo->handle;
-                ret = drmIoctl(bo->screen->fd, DRM_IOCTL_MODE_MAP_DUMB, &map);
+                ret = drmIoctl(bo->screen->fd, DRM_IOCTL_I915_GEM_MMAP_GTT, &map);
                 offset = map.offset;
         }
         if (ret != 0) {
