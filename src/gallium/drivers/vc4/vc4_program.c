@@ -41,6 +41,10 @@
 #include "simpenrose/simpenrose.h"
 #endif
 
+static struct vc4_compiled_shader *
+vc4_get_compiled_shader(struct vc4_context *vc4, enum qstage stage,
+                        struct vc4_key *key);
+
 static struct qreg
 ntq_get_src(struct vc4_compile *c, nir_src src, int i);
 static void
@@ -2148,6 +2152,13 @@ vc4_shader_ntq(struct vc4_context *vc4, enum qstage stage,
 
         return c;
 }
+static void
+vc4_setup_shared_precomp_key(struct vc4_context *vc4, struct vc4_key *key)
+{
+        for (int i = 0; i < ARRAY_SIZE(key->tex); i++) {
+                key->tex[i].format = PIPE_FORMAT_B8G8R8A8_UNORM;
+        }
+}
 
 static void *
 vc4_shader_state_create(struct pipe_context *pctx,
@@ -2172,6 +2183,34 @@ vc4_shader_state_create(struct pipe_context *pctx,
 
         so->base.type = PIPE_SHADER_IR_NIR;
         so->base.ir.nir = s;
+
+        if (s->stage == MESA_SHADER_FRAGMENT) {
+                struct vc4_fs_key local_key = {
+                        .base.shader_state = so,
+                        .color_format = PIPE_FORMAT_B8G8R8A8_UNORM,
+                        .depth_enabled = true,
+                        .blend.colormask = 0xf,
+                        .logicop_func = PIPE_LOGICOP_COPY,
+                };
+                struct vc4_fs_key *key = &local_key;
+
+                vc4_setup_shared_precomp_key(vc4, &key->base);
+
+                vc4_get_compiled_shader(vc4, QSTAGE_FRAG, &key->base);
+        } else if (0) {
+                struct vc4_vs_key local_key;
+                struct vc4_vs_key *key = &local_key;
+
+                memset(key, 0, sizeof(*key));
+                vc4_setup_shared_precomp_key(vc4, &key->base);
+                key->base.shader_state = so;
+                key->compiled_fs_id = so->program_id;
+
+                for (int i = 0; i < ARRAY_SIZE(key->attr_formats); i++)
+                        key->attr_formats[i] = PIPE_FORMAT_R32G32B32A32_FLOAT;
+
+                vc4_get_compiled_shader(vc4, QSTAGE_VERT, &key->base);
+        }
 
         return so;
 }
