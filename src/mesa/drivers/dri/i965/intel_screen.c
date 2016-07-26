@@ -535,6 +535,42 @@ intel_destroy_image(__DRIimage *image)
    free(image);
 }
 
+static void *
+intel_map_image(__DRIcontext *context, __DRIimage *image,
+                int x0, int y0, int width, int height,
+                unsigned int flags, int *stride, void **data)
+{
+   struct brw_context *brw = context->driverPrivate;
+   int cpp;
+
+   if (!image || !data || *data)
+      return NULL;
+
+   *stride = image->pitch;
+   brw_bo_map_gtt(brw, image->bo, "image_map");
+
+   /* We don't need any particular data passed back in to unmap, but stick an
+    * appropriate value in here to make sure that callers are doing the right
+    * thing with the interface.
+    */
+   *data = image;
+
+   if (image->format == MESA_FORMAT_NONE)
+       cpp = 1;
+    else
+       cpp = _mesa_get_format_bytes(image->format);
+
+   return image->bo->virtual + (x0 * cpp + y0 * image->pitch);
+}
+
+static void
+intel_unmap_image(__DRIcontext *context, __DRIimage *image, void *data)
+{
+   assert(data == image);
+
+   drm_intel_bo_unmap(image->bo);
+}
+
 static __DRIimage *
 intel_create_image(__DRIscreen *screen,
 		   int width, int height, int format,
@@ -849,7 +885,7 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 11 },
+    .base = { __DRI_IMAGE, 12 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -864,7 +900,9 @@ static const __DRIimageExtension intelImageExtension = {
     .createImageFromFds                 = intel_create_image_from_fds,
     .createImageFromDmaBufs             = intel_create_image_from_dma_bufs,
     .blitImage                          = NULL,
-    .getCapabilities                    = NULL
+    .getCapabilities                    = NULL,
+    .mapImage                           = intel_map_image,
+    .unmapImage                         = intel_unmap_image,
 };
 
 static int
