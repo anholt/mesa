@@ -44,14 +44,33 @@ static const uint8_t identity_swizzle[] = { 0, 1, 2, 3 };
 
 static bool alu_instr_is_bool(nir_alu_instr *instr);
 
+static bool intrinsic_instr_is_bool(nir_intrinsic_instr *intr)
+{
+   switch (intr->intrinsic) {
+   case nir_intrinsic_load_front_face:
+      return true;
+
+   default:
+      return false;
+   }
+}
+
 static bool
 src_is_bool(nir_src src)
 {
    if (!src.is_ssa)
       return false;
-   if (src.ssa->parent_instr->type != nir_instr_type_alu)
+
+   switch (src.ssa->parent_instr->type) {
+   case nir_instr_type_alu:
+      return alu_instr_is_bool(nir_instr_as_alu(src.ssa->parent_instr));
+
+   case nir_instr_type_intrinsic:
+      return intrinsic_instr_is_bool(nir_instr_as_intrinsic(src.ssa->parent_instr));
+
+   default:
       return false;
-   return alu_instr_is_bool(nir_instr_as_alu(src.ssa->parent_instr));
+   }
 }
 
 static bool
@@ -67,6 +86,28 @@ alu_instr_is_bool(nir_alu_instr *instr)
    default:
       return (nir_alu_type_get_base_type(nir_op_infos[instr->op].output_type)
              == nir_type_bool);
+   }
+}
+
+static bool
+var_type_matches(nir_search_variable *var, nir_src src)
+{
+   /* invalid is "don't care" */
+   if (var->type == nir_type_invalid)
+      return true;
+
+   if (nir_alu_type_get_base_type(var->type) == nir_type_bool) {
+      return src_is_bool(src);
+   } else {
+      /* If we're not looking for booleans, the only info we have to work with
+       * is an ALU result's type.
+       */
+      if (src.ssa->parent_instr->type != nir_instr_type_alu)
+         return false;
+
+      nir_alu_instr *src_alu = nir_instr_as_alu(src.ssa->parent_instr);
+      nir_alu_type src_alu_type = nir_op_infos[src_alu->op].output_type;
+      return var->type == nir_alu_type_get_base_type(src_alu_type);
    }
 }
 
@@ -130,19 +171,8 @@ match_value(const nir_search_value *value, nir_alu_instr *instr, unsigned src,
          if (var->cond && !var->cond(instr, src, num_components, new_swizzle))
             return false;
 
-         if (var->type != nir_type_invalid) {
-            if (instr->src[src].src.ssa->parent_instr->type != nir_instr_type_alu)
-               return false;
-
-            nir_alu_instr *src_alu =
-               nir_instr_as_alu(instr->src[src].src.ssa->parent_instr);
-
-            if (nir_alu_type_get_base_type(nir_op_infos[src_alu->op].output_type) !=
-                var->type &&
-                !(nir_alu_type_get_base_type(var->type) == nir_type_bool &&
-                  alu_instr_is_bool(src_alu)))
-               return false;
-         }
+         if (!var_type_matches(var, instr->src[src].src))
+            return false;
 
          state->variables_seen |= (1 << var->variable);
          state->variables[var->variable].src = instr->src[src].src;
