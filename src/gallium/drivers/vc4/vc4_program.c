@@ -1611,7 +1611,8 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                 assert(instr->num_components == 1);
                 const_offset = nir_src_as_const_value(instr->src[0]);
                 assert(const_offset && "vc4 doesn't support indirect inputs");
-                if (nir_intrinsic_base(instr) >= VC4_NIR_TLB_COLOR_READ_INPUT) {
+                if (c->stage == QSTAGE_FRAG &&
+                    nir_intrinsic_base(instr) >= VC4_NIR_TLB_COLOR_READ_INPUT) {
                         assert(const_offset->u32[0] == 0);
                         /* Reads of the per-sample color need to be done in
                          * order.
@@ -1626,6 +1627,11 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                         }
                         ntq_store_dest(c, &instr->dest, 0,
                                        c->color_reads[sample_index]);
+                } else if (c->stage == QSTAGE_FRAG) {
+                        offset = nir_intrinsic_base(instr) + const_offset->u32[0];
+                        int comp = nir_intrinsic_component(instr);
+                        ntq_store_dest(c, &instr->dest, 0,
+                                       c->inputs[offset * 4 + comp]);
                 } else {
                         offset = nir_intrinsic_base(instr) + const_offset->u32[0];
                         ntq_store_dest(c, &instr->dest, 0,
@@ -2061,10 +2067,16 @@ vc4_shader_ntq(struct vc4_context *vc4, enum qstage stage,
         if (c->vs_key && c->vs_key->clamp_color)
                 NIR_PASS_V(c->s, nir_lower_clamp_color_outputs);
 
-        if (stage == QSTAGE_FRAG)
-                NIR_PASS_V(c->s, nir_lower_clip_fs, c->key->ucp_enables);
-        else
-                NIR_PASS_V(c->s, nir_lower_clip_vs, c->key->ucp_enables);
+        if (c->key->ucp_enables) {
+                if (stage == QSTAGE_FRAG) {
+                        NIR_PASS_V(c->s, nir_lower_clip_fs, c->key->ucp_enables);
+                        /* scalarize the new clip input */
+                        NIR_PASS_V(c->s, nir_lower_io_to_scalar,
+                                   nir_var_shader_in);
+                } else {
+                        NIR_PASS_V(c->s, nir_lower_clip_vs, c->key->ucp_enables);
+                }
+        }
 
         NIR_PASS_V(c->s, vc4_nir_lower_io, c);
         NIR_PASS_V(c->s, vc4_nir_lower_txf_ms, c);
@@ -2168,7 +2180,10 @@ vc4_shader_state_create(struct pipe_context *pctx,
         NIR_PASS_V(s, nir_opt_global_to_local);
         NIR_PASS_V(s, nir_convert_to_ssa);
         NIR_PASS_V(s, nir_normalize_cubemap_coords);
+
         NIR_PASS_V(s, nir_lower_load_const_to_scalar);
+        if (s->stage == MESA_SHADER_FRAGMENT)
+                NIR_PASS_V(s, nir_lower_io_to_scalar, nir_var_shader_in);
 
         vc4_optimize_nir(s);
 
