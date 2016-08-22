@@ -182,8 +182,8 @@ vc4_emit_gl_shader_state(struct vc4_context *vc4, const struct pipe_draw_info *i
                                    vb->stride * (info->index_bias +
                                                  extra_index_bias));
                 uint32_t vb_size = rsc->bo->size - offset;
-                uint32_t elem_size =
-                        util_format_get_blocksize(elem->src_format);
+                uint32_t elem_size = (vc4->prog.vs->vattr_offsets[i + 1] -
+                                      vc4->prog.vs->vattr_offsets[i]);
 
                 cl_reloc(vc4, &vc4->shader_rec, &shader_rec, rsc->bo, offset);
                 cl_u8(&shader_rec, elem_size - 1);
