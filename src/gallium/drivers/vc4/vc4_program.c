@@ -2352,6 +2352,12 @@ vc4_get_compiled_shader(struct vc4_context *vc4, enum qstage stage,
         } else {
                 shader->num_inputs = c->num_inputs;
 
+                /* FIXME: We should reconcile the CS vattr sizes with the VS
+                 * vattr sizes somehow during compile: We only have a single
+                 * per-attribute bytes-to-be-read value in the shader record,
+                 * and that size gets used for both the VS and CS if they both
+                 * read that attribute.
+                 */
                 shader->vattr_offsets[0] = 0;
                 for (int i = 0; i < 8; i++) {
                         shader->vattr_offsets[i + 1] =
