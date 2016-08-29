@@ -21,6 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <libsync.h>
 #include "pipe/p_shader_tokens.h"
 
 #include "pipe/p_context.h"
@@ -709,13 +710,20 @@ static void virgl_draw_vbo(struct pipe_context *ctx,
 
 }
 
-static void virgl_flush_eq(struct virgl_context *ctx, void *closure)
+static void virgl_flush_eq(struct virgl_context *ctx, void *closure,
+			   struct pipe_fence_handle **fence)
 {
    struct virgl_screen *rs = virgl_screen(ctx->base.screen);
+   int out_fence_fd = -1;
 
    /* send the buffer to the remote side for decoding */
    ctx->num_transfers = ctx->num_draws = 0;
-   rs->vws->submit_cmd(rs->vws, ctx->cbuf);
+
+   rs->vws->submit_cmd(rs->vws, ctx->cbuf, ctx->cbuf->in_fence_fd,
+                       ctx->cbuf->needs_out_fence_fd ? &out_fence_fd : NULL);
+
+   if (fence)
+      *fence = rs->vws->cs_create_fence(rs->vws, out_fence_fd);
 
    virgl_encoder_set_sub_ctx(ctx, ctx->hw_sub_ctx_id);
 
@@ -728,11 +736,10 @@ static void virgl_flush_from_st(struct pipe_context *ctx,
                                enum pipe_flush_flags flags)
 {
    struct virgl_context *vctx = virgl_context(ctx);
-   struct virgl_screen *rs = virgl_screen(ctx->screen);
    struct virgl_buffer *buf, *tmp;
 
-   if (fence)
-      *fence = rs->vws->cs_create_fence(rs->vws);
+   if (flags & PIPE_FLUSH_FENCE_FD)
+       vctx->cbuf->needs_out_fence_fd = true;
 
    LIST_FOR_EACH_ENTRY_SAFE(buf, tmp, &vctx->to_flush_bufs, flush_list) {
       struct pipe_resource *res = &buf->base.u.b;
@@ -742,7 +749,13 @@ static void virgl_flush_from_st(struct pipe_context *ctx,
       pipe_resource_reference(&res, NULL);
 
    }
-   virgl_flush_eq(vctx, vctx);
+   virgl_flush_eq(vctx, vctx, fence);
+
+   if (vctx->cbuf->in_fence_fd != -1) {
+      close(vctx->cbuf->in_fence_fd);
+      vctx->cbuf->in_fence_fd = -1;
+   }
+   vctx->cbuf->needs_out_fence_fd = false;
 }
 
 static struct pipe_sampler_view *virgl_create_sampler_view(struct pipe_context *ctx,
@@ -1016,6 +1029,23 @@ static void virgl_set_shader_buffers(struct pipe_context *ctx,
    virgl_encode_set_shader_buffers(vctx, shader, start_slot, count, buffers);
 }
 
+static void virgl_create_fence_fd(struct pipe_context *ctx,
+			        struct pipe_fence_handle **fence, int fd)
+{
+   struct virgl_screen *rs = virgl_screen(ctx->screen);
+
+   *fence = rs->vws->cs_create_fence(rs->vws, fd);
+}
+
+static void virgl_fence_server_sync(struct pipe_context *ctx,
+			            struct pipe_fence_handle *fence)
+{
+   struct virgl_context *vctx = virgl_context(ctx);
+   struct virgl_screen *rs = virgl_screen(ctx->screen);
+
+   rs->vws->fence_server_sync(rs->vws, vctx->cbuf, fence);
+}
+
 static void virgl_set_shader_images(struct pipe_context *ctx,
                                     enum pipe_shader_type shader,
                                     unsigned start_slot, unsigned count,
@@ -1108,7 +1138,7 @@ virgl_context_destroy( struct pipe_context *ctx )
    vctx->framebuffer.zsbuf = NULL;
    vctx->framebuffer.nr_cbufs = 0;
    virgl_encoder_destroy_sub_ctx(vctx, vctx->hw_sub_ctx_id);
-   virgl_flush_eq(vctx, vctx);
+   virgl_flush_eq(vctx, vctx, NULL);
 
    rs->vws->cmd_buf_destroy(vctx->cbuf);
    if (vctx->uploader)
@@ -1244,6 +1274,8 @@ struct pipe_context *virgl_context_create(struct pipe_screen *pscreen,
    vctx->base.resource_copy_region = virgl_resource_copy_region;
    vctx->base.flush_resource = virgl_flush_resource;
    vctx->base.blit =  virgl_blit;
+   vctx->base.create_fence_fd = virgl_create_fence_fd;
+   vctx->base.fence_server_sync = virgl_fence_server_sync;
 
    vctx->base.set_shader_buffers = virgl_set_shader_buffers;
    vctx->base.set_hw_atomic_buffers = virgl_set_hw_atomic_buffers;
