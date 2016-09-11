@@ -102,6 +102,7 @@ static const struct debug_named_value debug_options[] = {
 	{ "testvmfaultsdma", DBG(TEST_VMFAULT_SDMA), "Invoke a SDMA VM fault test and exit." },
 	{ "testvmfaultshader", DBG(TEST_VMFAULT_SHADER), "Invoke a shader VM fault test and exit." },
 	{ "testdmaperf", DBG(TEST_DMA_PERF), "Test DMA performance" },
+	{ "testgds", DBG(TEST_GDS), "Test GDS." },
 
 	DEBUG_NAMED_VALUE_END /* must be last */
 };
@@ -1094,6 +1095,9 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 				      DBG(TEST_VMFAULT_SDMA) |
 				      DBG(TEST_VMFAULT_SHADER)))
 		si_test_vmfault(sscreen);
+
+	if (sscreen->debug_flags & DBG(TEST_GDS))
+		si_test_gds((struct si_context*)sscreen->aux_context);
 
 	return &sscreen->b;
 }

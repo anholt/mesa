@@ -166,6 +166,7 @@ enum {
 	DBG_TEST_VMFAULT_SDMA,
 	DBG_TEST_VMFAULT_SHADER,
 	DBG_TEST_DMA_PERF,
+	DBG_TEST_GDS,
 };
 
 #define DBG_ALL_SHADERS		(((1 << (DBG_CS + 1)) - 1))
@@ -1138,6 +1139,7 @@ void si_copy_buffer(struct si_context *sctx,
 void cik_prefetch_TC_L2_async(struct si_context *sctx, struct pipe_resource *buf,
 			      uint64_t offset, unsigned size);
 void cik_emit_prefetch_L2(struct si_context *sctx, bool vertex_stage_only);
+void si_test_gds(struct si_context *sctx);
 void si_init_cp_dma_functions(struct si_context *sctx);
 
 /* si_debug.c */
