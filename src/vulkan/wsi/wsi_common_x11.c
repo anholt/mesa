@@ -404,11 +404,11 @@ x11_surface_get_formats(VkIcdSurfaceBase *surface,
       return VK_SUCCESS;
    }
 
-   assert(*pSurfaceFormatCount >= ARRAY_SIZE(formats));
+   *pSurfaceFormatCount = MIN2(*pSurfaceFormatCount, ARRAY_SIZE(formats));
    typed_memcpy(pSurfaceFormats, formats, *pSurfaceFormatCount);
-   *pSurfaceFormatCount = ARRAY_SIZE(formats);
 
-   return VK_SUCCESS;
+   return *pSurfaceFormatCount < ARRAY_SIZE(formats) ?
+      VK_INCOMPLETE : VK_SUCCESS;
 }
 
 static VkResult
