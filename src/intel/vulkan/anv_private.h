@@ -1318,7 +1318,7 @@ struct anv_shader_bin {
 
    struct anv_pipeline_bind_map bind_map;
 
-   /* Prog data follows, then the key, both aligned to 8-bytes */
+   /* Prog data follows, then params, then the key, all aligned to 8-bytes */
 };
 
 struct anv_shader_bin *
@@ -1326,7 +1326,7 @@ anv_shader_bin_create(struct anv_device *device,
                       const void *key, uint32_t key_size,
                       const void *kernel, uint32_t kernel_size,
                       const struct brw_stage_prog_data *prog_data,
-                      uint32_t prog_data_size,
+                      uint32_t prog_data_size, const void *prog_data_param,
                       const struct anv_pipeline_bind_map *bind_map);
 
 void
