@@ -638,9 +638,6 @@ struct anv_batch_bo {
    /* Bytes actually consumed in this batch BO */
    size_t                                       length;
 
-   /* Last seen surface state block pool bo offset */
-   uint32_t                                     last_ss_pool_bo_offset;
-
    struct anv_reloc_list                        relocs;
 };
 
@@ -1185,7 +1182,10 @@ struct anv_cmd_buffer {
     */
    struct u_vector                            bt_blocks;
    uint32_t                                     bt_next;
+
    struct anv_reloc_list                        surface_relocs;
+   /** Last seen surface state block pool center bo offset */
+   uint32_t                                     last_ss_pool_center;
 
    struct anv_execbuf                           execbuf2;
 
