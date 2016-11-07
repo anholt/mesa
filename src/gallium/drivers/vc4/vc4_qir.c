@@ -382,12 +382,15 @@ void
 qir_dump(struct vc4_compile *c)
 {
         int ip = 0;
+        int pressure = 0;
 
         qir_for_each_block(block, c) {
                 fprintf(stderr, "BLOCK %d:\n", block->index);
                 qir_for_each_inst(inst, block) {
                         if (c->temp_start) {
                                 bool first = true;
+
+                                fprintf(stderr, "%3d ", pressure);
 
                                 for (int i = 0; i < c->num_temps; i++) {
                                         if (c->temp_start[i] != ip)
@@ -399,6 +402,7 @@ qir_dump(struct vc4_compile *c)
                                                 fprintf(stderr, ", ");
                                         }
                                         fprintf(stderr, "S%4d", i);
+                                        pressure++;
                                 }
 
                                 if (first)
@@ -420,6 +424,7 @@ qir_dump(struct vc4_compile *c)
                                                 fprintf(stderr, ", ");
                                         }
                                         fprintf(stderr, "E%4d", i);
+                                        pressure--;
                                 }
 
                                 if (first)
