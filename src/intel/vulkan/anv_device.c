@@ -1243,6 +1243,9 @@ VkResult anv_AllocateMemory(
 
    mem->type_index = pAllocateInfo->memoryTypeIndex;
 
+   mem->map = NULL;
+   mem->map_size = 0;
+
    *pMem = anv_device_memory_to_handle(mem);
 
    return VK_SUCCESS;
@@ -1263,6 +1266,9 @@ void anv_FreeMemory(
 
    if (mem == NULL)
       return;
+
+   if (mem->map)
+      anv_UnmapMemory(_device, _mem);
 
    if (mem->bo.map)
       anv_gem_munmap(mem->bo.map, mem->bo.size);
@@ -1333,6 +1339,9 @@ void anv_UnmapMemory(
       return;
 
    anv_gem_munmap(mem->map, mem->map_size);
+
+   mem->map = NULL;
+   mem->map_size = 0;
 }
 
 static void
