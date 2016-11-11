@@ -1544,6 +1544,9 @@ void anv_DestroyFence(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_fence, fence, _fence);
 
+   if (!fence)
+      return;
+
    assert(fence->bo.map == fence);
    anv_bo_pool_free(&device->batch_bo_pool, &fence->bo);
 }
@@ -1783,6 +1786,9 @@ void anv_DestroyEvent(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_event, event, _event);
 
+   if (!event)
+      return;
+
    anv_state_pool_free(&device->dynamic_state_pool, event->state);
 }
 
@@ -1875,6 +1881,9 @@ void anv_DestroyBuffer(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_buffer, buffer, _buffer);
 
+   if (!buffer)
+      return;
+
    vk_free2(&device->alloc, pAllocator, buffer);
 }
 
@@ -1901,6 +1910,9 @@ void anv_DestroySampler(
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_sampler, sampler, _sampler);
+
+   if (!sampler)
+      return;
 
    vk_free2(&device->alloc, pAllocator, sampler);
 }
@@ -1945,6 +1957,9 @@ void anv_DestroyFramebuffer(
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_framebuffer, fb, _fb);
+
+   if (!fb)
+      return;
 
    vk_free2(&device->alloc, pAllocator, fb);
 }
