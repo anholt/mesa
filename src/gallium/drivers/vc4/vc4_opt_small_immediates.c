@@ -45,7 +45,7 @@ qir_opt_small_immediates(struct vc4_compile *c)
                  * elsewhere).
                  */
                 bool uses_small_imm = false;
-                for (int i = 0; i < qir_get_op_nsrc(inst->op); i++) {
+                for (int i = 0; i < qir_get_nsrc(inst); i++) {
                         if (inst->src[i].file == QFILE_SMALL_IMM)
                                 uses_small_imm = true;
                 }
@@ -63,7 +63,7 @@ qir_opt_small_immediates(struct vc4_compile *c)
                 if (inst->op == QOP_MIN_NOIMM)
                         continue;
 
-                for (int i = 0; i < qir_get_op_nsrc(inst->op); i++) {
+                for (int i = 0; i < qir_get_nsrc(inst); i++) {
                         struct qreg src = qir_follow_movs(c, inst->src[i]);
 
                         if (src.file != QFILE_UNIF ||
