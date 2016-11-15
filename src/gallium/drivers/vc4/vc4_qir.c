@@ -478,7 +478,6 @@ qir_inst(enum qop op, struct qreg dst, struct qreg src0, struct qreg src1)
 
         inst->op = op;
         inst->dst = dst;
-        inst->src = calloc(2, sizeof(inst->src[0]));
         inst->src[0] = src0;
         inst->src[1] = src1;
         inst->cond = QPU_COND_ALWAYS;
@@ -599,7 +598,6 @@ qir_remove_instruction(struct vc4_compile *c, struct qinst *qinst)
                 c->defs[qinst->dst.index] = NULL;
 
         list_del(&qinst->link);
-        free(qinst->src);
         free(qinst);
 }
 
