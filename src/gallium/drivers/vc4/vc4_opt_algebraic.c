@@ -172,8 +172,12 @@ qir_opt_algebraic(struct vc4_compile *c)
                         break;
 
                 case QOP_ADD:
-                        if (replace_x_0_with_x(c, inst, 0) ||
-                            replace_x_0_with_x(c, inst, 1)) {
+                        /* Kernel validation requires that we use an actual
+                         * add instruction.
+                         */
+                        if (inst->dst.file != QFILE_TEX_S_DIRECT &&
+                            (replace_x_0_with_x(c, inst, 0) ||
+                             replace_x_0_with_x(c, inst, 1))) {
                                 progress = true;
                                 break;
                         }
