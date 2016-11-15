@@ -33,9 +33,6 @@
 bool
 qir_opt_coalesce_ff_writes(struct vc4_compile *c)
 {
-        if (c->stage == QSTAGE_FRAG)
-                return false;
-
         /* For now, only do this pass when we don't have control flow. */
         struct qblock *block = qir_entry_block(c);
         if (block != qir_exit_block(c))
@@ -60,7 +57,7 @@ qir_opt_coalesce_ff_writes(struct vc4_compile *c)
                 if (mov_inst->src[0].file != QFILE_TEMP)
                         continue;
 
-                if (mov_inst->dst.file != QFILE_VPM)
+                if (!(mov_inst->dst.file == QFILE_VPM || qir_is_tex(mov_inst)))
                         continue;
 
                 uint32_t temp = mov_inst->src[0].index;
@@ -79,16 +76,21 @@ qir_opt_coalesce_ff_writes(struct vc4_compile *c)
                         continue;
                 }
 
-                /* Move the generating instruction to the end of the program
-                 * to maintain the order of the VPM writes.
+                /* Move the generating instruction into the position of the FF
+                 * write.
                  */
+                c->defs[inst->dst.index] = NULL;
+                inst->dst.file = mov_inst->dst.file;
+                inst->dst.index = mov_inst->dst.index;
+                if (qir_is_tex(mov_inst)) {
+                        inst->src[qir_get_tex_uniform_src(inst)] =
+                                mov_inst->src[qir_get_tex_uniform_src(mov_inst)];
+                }
+
                 list_del(&inst->link);
                 list_addtail(&inst->link, &mov_inst->link);
-                qir_remove_instruction(c, mov_inst);
 
-                c->defs[inst->dst.index] = NULL;
-                inst->dst.file = QFILE_VPM;
-                inst->dst.index = 0;
+                qir_remove_instruction(c, mov_inst);
 
                 progress = true;
         }
