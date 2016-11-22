@@ -1817,6 +1817,7 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                 } else {
                         qir_MOV_dest(c, c->discard, qir_uniform_ui(c, ~0));
                 }
+                qir_DISCARD_JUMP(c, c->discard);
                 break;
 
         case nir_intrinsic_discard_if: {
@@ -1834,6 +1835,7 @@ ntq_emit_intrinsic(struct vc4_compile *c, nir_intrinsic_instr *instr)
                         qir_OR_dest(c, c->discard, c->discard,
                                     ntq_get_src(c, instr->src[0], 0));
                 }
+                qir_DISCARD_JUMP(c, c->discard);
 
                 break;
         }
@@ -2298,6 +2300,9 @@ vc4_shader_ntq(struct vc4_context *vc4, enum qstage stage,
                 }
 
                 emit_frag_end(c);
+
+                if (c->s->info->fs.uses_discard)
+                        qir_lower_discard_jump(c);
                 break;
         case QSTAGE_VERT:
                 emit_vert_end(c,

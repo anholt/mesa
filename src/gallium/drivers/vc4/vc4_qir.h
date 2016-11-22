@@ -191,6 +191,12 @@ enum qop {
          * required by the kernel as part of its branch validation.
          */
         QOP_UNIFORMS_RESET,
+
+        /* Placeholder for where we'll do a branch to the end of the program
+         * when all fragments have been discarded.  This is later lowered to
+         * an actual branch.
+         */
+        QOP_DISCARD_JUMP,
 };
 
 struct queued_qpu_inst {
@@ -463,7 +469,6 @@ struct vc4_compile {
         struct qreg discard;
         struct qreg payload_FRAG_Z;
         struct qreg payload_FRAG_W;
-
         uint8_t vattr_sizes[8];
 
         /**
@@ -609,6 +614,7 @@ bool qir_opt_dead_code(struct vc4_compile *c);
 bool qir_opt_peephole_sf(struct vc4_compile *c);
 bool qir_opt_small_immediates(struct vc4_compile *c);
 bool qir_opt_vpm(struct vc4_compile *c);
+void qir_lower_discard_jump(struct vc4_compile *c);
 void vc4_nir_lower_blend(nir_shader *s, struct vc4_compile *c);
 void vc4_nir_lower_io(nir_shader *s, struct vc4_compile *c);
 nir_ssa_def *vc4_nir_get_swizzled_channel(struct nir_builder *b,
@@ -752,6 +758,7 @@ QIR_PAYLOAD(FRAG_W)
 QIR_ALU0(TEX_RESULT)
 QIR_ALU0(TLB_COLOR_READ)
 QIR_NODST_1(MS_MASK)
+QIR_ALU1(DISCARD_JUMP)
 
 static inline struct qreg
 qir_SEL(struct vc4_compile *c, uint8_t cond, struct qreg src0, struct qreg src1)
@@ -883,6 +890,9 @@ qir_BRANCH(struct vc4_compile *c, uint8_t cond)
 #define qir_for_each_block_rev(block, c)                                \
         list_for_each_entry_rev(struct qblock, block, &c->blocks, link)
 
+#define qir_for_each_block_rev(block, c)                                \
+        list_for_each_entry_rev(struct qblock, block, &c->blocks, link)
+
 /* Loop over the non-NULL members of the successors array. */
 #define qir_for_each_successor(succ, block)                             \
         for (struct qblock *succ = block->successors[0];                \
@@ -895,6 +905,9 @@ qir_BRANCH(struct vc4_compile *c, uint8_t cond)
 
 #define qir_for_each_inst_rev(inst, block)                                  \
         list_for_each_entry_rev(struct qinst, inst, &block->instructions, link)
+
+#define qir_for_each_inst_safe_rev(inst, block)                         \
+        list_for_each_entry_safe_rev(struct qinst, inst, &block->instructions, link)
 
 #define qir_for_each_inst_safe(inst, block)                             \
         list_for_each_entry_safe(struct qinst, inst, &block->instructions, link)

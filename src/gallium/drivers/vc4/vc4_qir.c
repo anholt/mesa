@@ -92,6 +92,7 @@ static const struct qir_op_info qir_op_info[] = {
 
         [QOP_BRANCH] = { "branch", 0, 0, true },
         [QOP_UNIFORMS_RESET] = { "uniforms_reset", 0, 2, true },
+        [QOP_DISCARD_JUMP] = { "discard_jump", 0, 1, true },
 };
 
 static const char *
