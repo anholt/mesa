@@ -1,2 +1,5 @@
 # Commit was picked with -x
 907ace57986733add2aebfa9dd7c83c67efed70e mapi: automake: set VISIBILITY_CFLAGS for shared glapi
+
+# Commit was reverted shortly after it landed in master
+a39ad185932eab4f25a0cb2b112c10d8700ef242 configure.ac: honour LLVM_LIBDIR when linking against LLVM
