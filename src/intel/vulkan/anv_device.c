@@ -162,8 +162,6 @@ anv_physical_device_init(struct anv_physical_device *device,
          device->info.max_cs_threads = max_cs_threads;
    }
 
-   close(fd);
-
    brw_process_intel_debug_variable();
 
    device->compiler = brw_compiler_create(NULL, &device->info);
@@ -181,6 +179,7 @@ anv_physical_device_init(struct anv_physical_device *device,
    /* XXX: Actually detect bit6 swizzling */
    isl_device_init(&device->isl_dev, &device->info, swizzled);
 
+   close(fd);
    return VK_SUCCESS;
 
 fail:
