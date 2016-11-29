@@ -154,6 +154,12 @@ static void si_emit_derived_tess_state(struct si_context *sctx,
 	 */
 	*num_patches = MIN2(*num_patches, 40);
 
+	/* SI bug workaround - limit LS-HS threadgroups to only one wave. */
+	if (sctx->b.chip_class == SI) {
+		unsigned one_wave = 64 / MAX2(num_tcs_input_cp, num_tcs_output_cp);
+		*num_patches = MIN2(*num_patches, one_wave);
+	}
+
 	output_patch0_offset = input_patch_size * *num_patches;
 	perpatch_output_offset = output_patch0_offset + pervertex_output_patch_size;
 
