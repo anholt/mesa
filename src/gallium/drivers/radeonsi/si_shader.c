@@ -3481,7 +3481,8 @@ static void image_append_args(
 		struct si_shader_context *ctx,
 		struct lp_build_emit_data * emit_data,
 		unsigned target,
-		bool atomic)
+		bool atomic,
+		bool force_glc)
 {
 	const struct tgsi_full_instruction *inst = emit_data->inst;
 	LLVMValueRef i1false = LLVMConstInt(ctx->i1, 0, 0);
@@ -3489,6 +3490,7 @@ static void image_append_args(
 	LLVMValueRef r128 = i1false;
 	LLVMValueRef da = tgsi_is_array_image(target) ? i1true : i1false;
 	LLVMValueRef glc =
+		force_glc ||
 		inst->Memory.Qualifier & (TGSI_MEMORY_COHERENT | TGSI_MEMORY_VOLATILE) ?
 		i1true : i1false;
 	LLVMValueRef slc = i1false;
@@ -3543,7 +3545,8 @@ static void buffer_append_args(
 		LLVMValueRef rsrc,
 		LLVMValueRef index,
 		LLVMValueRef offset,
-		bool atomic)
+		bool atomic,
+		bool force_glc)
 {
 	const struct tgsi_full_instruction *inst = emit_data->inst;
 	LLVMValueRef i1false = LLVMConstInt(ctx->i1, 0, 0);
@@ -3554,6 +3557,7 @@ static void buffer_append_args(
 	emit_data->args[emit_data->arg_count++] = offset; /* voffset */
 	if (!atomic) {
 		emit_data->args[emit_data->arg_count++] =
+			force_glc ||
 			inst->Memory.Qualifier & (TGSI_MEMORY_COHERENT | TGSI_MEMORY_VOLATILE) ?
 			i1true : i1false; /* glc */
 	}
@@ -3583,7 +3587,7 @@ static void load_fetch_args(
 		offset = LLVMBuildBitCast(builder, tmp, bld_base->uint_bld.elem_type, "");
 
 		buffer_append_args(ctx, emit_data, rsrc, bld_base->uint_bld.zero,
-				   offset, false);
+				   offset, false, false);
 	} else if (inst->Src[0].Register.File == TGSI_FILE_IMAGE) {
 		LLVMValueRef coords;
 
@@ -3593,14 +3597,14 @@ static void load_fetch_args(
 		if (target == TGSI_TEXTURE_BUFFER) {
 			rsrc = extract_rsrc_top_half(ctx, rsrc);
 			buffer_append_args(ctx, emit_data, rsrc, coords,
-					bld_base->uint_bld.zero, false);
+					   bld_base->uint_bld.zero, false, false);
 		} else {
 			emit_data->args[0] = coords;
 			emit_data->args[1] = rsrc;
 			emit_data->args[2] = lp_build_const_int32(gallivm, 15); /* dmask */
 			emit_data->arg_count = 3;
 
-			image_append_args(ctx, emit_data, target, false);
+			image_append_args(ctx, emit_data, target, false, false);
 		}
 	}
 }
@@ -3790,10 +3794,18 @@ static void store_fetch_args(
 		offset = LLVMBuildBitCast(builder, tmp, bld_base->uint_bld.elem_type, "");
 
 		buffer_append_args(ctx, emit_data, rsrc, bld_base->uint_bld.zero,
-				   offset, false);
+				   offset, false, false);
 	} else if (inst->Dst[0].Register.File == TGSI_FILE_IMAGE) {
 		unsigned target = inst->Memory.Texture;
 		LLVMValueRef coords;
+
+		/* 8bit/16bit TC L1 write corruption bug on SI.
+		 * All store opcodes not aligned to a dword are affected.
+		 *
+		 * The only way to get unaligned stores in radeonsi is through
+		 * shader images.
+		 */
+		bool force_glc = ctx->screen->b.chip_class == SI;
 
 		coords = image_fetch_coords(bld_base, inst, 0);
 
@@ -3802,14 +3814,14 @@ static void store_fetch_args(
 
 			rsrc = extract_rsrc_top_half(ctx, rsrc);
 			buffer_append_args(ctx, emit_data, rsrc, coords,
-					bld_base->uint_bld.zero, false);
+					   bld_base->uint_bld.zero, false, force_glc);
 		} else {
 			emit_data->args[1] = coords;
 			image_fetch_rsrc(bld_base, &memory, true, &emit_data->args[2]);
 			emit_data->args[3] = lp_build_const_int32(gallivm, 15); /* dmask */
 			emit_data->arg_count = 4;
 
-			image_append_args(ctx, emit_data, target, false);
+			image_append_args(ctx, emit_data, target, false, force_glc);
 		}
 	}
 }
@@ -3993,7 +4005,7 @@ static void atomic_fetch_args(
 		offset = LLVMBuildBitCast(builder, tmp, bld_base->uint_bld.elem_type, "");
 
 		buffer_append_args(ctx, emit_data, rsrc, bld_base->uint_bld.zero,
-				   offset, true);
+				   offset, true, false);
 	} else if (inst->Src[0].Register.File == TGSI_FILE_IMAGE) {
 		unsigned target = inst->Memory.Texture;
 		LLVMValueRef coords;
@@ -4005,12 +4017,12 @@ static void atomic_fetch_args(
 		if (target == TGSI_TEXTURE_BUFFER) {
 			rsrc = extract_rsrc_top_half(ctx, rsrc);
 			buffer_append_args(ctx, emit_data, rsrc, coords,
-					   bld_base->uint_bld.zero, true);
+					   bld_base->uint_bld.zero, true, false);
 		} else {
 			emit_data->args[emit_data->arg_count++] = coords;
 			emit_data->args[emit_data->arg_count++] = rsrc;
 
-			image_append_args(ctx, emit_data, target, true);
+			image_append_args(ctx, emit_data, target, true, false);
 		}
 	}
 }
