@@ -113,25 +113,6 @@ struct vc4_uncompiled_shader {
         struct pipe_shader_state base;
 };
 
-struct vc4_ubo_range {
-        /**
-         * offset in bytes from the start of the ubo where this range is
-         * uploaded.
-         *
-         * Only set once used is set.
-         */
-        uint32_t dst_offset;
-
-        /**
-         * offset in bytes from the start of the gallium uniforms where the
-         * data comes from.
-         */
-        uint32_t src_offset;
-
-        /** size in bytes of this ubo range */
-        uint32_t size;
-};
-
 struct vc4_fs_inputs {
         /**
          * Array of the meanings of the VPM inputs this shader needs.
@@ -149,8 +130,6 @@ struct vc4_compiled_shader {
 
         struct vc4_shader_uniform_info uniforms;
 
-        struct vc4_ubo_range *ubo_ranges;
-        uint32_t num_ubo_ranges;
         uint32_t ubo_size;
         /**
          * VC4_DIRTY_* flags that, when set in vc4->dirty, mean that the
@@ -188,10 +167,16 @@ struct vc4_program_stateobj {
         struct vc4_compiled_shader *cs, *vs, *fs;
 };
 
+struct vc4_ubo_state {
+        struct vc4_bo *bo;
+        uint32_t offset;
+};
+
 struct vc4_constbuf_stateobj {
         struct pipe_constant_buffer cb[PIPE_MAX_CONSTANT_BUFFERS];
         uint32_t enabled_mask;
         uint32_t dirty_mask;
+        struct vc4_ubo_state ubo;
 };
 
 struct vc4_vertexbuf_stateobj {

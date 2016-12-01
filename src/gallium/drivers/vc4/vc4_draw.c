@@ -245,6 +245,23 @@ vc4_emit_gl_shader_state(struct vc4_context *vc4,
         job->shader_rec_count++;
 }
 
+static void
+vc4_upload_ubo(struct vc4_context *vc4,
+               struct vc4_constbuf_stateobj *cb,
+               uint32_t ubo_size)
+{
+        if (!ubo_size)
+                return;
+
+        struct pipe_resource *prsc = NULL;
+        u_upload_data(vc4->uploader, 0,
+                      ubo_size, 4,
+                      cb->cb[0].user_buffer,
+                      &cb->ubo.offset, &prsc);
+        vc4_bo_set_reference(&cb->ubo.bo, vc4_resource(prsc)->bo);
+        pipe_resource_reference(&prsc, NULL);
+}
+
 /**
  * HW-2116 workaround: Flush the batch before triggering the hardware state
  * counter wraparound behavior.
@@ -314,6 +331,22 @@ vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
         }
 
         vc4_emit_state(pctx);
+
+        if (vc4->dirty & (VC4_DIRTY_COMPILED_CS |
+                          VC4_DIRTY_COMPILED_VS |
+                          VC4_DIRTY_CONSTBUF)) {
+                vc4_upload_ubo(vc4,
+                               &vc4->constbuf[PIPE_SHADER_VERTEX],
+                               MAX2(vc4->prog.cs->ubo_size,
+                                    vc4->prog.vs->ubo_size));
+        }
+
+        if (vc4->dirty & (VC4_DIRTY_COMPILED_FS |
+                          VC4_DIRTY_CONSTBUF)) {
+                vc4_upload_ubo(vc4,
+                               &vc4->constbuf[PIPE_SHADER_FRAGMENT],
+                               vc4->prog.fs->ubo_size);
+        }
 
         if ((vc4->dirty & (VC4_DIRTY_VTXBUF |
                            VC4_DIRTY_VTXSTATE |

@@ -85,40 +85,27 @@ ntq_emit_thrsw(struct vc4_compile *c)
 static struct qreg
 indirect_uniform_load(struct vc4_compile *c, nir_intrinsic_instr *intr)
 {
-        struct qreg indirect_offset = ntq_get_src(c, intr->src[0], 0);
-        uint32_t offset = nir_intrinsic_base(intr);
-        struct vc4_compiler_ubo_range *range = NULL;
-        unsigned i;
-        for (i = 0; i < c->num_uniform_ranges; i++) {
-                range = &c->ubo_ranges[i];
-                if (offset >= range->src_offset &&
-                    offset < range->src_offset + range->size) {
-                        break;
-                }
-        }
-        /* The driver-location-based offset always has to be within a declared
-         * uniform range.
+        /* If we do any UBO load, then we'll upload all of the uniforms into
+         * the UBO.
+         *
+         * This means that some normal uniforms will also get put in the UBO
+         * when they aren't needed for indirect loads, but it allows us to
+         * upload the bound uniforms once between CS and VS, without needing
+         * to do a cross-link between their compiled copies.
          */
-        assert(range);
-        if (!range->used) {
-                range->used = true;
-                range->dst_offset = c->next_ubo_dst_offset;
-                c->next_ubo_dst_offset += range->size;
-                c->num_ubo_ranges++;
-        }
 
-        offset -= range->src_offset;
+        c->uses_ubo = true;
 
         /* Adjust for where we stored the TGSI register base. */
-        indirect_offset = qir_ADD(c, indirect_offset,
-                                  qir_uniform_ui(c, (range->dst_offset +
-                                                     offset)));
+        struct qreg indirect_offset =
+                qir_ADD(c,
+                        ntq_get_src(c, intr->src[0], 0),
+                        qir_uniform_ui(c, nir_intrinsic_base(intr)));
 
         /* Clamp to [0, array size).  Note that MIN/MAX are signed. */
         indirect_offset = qir_MAX(c, indirect_offset, qir_uniform_ui(c, 0));
         indirect_offset = qir_MIN(c, indirect_offset,
-                                  qir_uniform_ui(c, (range->dst_offset +
-                                                     range->size - 4)));
+                                  qir_uniform_ui(c, c->uniforms_size - 4));
 
         qir_ADD_dest(c, qir_reg(QFILE_TEX_S_DIRECT, 0),
                      indirect_offset,
@@ -803,24 +790,6 @@ add_output(struct vc4_compile *c,
 
         c->output_slots[decl_offset].slot = slot;
         c->output_slots[decl_offset].swizzle = swizzle;
-}
-
-static void
-declare_uniform_range(struct vc4_compile *c, uint32_t start, uint32_t size)
-{
-        unsigned array_id = c->num_uniform_ranges++;
-        if (array_id >= c->ubo_ranges_array_size) {
-                c->ubo_ranges_array_size = MAX2(c->ubo_ranges_array_size * 2,
-                                                array_id + 1);
-                c->ubo_ranges = reralloc(c, c->ubo_ranges,
-                                         struct vc4_compiler_ubo_range,
-                                         c->ubo_ranges_array_size);
-        }
-
-        c->ubo_ranges[array_id].dst_offset = 0;
-        c->ubo_ranges[array_id].src_offset = start;
-        c->ubo_ranges[array_id].size = size;
-        c->ubo_ranges[array_id].used = false;
 }
 
 static bool
@@ -1647,9 +1616,9 @@ ntq_setup_uniforms(struct vc4_compile *c)
                 uint32_t vec4_count = st_glsl_type_size(var->type);
                 unsigned vec4_size = 4 * sizeof(float);
 
-                declare_uniform_range(c, var->data.driver_location * vec4_size,
-                                      vec4_count * vec4_size);
-
+                c->uniforms_size = MAX2(c->uniforms_size,
+                                        (var->data.driver_location +
+                                         vec4_count) * vec4_size);
         }
 }
 
@@ -2585,25 +2554,9 @@ vc4_get_compiled_shader(struct vc4_context *vc4, enum qstage stage,
          * (Note that QIR dead code elimination of an array access still
          * leaves that array alive, though)
          */
-        if (c->num_ubo_ranges) {
-                shader->num_ubo_ranges = c->num_ubo_ranges;
-                shader->ubo_ranges = ralloc_array(shader, struct vc4_ubo_range,
-                                                  c->num_ubo_ranges);
-                uint32_t j = 0;
-                for (int i = 0; i < c->num_uniform_ranges; i++) {
-                        struct vc4_compiler_ubo_range *range =
-                                &c->ubo_ranges[i];
-                        if (!range->used)
-                                continue;
+        if (c->uses_ubo) {
+                shader->ubo_size = c->uniforms_size;
 
-                        shader->ubo_ranges[j].dst_offset = range->dst_offset;
-                        shader->ubo_ranges[j].src_offset = range->src_offset;
-                        shader->ubo_ranges[j].size = range->size;
-                        shader->ubo_size += c->ubo_ranges[i].size;
-                        j++;
-                }
-        }
-        if (shader->ubo_size) {
                 if (vc4_debug & VC4_DEBUG_SHADERDB) {
                         fprintf(stderr, "SHADER-DB: %s prog %d/%d: %d UBO uniforms\n",
                                 qir_get_stage_name(c->stage),
