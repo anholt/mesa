@@ -1377,6 +1377,9 @@ AC_ARG_ENABLE([driglx-direct],
 dnl
 dnl libGL configuration per driver
 dnl
+if test "x$enable_glx" != xno; then
+    PKG_CHECK_MODULES([GLPROTO], [glproto >= $GLPROTO_REQUIRED])
+fi
 case "x$enable_glx" in
 xxlib | xgallium-xlib)
     # Xlib-based GLX
@@ -1390,7 +1393,6 @@ xxlib | xgallium-xlib)
     ;;
 xdri)
     # DRI-based GLX
-    PKG_CHECK_MODULES([GLPROTO], [glproto >= $GLPROTO_REQUIRED])
 
     # find the DRI deps for libGL
     dri_modules="x11 xext xdamage xfixes x11-xcb xcb xcb-glx >= $XCBGLX_REQUIRED"
