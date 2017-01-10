@@ -1081,6 +1081,7 @@ static struct dri2_egl_display_vtbl dri2_wl_display_vtbl = {
 
 static const __DRIextension *dri2_loader_extensions[] = {
    &dri2_loader_extension.base,
+   &image_loader_extension.base,
    &image_lookup_extension.base,
    &use_invalidate.base,
    NULL,
