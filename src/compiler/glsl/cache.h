@@ -39,8 +39,6 @@ typedef uint8_t cache_key[CACHE_KEY_SIZE];
 
 /* Provide inlined stub functions if the shader cache is disabled. */
 
-#ifdef ENABLE_SHADER_CACHE
-
 /**
  * Create a new cache object.
  *
@@ -129,46 +127,6 @@ cache_put_key(struct program_cache *cache, cache_key key);
  */
 bool
 cache_has_key(struct program_cache *cache, cache_key key);
-
-#else
-
-static inline struct program_cache *
-cache_create(void)
-{
-   return NULL;
-}
-
-static inline void
-cache_destroy(struct program_cache *cache) {
-   return;
-}
-
-static inline void
-cache_put(struct program_cache *cache, cache_key key,
-          const void *data, size_t size)
-{
-   return;
-}
-
-static inline uint8_t *
-cache_get(struct program_cache *cache, cache_key key, size_t *size)
-{
-   return NULL;
-}
-
-static inline void
-cache_put_key(struct program_cache *cache, cache_key key)
-{
-   return;
-}
-
-static inline bool
-cache_has_key(struct program_cache *cache, cache_key key)
-{
-   return false;
-}
-
-#endif /* ENABLE_SHADER_CACHE */
 
 #ifdef __cplusplus
 }
