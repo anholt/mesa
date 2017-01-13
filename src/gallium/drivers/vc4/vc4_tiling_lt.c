@@ -183,25 +183,32 @@ vc4_lt_image_helper(void *gpu, uint32_t gpu_stride,
 {
         uint32_t utile_w = vc4_utile_width(cpp);
         uint32_t utile_h = vc4_utile_height(cpp);
-        uint32_t xstart = box->x;
-        uint32_t ystart = box->y;
+
+        /* Offset gpu pointer to the first utile we're referencing. */
+        gpu += box->y * gpu_stride;
+        gpu += box->x / utile_w * 64;
 
         for (uint32_t y = 0; y < box->height; y += utile_h) {
+                void *gpu_row = gpu;
+                void *cpu_row = cpu;
+
                 for (uint32_t x = 0; x < box->width; x += utile_w) {
-                        void *gpu_tile = gpu + ((ystart + y) * gpu_stride +
-                                                (xstart + x) * 64 / utile_w);
                         if (to_cpu) {
-                                vc4_load_utile(cpu + (cpu_stride * y +
-                                                      x * cpp),
-                                               gpu_tile,
+                                vc4_load_utile(cpu + x * cpp,
+                                               gpu_row,
                                                cpu_stride, cpp);
                         } else {
-                                vc4_store_utile(gpu_tile,
-                                                cpu + (cpu_stride * y +
-                                                       x * cpp),
+                                vc4_store_utile(gpu_row,
+                                                cpu + x * cpp,
                                                 cpu_stride, cpp);
                         }
+
+                        gpu_row += 64;
+                        cpu_row += utile_w * cpp;
                 }
+
+                cpu += cpu_stride * utile_h;
+                gpu += gpu_stride * utile_h;
         }
 }
 
