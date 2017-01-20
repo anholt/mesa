@@ -9,3 +9,7 @@ a39ad185932eab4f25a0cb2b112c10d8700ef242 configure.ac: honour LLVM_LIBDIR when l
 
 # Similar to the above - depends on the series which introduce intel_miptree_copy
 b18cd8ce2c07c2d1a666fbff1f0d92d17dd5b22c i965/miptree: Use intel_miptree_copy for maps
+
+# The commit is a backport of an identical anv one. The latter is not in stable
+# and so does this one since they depend on functionality which is not in stable.
+65cbb993d33976d9ee24eff01ade8ed9013617ca radv: Call nir_lower_constant_initializers.
