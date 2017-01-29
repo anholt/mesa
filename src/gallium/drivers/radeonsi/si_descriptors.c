@@ -644,7 +644,8 @@ si_mark_image_range_valid(const struct pipe_image_view *view)
 
 static void si_set_shader_image(struct si_context *ctx,
 				unsigned shader,
-				unsigned slot, const struct pipe_image_view *view)
+				unsigned slot, const struct pipe_image_view *view,
+				bool skip_decompress)
 {
 	struct si_screen *screen = ctx->screen;
 	struct si_images_info *images = &ctx->images[shader];
@@ -686,7 +687,7 @@ static void si_set_shader_image(struct si_context *ctx,
 		assert(!tex->is_depth);
 		assert(tex->fmask.size == 0);
 
-		if (uses_dcc &&
+		if (uses_dcc && !skip_decompress &&
 		    (view->access & PIPE_IMAGE_ACCESS_WRITE ||
 		     !vi_dcc_formats_compatible(res->b.b.format, view->format))) {
 			/* If DCC can't be disabled, at least decompress it.
@@ -760,10 +761,10 @@ si_set_shader_images(struct pipe_context *pipe,
 
 	if (views) {
 		for (i = 0, slot = start_slot; i < count; ++i, ++slot)
-			si_set_shader_image(ctx, shader, slot, &views[i]);
+			si_set_shader_image(ctx, shader, slot, &views[i], false);
 	} else {
 		for (i = 0, slot = start_slot; i < count; ++i, ++slot)
-			si_set_shader_image(ctx, shader, slot, NULL);
+			si_set_shader_image(ctx, shader, slot, NULL, false);
 	}
 }
 
@@ -1670,7 +1671,7 @@ void si_update_all_texture_descriptors(struct si_context *sctx)
 			    view->resource->target == PIPE_BUFFER)
 				continue;
 
-			si_set_shader_image(sctx, shader, i, view);
+			si_set_shader_image(sctx, shader, i, view, true);
 		}
 
 		/* Sampler views. */
