@@ -4517,7 +4517,7 @@ LLVMModuleRef ac_translate_nir_to_llvm(LLVMTargetMachineRef tm,
 				idx++;
 			}
 
-			shared_size *= 4;
+			shared_size *= 16;
 			var = LLVMAddGlobalInAddressSpace(ctx.module,
 							  LLVMArrayType(ctx.i8, shared_size),
 							  "compute_lds",
