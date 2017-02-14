@@ -866,7 +866,7 @@ VkResult radv_AllocateMemory(
 		flags |= RADEON_FLAG_NO_CPU_ACCESS;
 	else
 		flags |= RADEON_FLAG_CPU_ACCESS;
-	mem->bo = device->ws->buffer_create(device->ws, alloc_size, 32768,
+	mem->bo = device->ws->buffer_create(device->ws, alloc_size, 65536,
 					       domain, flags);
 
 	if (!mem->bo) {
