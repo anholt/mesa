@@ -83,7 +83,8 @@ apply_dynamic_offsets_block(nir_block *block, nir_builder *b,
 
       nir_src *offset_src = nir_get_io_offset_src(intrin);
       nir_ssa_def *old_offset = nir_ssa_for_src(b, *offset_src, 1);
-      nir_ssa_def *new_offset = nir_iadd(b, old_offset, &offset_load->dest.ssa);
+      nir_ssa_def *new_offset =
+         nir_iadd(b, old_offset, nir_channel(b, &offset_load->dest.ssa, 0));
       nir_instr_rewrite_src(&intrin->instr, offset_src,
                             nir_src_for_ssa(new_offset));
 
