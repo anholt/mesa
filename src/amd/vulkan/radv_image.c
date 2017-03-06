@@ -659,6 +659,9 @@ radv_image_alloc_htile(struct radv_device *device,
 	if (env_var_as_boolean("RADV_HIZ_DISABLE", false))
 		return;
 
+	if (image->array_size > 1 || image->levels > 1)
+		return;
+
 	image->htile.size = radv_image_get_htile_size(device, image);
 
 	if (!image->htile.size)
