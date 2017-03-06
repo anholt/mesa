@@ -1200,6 +1200,9 @@ static void si_set_shader_buffers(struct pipe_context *ctx,
 		descs->dirty_mask |= 1u << slot;
 		sctx->descriptors_dirty |=
 			1u << si_shader_buffer_descriptors_idx(shader);
+
+		util_range_add(&buf->valid_buffer_range, sbuffer->buffer_offset,
+			       sbuffer->buffer_offset + sbuffer->buffer_size);
 	}
 }
 
