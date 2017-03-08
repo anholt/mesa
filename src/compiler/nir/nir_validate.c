@@ -388,8 +388,29 @@ validate_alu_instr(nir_alu_instr *instr, validate_state *state)
 {
    validate_assert(state, instr->op < nir_num_opcodes);
 
+   unsigned instr_bit_size = 0;
    for (unsigned i = 0; i < nir_op_infos[instr->op].num_inputs; i++) {
+      nir_alu_type src_type = nir_op_infos[instr->op].input_types[i];
+      unsigned src_bit_size = nir_src_bit_size(instr->src[i].src);
+      if (nir_alu_type_get_type_size(src_type)) {
+         validate_assert(state, src_bit_size == nir_alu_type_get_type_size(src_type));
+      } else if (instr_bit_size) {
+         validate_assert(state, src_bit_size == instr_bit_size);
+      } else {
+         instr_bit_size = src_bit_size;
+      }
+
       validate_alu_src(instr, i, state);
+   }
+
+   nir_alu_type dest_type = nir_op_infos[instr->op].output_type;
+   unsigned dest_bit_size = nir_dest_bit_size(instr->dest.dest);
+   if (nir_alu_type_get_type_size(dest_type)) {
+      validate_assert(state, dest_bit_size == nir_alu_type_get_type_size(dest_type));
+   } else if (instr_bit_size) {
+      validate_assert(state, dest_bit_size == instr_bit_size);
+   } else {
+      /* The only unsized thing is the destination so it's vacuously valid */
    }
 
    validate_alu_dest(instr, state);
