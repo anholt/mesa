@@ -30,6 +30,63 @@ from mako.template import Template
 template = Template("""
 #include "nir.h"
 
+nir_op
+nir_type_conversion_op(nir_alu_type src, nir_alu_type dst)
+{
+   nir_alu_type src_base_type = (nir_alu_type) nir_alu_type_get_base_type(src);
+   nir_alu_type dst_base_type = (nir_alu_type) nir_alu_type_get_base_type(dst);
+   unsigned dst_bit_size = nir_alu_type_get_type_size(dst);
+
+   if (src == dst)
+      return (src_base_type == nir_type_float) ? nir_op_fmov : nir_op_imov;
+
+   switch (src_base_type) {
+%     for src_t in ['int', 'uint', 'float']:
+      case nir_type_${src_t}:
+         switch (dst_base_type) {
+%           for dst_t in ['int', 'uint', 'float']:
+            case nir_type_${dst_t}:
+%              if src_t in ['int', 'uint'] and dst_t in ['int', 'uint']:
+%                 if dst_t == 'int':
+<%                   continue %>
+%                 else:
+<%                   dst_t = src_t %>
+%                 endif
+%              endif
+               switch (dst_bit_size) {
+%                 for dst_bits in [32, 64]:
+                  case ${dst_bits}:
+                     return ${'nir_op_{}2{}{}'.format(src_t[0], dst_t[0], dst_bits)};
+%                 endfor
+                  default:
+                     unreachable("Invalid nir alu bit size");
+               }
+%           endfor
+            case nir_type_bool:
+%              if src_t == 'float':
+                  return nir_op_f2b;
+%              else:
+                  return nir_op_i2b;
+%              endif
+            default:
+               unreachable("Invalid nir alu base type");
+         }
+%     endfor
+      case nir_type_bool:
+         switch (dst_base_type) {
+            case nir_type_int:
+            case nir_type_uint:
+               return nir_op_b2i;
+            case nir_type_float:
+               return nir_op_b2f;
+            default:
+               unreachable("Invalid nir alu base type");
+         }
+      default:
+         unreachable("Invalid nir alu base type");
+   }
+}
+
 const nir_op_info nir_op_infos[nir_num_opcodes] = {
 % for name, opcode in sorted(opcodes.iteritems()):
 {

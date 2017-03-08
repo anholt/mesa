@@ -642,17 +642,17 @@ fs_visitor::nir_emit_alu(const fs_builder &bld, nir_alu_instr *instr)
    }
 
    switch (instr->op) {
-   case nir_op_i2f:
-   case nir_op_u2f:
+   case nir_op_i2f32:
+   case nir_op_u2f32:
       if (optimize_extract_to_float(instr, result))
          return;
       inst = bld.MOV(result, op[0]);
       inst->saturate = instr->dest.saturate;
       break;
 
-   case nir_op_f2d:
-   case nir_op_i2d:
-   case nir_op_u2d:
+   case nir_op_f2f64:
+   case nir_op_i2f64:
+   case nir_op_u2f64:
       /* CHV PRM, vol07, 3D Media GPGPU Engine, Register Region Restrictions:
        *
        *    "When source or destination is 64b (...), regioning in Align1
@@ -677,34 +677,17 @@ fs_visitor::nir_emit_alu(const fs_builder &bld, nir_alu_instr *instr)
          break;
       }
       /* fallthrough */
-   case nir_op_i642d:
-   case nir_op_u642d:
+   case nir_op_f2f32:
+   case nir_op_f2i32:
+   case nir_op_f2u32:
    case nir_op_f2i64:
    case nir_op_f2u64:
-   case nir_op_i2i64:
-   case nir_op_i2u64:
-   case nir_op_u2i64:
-   case nir_op_u2u64:
-   case nir_op_d2f:
-   case nir_op_d2i:
-   case nir_op_d2u:
-   case nir_op_i642f:
-   case nir_op_u642f:
-   case nir_op_u2i32:
    case nir_op_i2i32:
+   case nir_op_i2i64:
    case nir_op_u2u32:
-   case nir_op_i2u32:
-      if (instr->op == nir_op_b2i64) {
-         bld.MOV(result, negate(op[0]));
-      } else {
-         inst = bld.MOV(result, op[0]);
-         inst->saturate = instr->dest.saturate;
-      }
-      break;
-
-   case nir_op_f2i:
-   case nir_op_f2u:
-      bld.MOV(result, op[0]);
+   case nir_op_u2u64:
+      inst = bld.MOV(result, op[0]);
+      inst->saturate = instr->dest.saturate;
       break;
 
    case nir_op_fsign: {
@@ -1085,7 +1068,6 @@ fs_visitor::nir_emit_alu(const fs_builder &bld, nir_alu_instr *instr)
       inst->saturate = instr->dest.saturate;
       break;
 
-   case nir_op_b2i64:
    case nir_op_b2i:
    case nir_op_b2f:
       bld.MOV(result, negate(op[0]));
@@ -1098,7 +1080,7 @@ fs_visitor::nir_emit_alu(const fs_builder &bld, nir_alu_instr *instr)
          fs_reg zero;
          fs_reg tmp;
 
-         if (instr->op == nir_op_d2b) {
+         if (instr->op == nir_op_f2b) {
             zero = vgrf(glsl_type::double_type);
             tmp = vgrf(glsl_type::double_type);
          } else {
