@@ -22,3 +22,7 @@ b18cd8ce2c07c2d1a666fbff1f0d92d17dd5b22c i965/miptree: Use intel_miptree_copy fo
 
 # The optimisation itself is broken and was removed completely
 a4393bd97fe62e8299273bae769201c5c9c816ea i965/fs: Fix the inline nir_op_pack_double optimization
+
+# There is no ANV fast_clear support in branch
+42b10b175d5e8dfb9c4c46edbc306e7fac6bd3ec anv/blorp/clear_subpass: Only set surface clear color for fast clears
+6b644e571e2344691e4d58ff0bba3ddc059c1a5d anv: Stall before fast-clear operations
