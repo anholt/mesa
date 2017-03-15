@@ -19,3 +19,6 @@ b18cd8ce2c07c2d1a666fbff1f0d92d17dd5b22c i965/miptree: Use intel_miptree_copy fo
 
 # Misnominated (only previous commit was meant to be for stable)
 36b9976e1f99e8070c67cb8a255793939db77d02 egl/wayland: Avoid race conditions when on non-main thread
+
+# The optimisation itself is broken and was removed completely
+a4393bd97fe62e8299273bae769201c5c9c816ea i965/fs: Fix the inline nir_op_pack_double optimization
