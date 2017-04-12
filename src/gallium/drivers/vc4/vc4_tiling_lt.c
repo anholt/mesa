@@ -34,9 +34,12 @@
 #include <string.h>
 #include "pipe/p_state.h"
 #include "vc4_tiling.h"
+#include "util/u_cpu_detect.h"
 
 #ifdef VC4_BUILD_NEON
 #define NEON_TAG(x) x ## _neon
+#elif defined(VC4_BUILD_SSE)
+#define NEON_TAG(x) x ## _sse
 #else
 #define NEON_TAG(x) x ## _base
 #endif
@@ -149,7 +152,53 @@ vc4_load_utile(void *cpu, void *gpu, uint32_t cpu_stride, uint32_t cpp)
                         : "r"(gpu), "r"(cpu), "r"(cpu + 8), "r"(cpu_stride)
                         : "v0", "v1", "v2", "v3");
         }
+#elif defined(VC4_BUILD_SSE)
+        if (gpu_stride == 8) {
+                __asm__ volatile (
+                        "movdqu 0(%1), %%xmm0;"
+                        "movdqu 0x10(%1), %%xmm1;"
+                        "movdqu 0x20(%1), %%xmm2;"
+                        "movdqu 0x30(%1), %%xmm3;"
+                        "movlpd %%xmm0, 0(%0);"
+                        "mov %2, %%ecx;"
+                        "movhpd %%xmm0, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movlpd %%xmm1, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movhpd %%xmm1, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movlpd %%xmm2, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movhpd %%xmm2, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movlpd %%xmm3, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movhpd %%xmm3, 0(%0,%%ecx,1);"
+                        :
+                        : "r"(cpu), "r"(gpu), "r"(cpu_stride)
+                        : "%xmm0",  "%xmm1",  "%xmm2",  "%xmm3", "%ecx");
+        } else {
+                assert(gpu_stride == 16);
+                __asm__ volatile (
+                        "movdqu 0(%1), %%xmm0;"
+                        "movdqu 0x10(%1), %%xmm1;"
+                        "movdqu 0x20(%1), %%xmm2;"
+                        "movdqu 0x30(%1), %%xmm3;"
+                        "movdqu %%xmm0, 0(%0);"
+                        "mov %2, %%ecx;"
+                        "movdqu %%xmm1, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movdqu %%xmm2, 0(%0,%%ecx,1);"
+                        "add %2, %%ecx;"
+                        "movdqu %%xmm3, 0(%0,%%ecx,1);"
+                        :
+                        : "r"(cpu), "r"(gpu), "r"(cpu_stride)
+                        : "%xmm0",  "%xmm1",  "%xmm2",  "%xmm3", "%ecx");
+        }
 #else
+        /* This generic loop runs only if we don't have SIMD acceleration for
+         * this CPU.
+         */
         for (uint32_t gpu_offset = 0; gpu_offset < 64; gpu_offset += gpu_stride) {
                 memcpy(cpu, gpu + gpu_offset, gpu_stride);
                 cpu += cpu_stride;
@@ -244,13 +293,58 @@ vc4_store_utile(void *gpu, void *cpu, uint32_t cpu_stride, uint32_t cpp)
                         : "r"(gpu), "r"(cpu), "r"(cpu + 8), "r"(cpu_stride)
                         : "v0", "v1", "v2", "v3");
         }
+#elif defined(VC4_BUILD_SSE)
+        if (gpu_stride == 8) {
+                __asm__ volatile (
+                        "movlpd 0(%1), %%xmm0;"
+                        "mov %2, %%ecx;"
+                        "movhpd 0(%1,%%ecx,1), %%xmm0;"
+                        "add %2, %%ecx;"
+                        "movlpd 0(%1,%%ecx,1), %%xmm1;"
+                        "add %2, %%ecx;"
+                        "movhpd 0(%1,%%ecx,1), %%xmm1;"
+                        "add %2, %%ecx;"
+                        "movlpd 0(%1,%%ecx,1), %%xmm2;"
+                        "add %2, %%ecx;"
+                        "movhpd 0(%1,%%ecx,1), %%xmm2;"
+                        "add %2, %%ecx;"
+                        "movlpd 0(%1,%%ecx,1), %%xmm3;"
+                        "add %2, %%ecx;"
+                        "movhpd 0(%1,%%ecx,1), %%xmm3;"
+                        "movdqu %%xmm0, 0(%0);"
+                        "movdqu %%xmm1, 0x10(%0);"
+                        "movdqu %%xmm2, 0x20(%0);"
+                        "movdqu %%xmm3, 0x30(%0);"
+                        :
+                        : "r"(gpu), "r"(cpu), "r"(cpu_stride)
+                        : "%xmm0",  "%xmm1",  "%xmm2",  "%xmm3", "%ecx");
+        } else {
+                assert(gpu_stride == 16);
+                __asm__ volatile (
+                        "movdqu 0(%1), %%xmm0;"
+                        "mov %2, %%ecx;"
+                        "movdqu 0(%1,%%ecx,1), %%xmm1;"
+                        "add %2, %%ecx;"
+                        "movdqu 0(%1,%%ecx,1), %%xmm2;"
+                        "add %2, %%ecx;"
+                        "movdqu 0(%1,%%ecx,1), %%xmm3;"
+                        "movdqu %%xmm0, 0(%0);"
+                        "movdqu %%xmm1, 0x10(%0);"
+                        "movdqu %%xmm2, 0x20(%0);"
+                        "movdqu %%xmm3, 0x30(%0);"
+                        :
+                        : "r"(gpu), "r"(cpu), "r"(cpu_stride)
+                        : "%xmm0",  "%xmm1",  "%xmm2",  "%xmm3", "%ecx");
+        }
 #else
+        /* This generic loop runs only if we don't have SIMD acceleration for
+         * this CPU.
+         */
         for (uint32_t gpu_offset = 0; gpu_offset < 64; gpu_offset += gpu_stride) {
                 memcpy(gpu + gpu_offset, cpu, gpu_stride);
                 cpu += cpu_stride;
         }
 #endif
-
 }
 
 void

@@ -75,6 +75,12 @@ void vc4_load_lt_image_neon(void *dst, uint32_t dst_stride,
 void vc4_store_lt_image_neon(void *dst, uint32_t dst_stride,
                              void *src, uint32_t src_stride,
                              int cpp, const struct pipe_box *box);
+void vc4_load_lt_image_sse(void *dst, uint32_t dst_stride,
+                           void *src, uint32_t src_stride,
+                           int cpp, const struct pipe_box *box);
+void vc4_store_lt_image_sse(void *dst, uint32_t dst_stride,
+                            void *src, uint32_t src_stride,
+                            int cpp, const struct pipe_box *box);
 void vc4_load_tiled_image(void *dst, uint32_t dst_stride,
                           void *src, uint32_t src_stride,
                           uint8_t tiling_format, int cpp,
@@ -96,6 +102,13 @@ vc4_load_lt_image(void *dst, uint32_t dst_stride,
                 return;
         }
 #endif
+#ifdef USE_X86_ASM
+        if (util_cpu_caps.has_sse2) {
+                vc4_load_lt_image_sse(dst, dst_stride, src, src_stride,
+                                      cpp, box);
+                return;
+        }
+#endif
         vc4_load_lt_image_base(dst, dst_stride, src, src_stride,
                                cpp, box);
 }
@@ -109,6 +122,13 @@ vc4_store_lt_image(void *dst, uint32_t dst_stride,
         if (util_cpu_caps.has_neon) {
                 vc4_store_lt_image_neon(dst, dst_stride, src, src_stride,
                                         cpp, box);
+                return;
+        }
+#endif
+#ifdef USE_X86_ASM
+        if (util_cpu_caps.has_sse) {
+                vc4_store_lt_image_sse(dst, dst_stride, src, src_stride,
+                                       cpp, box);
                 return;
         }
 #endif

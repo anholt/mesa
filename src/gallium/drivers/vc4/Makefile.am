@@ -51,6 +51,17 @@ libvc4_neon_la_SOURCES = $(NEON_C_SOURCES)
 libvc4_neon_la_CFLAGS = $(AM_CFLAGS) -mfpu=neon
 endif
 
+if HAVE_X86_64_ASM
+# Disable SSE build on x86-64, which also has HAVE_X86_ASM set.
+else
+if HAVE_X86_ASM
+noinst_LTLIBRARIES += libvc4_sse.la
+libvc4_la_LIBADD += libvc4_sse.la
+libvc4_sse_la_SOURCES = vc4_tiling_lt.c
+libvc4_sse_la_CFLAGS = $(AM_CFLAGS) -msse -DVC4_BUILD_SSE
+endif
+endif
+
 libvc4_la_LDFLAGS = $(SIM_LDFLAGS)
 
 EXTRA_DIST = kernel/README
