@@ -9,3 +9,5 @@ b83b1af6f6936f36db42a8f8b8e0854d0f9491fd anv: Make supports_48bit_addresses a he
 # These commits depend on commit b83b1af6f6 which did not land in branch.
 50d0eb5096bd9514821a641f25c0b3455c0f8a88 anv: Advertise both 32-bit and 48-bit heaps when we have enough memory
 39adea9330376a64a4b5e8da98f5e055ebd3331e anv: Require vertex buffers to come from a 32-bit heap
+# This commit addressed an earlier commit 126d5ad which did not land in branch.
+9da104593386f6e8ddec8f0d9d288aceb8908fe1 radv: fix regression in descriptor set freeing.
