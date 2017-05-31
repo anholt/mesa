@@ -6,5 +6,6 @@ b84b631c6381d9b36bca5d0e7cc67dd23af188c1 radeonsi: load patch_id for TES-as-ES w
 00df1cd9d6234cdfc9fb2bf3615196ff83a3c956 anv: Stop setting BO flags in bo_init_new
 # This commit depends on commit 00df1cd9d6 which did not land in branch.
 b83b1af6f6936f36db42a8f8b8e0854d0f9491fd anv: Make supports_48bit_addresses a heap property
-# This commit depends on commit b83b1af6f6 which did not land in branch.
+# These commits depend on commit b83b1af6f6 which did not land in branch.
 50d0eb5096bd9514821a641f25c0b3455c0f8a88 anv: Advertise both 32-bit and 48-bit heaps when we have enough memory
+39adea9330376a64a4b5e8da98f5e055ebd3331e anv: Require vertex buffers to come from a 32-bit heap
