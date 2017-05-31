@@ -2,3 +2,5 @@
 b84b631c6381d9b36bca5d0e7cc67dd23af188c1 radeonsi: load patch_id for TES-as-ES when exporting for PS
 # This commit depends on commit c3c61d210f which did not land in branch.
 92325a7efc769c32e03031323e21700dc55171e4 anv: Determine the type of mapping based on type metadata
+# This commit depends on commit 35e626bd0e which did not land in branch.
+00df1cd9d6234cdfc9fb2bf3615196ff83a3c956 anv: Stop setting BO flags in bo_init_new
