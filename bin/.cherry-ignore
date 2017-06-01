@@ -11,5 +11,6 @@ b83b1af6f6936f36db42a8f8b8e0854d0f9491fd anv: Make supports_48bit_addresses a he
 39adea9330376a64a4b5e8da98f5e055ebd3331e anv: Require vertex buffers to come from a 32-bit heap
 # This commit addressed an earlier commit 126d5ad which did not land in branch.
 9da104593386f6e8ddec8f0d9d288aceb8908fe1 radv: fix regression in descriptor set freeing.
-# This commit depends on commit 9da1045933 which did not land in branch.
+# These commits depend on commit 9da1045933 which did not land in branch.
 f7736ccf53eaeb66c4270afe0916e2cb29ab8667 anv: Add valid_bufer_usage to the memory type metadata
+34581fdd4f149894dfa51777a2f7eb289bd08b71 anv: Refactor memory type setup
