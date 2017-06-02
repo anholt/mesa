@@ -1,16 +1,6 @@
 # This commit depends on 9fd9a7d0ba3 and 678d568c7b2, neither of which is in branch.
 b84b631c6381d9b36bca5d0e7cc67dd23af188c1 radeonsi: load patch_id for TES-as-ES when exporting for PS
-# This commit depends on commit c3c61d210f which did not land in branch.
-92325a7efc769c32e03031323e21700dc55171e4 anv: Determine the type of mapping based on type metadata
-# This commit depends on commit 35e626bd0e which did not land in branch.
-00df1cd9d6234cdfc9fb2bf3615196ff83a3c956 anv: Stop setting BO flags in bo_init_new
-# This commit depends on commit 00df1cd9d6 which did not land in branch.
-b83b1af6f6936f36db42a8f8b8e0854d0f9491fd anv: Make supports_48bit_addresses a heap property
-# These commits depend on commit b83b1af6f6 which did not land in branch.
-50d0eb5096bd9514821a641f25c0b3455c0f8a88 anv: Advertise both 32-bit and 48-bit heaps when we have enough memory
+# This commit causes regressions in the crucible testsuite
 39adea9330376a64a4b5e8da98f5e055ebd3331e anv: Require vertex buffers to come from a 32-bit heap
 # This commit addressed an earlier commit 126d5ad which did not land in branch.
 9da104593386f6e8ddec8f0d9d288aceb8908fe1 radv: fix regression in descriptor set freeing.
-# These commits depend on commit 9da1045933 which did not land in branch.
-f7736ccf53eaeb66c4270afe0916e2cb29ab8667 anv: Add valid_bufer_usage to the memory type metadata
-34581fdd4f149894dfa51777a2f7eb289bd08b71 anv: Refactor memory type setup
