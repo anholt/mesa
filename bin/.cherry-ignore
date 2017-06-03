@@ -1,6 +1,4 @@
 # This commit depends on 9fd9a7d0ba3 and 678d568c7b2, neither of which is in branch.
 b84b631c6381d9b36bca5d0e7cc67dd23af188c1 radeonsi: load patch_id for TES-as-ES when exporting for PS
-# This commit causes regressions in the crucible testsuite
-39adea9330376a64a4b5e8da98f5e055ebd3331e anv: Require vertex buffers to come from a 32-bit heap
 # This commit addressed an earlier commit 126d5ad which did not land in branch.
 9da104593386f6e8ddec8f0d9d288aceb8908fe1 radv: fix regression in descriptor set freeing.
