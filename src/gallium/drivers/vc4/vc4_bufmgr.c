@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
+#include <drm_fourcc.h>
 
 #include "util/u_hash_table.h"
 #include "util/u_memory.h"
@@ -281,6 +282,12 @@ vc4_bo_last_unreference_locked_timed(struct vc4_bo *bo, time_t time)
                 vc4_bo_free(bo);
                 return;
         }
+
+        struct drm_vc4_set_tiling set_tiling = {
+                .handle = bo->handle,
+                .modifier = DRM_FORMAT_MOD_NONE,
+        };
+        (void)vc4_ioctl(screen->fd, DRM_IOCTL_VC4_SET_TILING, &set_tiling);
 
         if (cache->size_list_size <= page_index) {
                 struct list_head *new_list =
