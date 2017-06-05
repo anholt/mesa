@@ -29,10 +29,12 @@
 #include "util/u_surface.h"
 #include "util/u_upload_mgr.h"
 
+#include "vc4_drm.h"
 #include "vc4_screen.h"
 #include "vc4_context.h"
 #include "vc4_resource.h"
 #include "vc4_tiling.h"
+#include "drm_fourcc.h"
 
 static bool miptree_debug = false;
 
@@ -553,29 +555,66 @@ struct pipe_resource *
 vc4_resource_create(struct pipe_screen *pscreen,
                     const struct pipe_resource *tmpl)
 {
+        struct vc4_screen *screen = vc4_screen(pscreen);
         struct vc4_resource *rsc = vc4_resource_setup(pscreen, tmpl);
         struct pipe_resource *prsc = &rsc->base;
 
-        /* We have to make shared be untiled, since we don't have any way to
-         * communicate metadata about tiling currently.
-         */
-        if (tmpl->target == PIPE_BUFFER ||
-            tmpl->nr_samples > 1 ||
-            (tmpl->bind & (PIPE_BIND_SCANOUT |
-                           PIPE_BIND_LINEAR |
-                           PIPE_BIND_SHARED |
-                           PIPE_BIND_CURSOR))) {
+        /* Use a tiled layout if we can, for better 3D performance. */
+        rsc->tiled = true;
+
+        /* VBOs/PBOs are untiled (and 1 height). */
+        if (tmpl->target == PIPE_BUFFER)
                 rsc->tiled = false;
-        } else {
-                rsc->tiled = true;
+
+        /* MSAA buffers are linear. */
+        if (tmpl->nr_samples > 1)
+                rsc->tiled = false;
+
+        /* Cursors are always linear, and the user can request linear as
+         * well.
+         */
+        if (tmpl->bind & (PIPE_BIND_LINEAR |
+                          PIPE_BIND_CURSOR)) {
+                rsc->tiled = false;
         }
 
-        if (tmpl->target != PIPE_BUFFER)
-                rsc->vc4_format = get_resource_texture_format(prsc);
+        /* No shared objects with LT format -- the kernel only has T-format
+         * metadata.  LT objects are small enough it's not worth the trouble
+         * to give them metadata to tile.
+         */
+        if ((tmpl->bind & PIPE_BIND_SHARED) &&
+            vc4_size_is_lt(prsc->width0, prsc->height0, rsc->cpp)) {
+                rsc->tiled = false;
+        }
 
         vc4_setup_slices(rsc);
         if (!vc4_resource_bo_alloc(rsc))
                 goto fail;
+
+        if (tmpl->bind & PIPE_BIND_SHARED) {
+                assert(rsc->slices[0].tiling == VC4_TILING_FORMAT_T);
+
+                struct drm_vc4_set_tiling set_tiling = {
+                        .handle = rsc->bo->handle,
+                        .modifier = DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED,
+                };
+                int ret = vc4_ioctl(screen->fd,
+                                    DRM_IOCTL_VC4_SET_TILING,
+                                    &set_tiling);
+
+                /* If we hit this, we're probably on an old kernel.  Fall back
+                 * to linear.
+                 */
+                if (ret != 0) {
+                        rsc->tiled = false;
+                        vc4_setup_slices(rsc);
+                        if (!vc4_resource_bo_alloc(rsc))
+                                goto fail;
+                }
+        }
+
+        if (tmpl->target != PIPE_BUFFER)
+                rsc->vc4_format = get_resource_texture_format(prsc);
 
         return prsc;
 fail:
@@ -593,28 +632,9 @@ vc4_resource_from_handle(struct pipe_screen *pscreen,
         struct vc4_resource *rsc = vc4_resource_setup(pscreen, tmpl);
         struct pipe_resource *prsc = &rsc->base;
         struct vc4_resource_slice *slice = &rsc->slices[0];
-        uint32_t expected_stride =
-            align(prsc->width0, vc4_utile_width(rsc->cpp)) * rsc->cpp;
 
         if (!rsc)
                 return NULL;
-
-        if (whandle->stride != expected_stride) {
-                static bool warned = false;
-                if (!warned) {
-                        warned = true;
-                        fprintf(stderr,
-                                "Attempting to import %dx%d %s with "
-                                "unsupported stride %d instead of %d\n",
-                                prsc->width0, prsc->height0,
-                                util_format_short_name(prsc->format),
-                                whandle->stride,
-                                expected_stride);
-                }
-                goto fail;
-        }
-
-        rsc->tiled = false;
 
         if (whandle->offset != 0) {
                 fprintf(stderr,
@@ -641,10 +661,17 @@ vc4_resource_from_handle(struct pipe_screen *pscreen,
         if (!rsc->bo)
                 goto fail;
 
-        slice->stride = whandle->stride;
-        slice->tiling = VC4_TILING_FORMAT_LINEAR;
+        struct drm_vc4_get_tiling get_tiling = {
+                .handle = rsc->bo->handle,
+        };
+        int ret = vc4_ioctl(screen->fd, DRM_IOCTL_VC4_GET_TILING, &get_tiling);
+        if (ret == 0 &&
+            get_tiling.modifier == DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED) {
+                rsc->tiled = true;
+        }
 
         rsc->vc4_format = get_resource_texture_format(prsc);
+        vc4_setup_slices(rsc);
 
         if (miptree_debug) {
                 fprintf(stderr,
@@ -653,6 +680,21 @@ vc4_resource_from_handle(struct pipe_screen *pscreen,
                         rsc, rsc->vc4_format,
                         prsc->width0, prsc->height0,
                         slice->stride, slice->offset);
+        }
+
+        if (whandle->stride != rsc->slices[0].stride) {
+                static bool warned = false;
+                if (!warned) {
+                        warned = true;
+                        fprintf(stderr,
+                                "Attempting to import %dx%d %s with "
+                                "unsupported stride %d instead of %d\n",
+                                prsc->width0, prsc->height0,
+                                util_format_short_name(prsc->format),
+                                whandle->stride,
+                                rsc->slices[0].stride);
+                }
+                goto fail;
         }
 
         return prsc;

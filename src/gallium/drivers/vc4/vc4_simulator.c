@@ -658,9 +658,17 @@ vc4_simulator_ioctl(int fd, unsigned long request, void *args)
         case DRM_IOCTL_GEM_CLOSE:
                 return vc4_simulator_gem_close_ioctl(fd, args);
 
+        case DRM_IOCTL_VC4_GET_TILING:
+        case DRM_IOCTL_VC4_SET_TILING:
+                /* Disable these for now, since the sharing with i965 requires
+                 * linear buffers.
+                 */
+                return -1;
+
         case DRM_IOCTL_GEM_OPEN:
         case DRM_IOCTL_GEM_FLINK:
                 return drmIoctl(fd, request, args);
+
         default:
                 fprintf(stderr, "Unknown ioctl 0x%08x\n", (int)request);
                 abort();
