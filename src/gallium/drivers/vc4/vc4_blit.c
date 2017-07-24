@@ -47,6 +47,19 @@ is_tile_unaligned(unsigned size, unsigned tile_size)
         return size & (tile_size - 1);
 }
 
+static uint32_t
+vc4_blitter_overlap_flags(const struct pipe_blit_info *info)
+{
+        uint32_t flags = VC4_SUBMIT_CL_FIXED_RCL_ORDER;
+
+        if (info->src.box.x > info->dst.box.x)
+                flags |= VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X;
+        if (info->src.box.y > info->dst.box.y)
+                flags |= VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y;
+
+        return flags;
+}
+
 static bool
 vc4_tile_blit(struct pipe_context *pctx, const struct pipe_blit_info *info)
 {
@@ -152,6 +165,7 @@ vc4_tile_blit(struct pipe_context *pctx, const struct pipe_blit_info *info)
         job->msaa = msaa;
         job->needs_flush = true;
         job->resolve |= PIPE_CLEAR_COLOR;
+        job->flags = vc4_blitter_overlap_flags(info);
 
         vc4_job_submit(vc4, job);
 
@@ -196,7 +210,13 @@ vc4_render_blit(struct pipe_context *ctx, struct pipe_blit_info *info)
         }
 
         vc4_blitter_save(vc4);
+
+        if (info->src.resource == info->dst.resource) {
+                vc4->blitter_overlap_draw_flags =
+                        vc4_blitter_overlap_flags(info);
+        }
         util_blitter_blit(vc4->blitter, info);
+        vc4->blitter_overlap_draw_flags = 0;
 
         return true;
 }

@@ -456,6 +456,7 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
                 submit.clear_z = job->clear_depth;
                 submit.clear_s = job->clear_stencil;
         }
+        submit.flags |= job->flags;
 
         if (!(vc4_debug & VC4_DEBUG_NORAST)) {
                 int ret;

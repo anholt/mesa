@@ -153,6 +153,9 @@ struct drm_vc4_submit_cl {
 	__u32 pad:24;
 
 #define VC4_SUBMIT_CL_USE_CLEAR_COLOR			(1 << 0)
+#define VC4_SUBMIT_CL_FIXED_RCL_ORDER			(1 << 1)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X		(1 << 2)
+#define VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y		(1 << 3)
 	__u32 flags;
 
 	/* Returned value of the seqno of this render job (for the

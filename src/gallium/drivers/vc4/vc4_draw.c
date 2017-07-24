@@ -307,6 +307,9 @@ vc4_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 
         struct vc4_job *job = vc4_get_job_for_fbo(vc4);
 
+        /* Merge in vc4_blit.c's exec flags for overlapping draws. */
+        job->flags |= vc4->blitter_overlap_draw_flags;
+
         vc4_get_draw_cl_space(job, info->count);
 
         if (vc4->prim_mode != info->mode) {

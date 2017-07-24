@@ -296,6 +296,9 @@ struct vc4_job {
          */
         uint32_t draw_calls_queued;
 
+        /** Any flags to be passed in drm_vc4_submit_cl.flags. */
+        uint32_t flags;
+
         struct vc4_job_key key;
 };
 
@@ -322,6 +325,7 @@ struct vc4_context {
 
         struct slab_child_pool transfer_pool;
         struct blitter_context *blitter;
+        uint32_t blitter_overlap_draw_flags;
 
         /** bitfield of VC4_DIRTY_* */
         uint32_t dirty;
