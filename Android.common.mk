@@ -72,6 +72,14 @@ LOCAL_CFLAGS += \
 	-DUSE_X86_ASM \
 
 endif
+ifeq ($(TARGET_ARCH),arm)
+LOCAL_CFLAGS += \
+	-DUSE_ARM_ASM
+endif
+ifeq ($(TARGET_ARCH),aarch64)
+LOCAL_CFLAGS += \
+	-DUSE_AARCH64_ASM
+endif
 endif
 
 ifeq ($(MESA_ENABLE_LLVM),true)
