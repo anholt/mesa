@@ -2656,7 +2656,7 @@ if test -n "$with_gallium_drivers"; then
             PKG_CHECK_MODULES([VC5_SIMULATOR], [v3dv3],
                               [USE_VC5_SIMULATOR=yes;
                                DEFINES="$DEFINES -DUSE_VC5_SIMULATOR"],
-                              [AC_MSG_ERROR([vc5 requires the simulator])])
+                              [USE_VC5_SIMULATOR=no])
             ;;
         xpl111)
             HAVE_GALLIUM_PL111=yes

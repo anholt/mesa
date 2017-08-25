@@ -46,7 +46,7 @@ files_libvc5 = files(
 )
 
 v3dv3_c_args = []
-dep_v3dv3 = dependency('v3dv3')
+dep_v3dv3 = dependency('v3dv3', required: false)
 if dep_v3dv3.found()
   v3dv3_c_args = '-DUSE_VC5_SIMULATOR'
 endif
