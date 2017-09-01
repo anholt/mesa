@@ -11,6 +11,7 @@ BROADCOM_GENXML_XML_FILES = \
 
 BROADCOM_FILES = \
 	cle/v3d_packet_helpers.h \
+	cle/v3dx_pack.h \
 	common/v3d_debug.c \
 	common/v3d_debug.h \
 	clif/clif_dump.c \
@@ -41,3 +42,32 @@ BROADCOM_DECODER_FILES = \
 	cle/v3d_decoder.h \
 	$()
 
+VULKAN_FILES := \
+	vulkan/bcmv_allocator.c \
+	vulkan/bcmv_batch.c \
+	vulkan/bcmv_cmd_buffer.c \
+	vulkan/bcmv_device.c \
+	vulkan/bcmv_gem.c \
+	vulkan/bcmv_nir.h \
+	vulkan/bcmv_pipeline_cache.c \
+	vulkan/bcmv_pipeline.c \
+	vulkan/bcmv_queue.c \
+	vulkan/bcmv_private.h \
+	vulkan/bcmv_util.c \
+	vulkan/bcmv_wsi.c \
+	vulkan/vk_format_info.h
+
+VULKAN_WSI_WAYLAND_FILES := \
+	vulkan/bcmv_wsi_wayland.c
+
+VULKAN_WSI_X11_FILES := \
+	vulkan/bcmv_wsi_x11.c
+
+VULKAN_GENERATED_FILES := \
+	vulkan/bcmv_entrypoints.c \
+	vulkan/bcmv_entrypoints.h \
+	vulkan/bcmv_extensions.c
+
+VULKAN_V3DX_FILES := \
+	vulkan/v3dx_cmd_buffer.c \
+	vulkan/v3dx_pipeline.c

@@ -22,6 +22,7 @@
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/include/drm-uapi \
 	-I$(top_builddir)/src \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/broadcom/ \
@@ -54,5 +55,6 @@ PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
 include Makefile.genxml.am
 include Makefile.cle.am
 include Makefile.vc5.am
+include Makefile.vulkan.am
 
 CLEANFILES += $(BUILT_SOURCES)

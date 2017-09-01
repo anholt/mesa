@@ -1980,6 +1980,11 @@ if test -n "$with_vulkan_drivers"; then
     VULKAN_DRIVERS=`IFS=', '; echo $with_vulkan_drivers`
     for driver in $VULKAN_DRIVERS; do
         case "x$driver" in
+        xbroadcom)
+            require_libdrm "BCMV"
+            require_x11_dri3 "BCMV"
+            HAVE_BROADCOM_VULKAN=yes
+            ;;
         xintel)
             require_libdrm "ANV"
             require_x11_dri3 "ANV"
@@ -2732,8 +2737,13 @@ AM_CONDITIONAL(HAVE_R200_DRI, test x$HAVE_R200_DRI = xyes)
 AM_CONDITIONAL(HAVE_RADEON_DRI, test x$HAVE_RADEON_DRI = xyes)
 AM_CONDITIONAL(HAVE_SWRAST_DRI, test x$HAVE_SWRAST_DRI = xyes)
 
+AM_CONDITIONAL(HAVE_BROADCOM_VULKAN, test "x$HAVE_BROADCOM_VULKAN" = xyes)
 AM_CONDITIONAL(HAVE_RADEON_VULKAN, test "x$HAVE_RADEON_VULKAN" = xyes)
 AM_CONDITIONAL(HAVE_INTEL_VULKAN, test "x$HAVE_INTEL_VULKAN" = xyes)
+
+AM_CONDITIONAL(HAVE_BROADCOM_DRIVERS, test "x$HAVE_GALLIUM_VC4" = xyes -o \
+                                      "x$HAVE_GALLIUM_VC5" = xyes -o \
+                                      "x$HAVE_BROADCOM_VULKAN" = xyes)
 
 AM_CONDITIONAL(HAVE_AMD_DRIVERS, test "x$HAVE_GALLIUM_RADEONSI" = xyes -o \
                                       "x$HAVE_RADEON_VULKAN" = xyes)

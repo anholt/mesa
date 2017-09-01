@@ -1,0 +1,7 @@
+# Generated source files
+/bcmv_extensions.c
+/bcmv_entrypoints.c
+/bcmv_entrypoints.h
+/bcmv_timestamp.h
+/dev_icd.json
+/broadcom_icd.*.json
