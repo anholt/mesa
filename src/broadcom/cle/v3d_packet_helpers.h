@@ -45,7 +45,7 @@
 #endif
 
 #ifndef __gen_user_data
-#error #define __gen_combine_address before including this file
+#error #define __gen_user_data before including this file
 #endif
 */
 union __gen_value {
