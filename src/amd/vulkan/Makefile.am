@@ -35,6 +35,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/vulkan/wsi \
 	-I$(top_builddir)/src/vulkan/util \
+	-I$(top_srcdir)/src/vulkan/format \
 	-I$(top_srcdir)/src/vulkan/util \
 	-I$(top_srcdir)/src/amd \
 	-I$(top_srcdir)/src/amd/common \
@@ -61,6 +62,7 @@ VULKAN_SOURCES = \
 
 VULKAN_LIB_DEPS = \
 	libvulkan_common.la \
+	$(top_builddir)/src/vulkan/libvulkan_format.la \
 	$(top_builddir)/src/vulkan/libvulkan_util.la \
 	$(top_builddir)/src/vulkan/libvulkan_wsi.la \
 	$(top_builddir)/src/amd/common/libamd_common.la \
@@ -113,21 +115,12 @@ radv_entrypoints.c: radv_entrypoints_gen.py $(vulkan_api_xml)
 		--xml $(vulkan_api_xml) --outdir $(builddir)
 radv_entrypoints.h: radv_entrypoints.c
 
-vk_format_table.c: vk_format_table.py \
-		   vk_format_parse.py \
-                   vk_format_layout.csv
-	$(PYTHON2) $(srcdir)/vk_format_table.py $(srcdir)/vk_format_layout.csv > $@
-
-BUILT_SOURCES = $(VULKAN_GENERATED_FILES)
 CLEANFILES = $(BUILT_SOURCES) dev_icd.json radeon_icd.@host_cpu@.json
 EXTRA_DIST = \
 	$(top_srcdir)/include/vulkan/vk_icd.h \
 	dev_icd.json.in \
 	radeon_icd.json.in \
-	radv_entrypoints_gen.py \
-	vk_format_layout.csv \
-	vk_format_parse.py \
-	vk_format_table.py
+	radv_entrypoints_gen.py
 
 libvulkan_radeon_la_LIBADD = $(VULKAN_LIB_DEPS)
 

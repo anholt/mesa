@@ -23,3 +23,10 @@ VULKAN_UTIL_FILES := \
 VULKAN_UTIL_GENERATED_FILES := \
 	util/vk_enum_to_str.c \
 	util/vk_enum_to_str.h
+
+
+VULKAN_FORMAT_FILES := \
+	format/vk_format.h
+
+VULKAN_FORMAT_GENERATED_FILES := \
+	format/vk_format_table.c

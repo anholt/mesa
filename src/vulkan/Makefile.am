@@ -1,6 +1,6 @@
 include Makefile.sources
 
-noinst_LTLIBRARIES = libvulkan_wsi.la libvulkan_util.la
+noinst_LTLIBRARIES = libvulkan_wsi.la libvulkan_util.la libvulkan_format.la
 
 vulkan_includedir = $(includedir)/vulkan
 vulkan_api_xml = $(top_srcdir)/src/vulkan/registry/vk.xml
@@ -9,8 +9,14 @@ vk_android_native_buffer_xml = $(top_srcdir)/src/vulkan/registry/vk_android_nati
 MKDIR_GEN = $(AM_V_at)$(MKDIR_P) $(@D)
 PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
 
+VULKAN_FORMAT_CODEGEN_FILES = \
+	format/vk_format_layout.csv \
+	format/vk_format_parse.py \
+	format/vk_format_table.py
+
 EXTRA_DIST = \
 	$(top_srcdir)/include/vulkan/vk_android_native_buffer.h \
+	$(VULKAN_FORMAT_CODEGEN_FILES) \
 	util/gen_enum_to_str.py
 
 VULKAN_UTIL_SOURCES = \
@@ -80,3 +86,12 @@ VULKAN_WSI_SOURCES += \
 endif
 
 libvulkan_wsi_la_SOURCES = $(VULKAN_WSI_SOURCES)
+
+libvulkan_format_la_SOURCES = \
+	$(VULKAN_FORMAT_FILES) \
+	$(VULKAN_FORMAT_GENERATED_FILES)
+
+BUILT_SOURCES += $(VULKAN_FORMAT_GENERATED_FILES)
+
+format/vk_format_table.c: $(VULKAN_FORMAT_CODEGEN_FILES)
+	$(PYTHON2) $(srcdir)/format/vk_format_table.py $(srcdir)/format/vk_format_layout.csv > $@
