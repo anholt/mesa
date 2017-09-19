@@ -48,6 +48,7 @@ VULKAN_FILES := \
 	vulkan/bcmv_cmd_buffer.c \
 	vulkan/bcmv_device.c \
 	vulkan/bcmv_gem.c \
+	vulkan/bcmv_image.c \
 	vulkan/bcmv_nir.h \
 	vulkan/bcmv_pipeline_cache.c \
 	vulkan/bcmv_pipeline.c \
