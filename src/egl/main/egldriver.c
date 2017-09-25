@@ -54,8 +54,13 @@ _eglGetDriver(void)
 {
    mtx_lock(&_eglModuleMutex);
 
-   if (!_eglDriver)
-      _eglDriver = _eglBuiltInDriver();
+   if (!_eglDriver) {
+      _eglDriver = calloc(1, sizeof(*_eglDriver));
+      if (!_eglDriver)
+         return NULL;
+      _eglInitDriverFallbacks(_eglDriver);
+      _eglInitDriver(_eglDriver);
+   }
 
    mtx_unlock(&_eglModuleMutex);
 
