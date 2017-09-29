@@ -133,11 +133,13 @@ endif
 # TODO: there are more platforms required for non-vulkan drivers
 with_platform_wayland = false
 with_platform_x11 = false
+with_platform_drm = false
 _platforms = get_option('platforms')
 if _platforms != ''
   _split = _platforms.split(',')
   with_platform_x11 = _split.contains('x11')
   with_platform_wayland = _split.contains('wayland')
+  with_platform_drm = _split.contains('drm')
 endif
 
 with_gbm = get_option('gbm')
@@ -551,7 +553,10 @@ dep_selinux = []
 
 # TODO: llvm-prefix and llvm-shared-libs
 
-# TODO: unwind (llvm [radeon, gallivm] and gallium)
+dep_unwind = dependency('libunwind', required : false)
+if dep_unwind.found()
+  pre_args += '-DHAVE_LIBUNWIND'
+endif
 
 # TODO: flags for opengl, gles, dri
 
@@ -560,9 +565,6 @@ dep_selinux = []
 # TODO: glx provider
 
 # TODO: osmesa provider
-
-# TODO: flags for xa, egl, gbm, nin, xvmc, vdpau, omx, va, opencl,
-#       gallium-tests,
 
 # TODO: symbol mangling
 
@@ -645,8 +647,6 @@ endif
 
 # TODO: egl
 
-# TODO: xa
-
 # TODO: vallium G3DVL
 
 # TODO: nine
@@ -655,7 +655,29 @@ endif
 
 # TODO: egl sans x11
 
-# TODO: xvmc
+with_gallium_xvmc = false
+with_gallium_vdpau = false
+with_gallium_omx = false  # this is bellagio
+with_gallium_va = false
+with_gallium_media = false
+dep_va = []
+_drivers = get_option('gallium-media')
+if _drivers != ''
+  _split = _drivers.split(',')
+  with_gallium_xvmc = _split.contains('xvmc')
+  with_gallium_vdpau = _split.contains('vdpau')
+  with_gallium_omx = _split.contains('omx')
+  with_gallium_va = _split.contains('va')
+  with_gallium_media = (with_gallium_xvmc or with_gallium_vdpau or
+                        with_gallium_omx or with_gallium_va)
+  if with_gallium_media
+    dep_va = [
+      dependency('x11-xcb'),
+      dependency('xcb'),
+      dependency('xcb-dri2', version : '>= 1.8'), # FIXME: dedup version
+    ]
+  endif
+endif
 
 # TODO: gallium tests
 
