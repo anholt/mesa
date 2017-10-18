@@ -3309,6 +3309,4 @@ _eglInitDriver(_EGLDriver *dri2_drv)
    dri2_drv->API.GLInteropExportObject = dri2_interop_export_object;
    dri2_drv->API.DupNativeFenceFDANDROID = dri2_dup_native_fence_fd;
    dri2_drv->API.SetBlobCacheFuncsANDROID = dri2_set_blob_cache_funcs;
-
-   dri2_drv->Name = "DRI2";
 }

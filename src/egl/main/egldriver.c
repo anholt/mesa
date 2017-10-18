@@ -99,8 +99,6 @@ _eglMatchDriver(_EGLDisplay *dpy)
    }
 
    if (best_drv) {
-      _eglLog(_EGL_DEBUG, "the best driver is %s",
-            best_drv->Name);
       dpy->Driver = best_drv;
       dpy->Initialized = EGL_TRUE;
    }
