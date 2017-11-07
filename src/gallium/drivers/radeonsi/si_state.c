@@ -120,7 +120,8 @@ static void si_emit_cb_render_state(struct si_context *sctx)
 				SI_TRACKED_CB_DCC_CONTROL,
 				S_028424_OVERWRITE_COMBINER_MRT_SHARING_DISABLE(1) |
 				S_028424_OVERWRITE_COMBINER_WATERMARK(watermark) |
-				S_028424_OVERWRITE_COMBINER_DISABLE(oc_disable));
+				S_028424_OVERWRITE_COMBINER_DISABLE(oc_disable) |
+				S_028424_DISABLE_CONSTANT_ENCODE_REG(sctx->family == CHIP_RAVEN2));
 	}
 
 	/* RB+ register settings. */
@@ -5100,6 +5101,7 @@ static void si_init_config(struct si_context *sctx)
 			pc_lines = 4096;
 			break;
 		case CHIP_RAVEN:
+		case CHIP_RAVEN2:
 			pc_lines = 1024;
 			break;
 		default:

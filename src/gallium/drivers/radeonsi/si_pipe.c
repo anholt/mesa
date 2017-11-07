@@ -1033,10 +1033,11 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 	if (sscreen->debug_flags & DBG(DPBB)) {
 		sscreen->dpbb_allowed = true;
 	} else {
-		/* Only enable primitive binning on Raven by default. */
+		/* Only enable primitive binning on APUs by default. */
 		/* TODO: Investigate if binning is profitable on Vega12. */
-		sscreen->dpbb_allowed = sscreen->info.family == CHIP_RAVEN &&
-					!(sscreen->debug_flags & DBG(NO_DPBB));
+		sscreen->dpbb_allowed = !(sscreen->debug_flags & DBG(NO_DPBB)) &&
+					(sscreen->info.family == CHIP_RAVEN ||
+					 sscreen->info.family == CHIP_RAVEN2);
 	}
 
 	if (sscreen->debug_flags & DBG(DFSM)) {
@@ -1063,7 +1064,8 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 			!(sscreen->debug_flags & DBG(NO_RB_PLUS)) &&
 			(sscreen->info.family == CHIP_STONEY ||
 			 sscreen->info.family == CHIP_VEGA12 ||
-			 sscreen->info.family == CHIP_RAVEN);
+			 sscreen->info.family == CHIP_RAVEN ||
+			 sscreen->info.family == CHIP_RAVEN2);
 	}
 
 	sscreen->dcc_msaa_allowed =
