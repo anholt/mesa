@@ -28,6 +28,7 @@
 #include "util/u_inlines.h"
 #include "util/u_surface.h"
 #include "util/u_upload_mgr.h"
+#include "util/u_format_zs.h"
 
 #include "drm_fourcc.h"
 #include "vc5_screen.h"
@@ -280,11 +281,56 @@ fail:
         return NULL;
 }
 
+/* Decomposes a PIPE_FORMAT_Z32_FLOAT_S8X24_UINT transfer into mappings of
+ * each resource into a temporary buffer using the gallium helper.
+ *
+ * This has to be a separate function from vc5_resource_transfer_map() to
+ * prevent infinite recusion.
+ */
+static void *
+vc5_resource_transfer_map_z32f_wrapper(struct pipe_context *pctx,
+                                       struct pipe_resource *prsc,
+                                       unsigned level, unsigned usage,
+                                       const struct pipe_box *box,
+                                       struct pipe_transfer **pptrans)
+{
+        if (prsc->format != PIPE_FORMAT_Z32_FLOAT_S8X24_UINT) {
+                return vc5_resource_transfer_map(pctx, prsc, level, usage,
+                                                 box, pptrans);
+        }
+
+        struct vc5_resource *rsc = vc5_resource(prsc);
+        pctx->transfer_map = vc5_resource_transfer_map;
+        void *map = u_transfer_map_z32f_s8_helper(pctx, prsc,
+                                                  &rsc->separate_stencil->base,
+                                                  level, usage,
+                                                  box, pptrans);
+        pctx->transfer_map = vc5_resource_transfer_map_z32f_wrapper;
+        return map;
+}
+
+static void
+vc5_resource_transfer_unmap_z32f_wrapper(struct pipe_context *pctx,
+                                         struct pipe_transfer *ptrans)
+{
+        if (ptrans->resource->format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT) {
+                pctx->transfer_unmap = vc5_resource_transfer_unmap;
+                u_transfer_unmap_z32f_s8_helper(pctx, ptrans);
+                pctx->transfer_unmap = vc5_resource_transfer_unmap_z32f_wrapper;
+        } else {
+                vc5_resource_transfer_unmap(pctx, ptrans);
+        }
+}
+
 static void
 vc5_resource_destroy(struct pipe_screen *pscreen,
                      struct pipe_resource *prsc)
 {
         struct vc5_resource *rsc = vc5_resource(prsc);
+
+        if (rsc->separate_stencil)
+                vc5_resource_destroy(pscreen, &rsc->separate_stencil->base);
+
         vc5_bo_unreference(&rsc->bo);
         free(rsc);
 }
@@ -436,7 +482,13 @@ vc5_resource_setup(struct pipe_screen *pscreen,
         prsc->screen = pscreen;
 
         if (prsc->nr_samples <= 1) {
-                rsc->cpp = util_format_get_blocksize(prsc->format);
+                /* For Z32F+S8X24, the stencil is stored separately and this
+                 * rsc will just be the Z32F.
+                 */
+                if (prsc->format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT)
+                        rsc->cpp = 4;
+                else
+                        rsc->cpp = util_format_get_blocksize(prsc->format);
         } else {
                 assert(vc5_rt_format_supported(prsc->format));
                 uint32_t output_image_format = vc5_get_rt_format(prsc->format);
@@ -522,6 +574,17 @@ vc5_resource_create_with_modifiers(struct pipe_screen *pscreen,
         } else {
                 fprintf(stderr, "Unsupported modifier requested\n");
                 return NULL;
+        }
+
+        if (prsc->format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT) {
+                struct pipe_resource ss_tmpl = *tmpl;
+                ss_tmpl.format = PIPE_FORMAT_S8_UINT;
+
+                struct pipe_resource *ss = vc5_resource_create(pscreen,
+                                                               &ss_tmpl);
+                if (!ss)
+                        goto fail;
+                rsc->separate_stencil = vc5_resource(ss);
         }
 
         vc5_setup_slices(rsc);
@@ -636,6 +699,10 @@ vc5_create_surface(struct pipe_context *pctx,
         unsigned level = surf_tmpl->u.tex.level;
         struct vc5_resource_slice *slice = &rsc->slices[level];
 
+        struct vc5_resource_slice *separate_stencil_slice = NULL;
+        if (rsc->separate_stencil)
+                separate_stencil_slice = &rsc->separate_stencil->slices[level];
+
         pipe_reference_init(&psurf->reference, 1);
         pipe_resource_reference(&psurf->texture, ptex);
 
@@ -650,6 +717,15 @@ vc5_create_surface(struct pipe_context *pctx,
         surface->offset = (slice->offset +
                            psurf->u.tex.first_layer * rsc->cube_map_stride);
         surface->tiling = slice->tiling;
+        if (separate_stencil_slice) {
+                surface->separate_stencil_offset =
+                        (separate_stencil_slice->offset +
+                         psurf->u.tex.first_layer *
+                         rsc->separate_stencil->cube_map_stride);
+                surface->separate_stencil_tiling =
+                        separate_stencil_slice->tiling;
+        }
+
         surface->format = vc5_get_rt_format(psurf->format);
 
         if (util_format_is_depth_or_stencil(psurf->format)) {
@@ -677,6 +753,13 @@ vc5_create_surface(struct pipe_context *pctx,
                 surface->padded_height_of_output_image_in_uif_blocks =
                         ((slice->size / slice->stride) /
                          (2 * vc5_utile_height(rsc->cpp)));
+
+                if (separate_stencil_slice) {
+                        surface->separate_stencil_padded_height_of_output_image_in_uif_blocks =
+                        ((separate_stencil_slice->size /
+                          separate_stencil_slice->stride) /
+                         (2 * vc5_utile_height(rsc->separate_stencil->cpp)));
+                }
         }
 
         return &surface->base;
@@ -711,9 +794,9 @@ vc5_resource_screen_init(struct pipe_screen *pscreen)
 void
 vc5_resource_context_init(struct pipe_context *pctx)
 {
-        pctx->transfer_map = vc5_resource_transfer_map;
+        pctx->transfer_map = vc5_resource_transfer_map_z32f_wrapper;
         pctx->transfer_flush_region = u_default_transfer_flush_region;
-        pctx->transfer_unmap = vc5_resource_transfer_unmap;
+        pctx->transfer_unmap = vc5_resource_transfer_unmap_z32f_wrapper;
         pctx->buffer_subdata = u_default_buffer_subdata;
         pctx->texture_subdata = u_default_texture_subdata;
         pctx->create_surface = vc5_create_surface;

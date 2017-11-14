@@ -80,7 +80,9 @@ struct vc5_resource_slice {
 struct vc5_surface {
         struct pipe_surface base;
         uint32_t offset;
+        uint32_t separate_stencil_offset;
         enum vc5_tiling_mode tiling;
+        enum vc5_tiling_mode separate_stencil_tiling;
         /**
          * Output image format for TILE_RENDERING_MODE_CONFIGURATION
          */
@@ -99,6 +101,7 @@ struct vc5_surface {
         uint8_t internal_bpp;
 
         uint32_t padded_height_of_output_image_in_uif_blocks;
+        uint32_t separate_stencil_padded_height_of_output_image_in_uif_blocks;
 };
 
 struct vc5_resource {
@@ -127,6 +130,9 @@ struct vc5_resource {
          * buffer) may get marked.
          */
         uint32_t initialized_buffers;
+
+        /* Resource storing the S8 part of a Z32F_S8 resource, or NULL. */
+        struct vc5_resource *separate_stencil;
 };
 
 static inline struct vc5_resource *

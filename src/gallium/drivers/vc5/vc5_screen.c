@@ -507,6 +507,12 @@ vc5_screen_is_format_supported(struct pipe_screen *pscreen,
                 retval |= PIPE_BIND_INDEX_BUFFER;
         }
 
+        /* We don't have the layered support necessary for resolving the
+         * separate stencil to single sample.
+         */
+        if (format == PIPE_FORMAT_Z32_FLOAT_S8X24_UINT && sample_count > 1)
+                return FALSE;
+
 #if 0
         if (retval != usage) {
                 fprintf(stderr,
