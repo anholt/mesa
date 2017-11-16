@@ -24,6 +24,17 @@ u_transfer_map_msaa_helper(struct pipe_context *pctx,
 void u_transfer_unmap_msaa_helper(struct pipe_context *pctx,
                                   struct pipe_transfer *ptrans);
 
+void *
+u_transfer_map_z32f_s8_helper(struct pipe_context *pctx,
+                              struct pipe_resource *z,
+                              struct pipe_resource *s,
+                              unsigned level, unsigned usage,
+                              const struct pipe_box *box,
+                              struct pipe_transfer **pptrans);
+
+void u_transfer_unmap_z32f_s8_helper(struct pipe_context *pctx,
+                                     struct pipe_transfer *ptrans);
+
 boolean u_default_resource_get_handle(struct pipe_screen *screen,
                                       struct pipe_resource *resource,
                                       struct winsys_handle *handle);

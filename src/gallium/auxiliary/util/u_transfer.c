@@ -1,4 +1,5 @@
 #include "pipe/p_context.h"
+#include "util/u_format_zs.h"
 #include "util/u_surface.h"
 #include "util/u_inlines.h"
 #include "util/u_transfer.h"
@@ -270,5 +271,118 @@ void u_transfer_unmap_msaa_helper(struct pipe_context *pctx,
    }
 
    pipe_resource_reference(&trans->ss, NULL);
+   free(trans);
+}
+
+struct u_transfer_z32f_s8_helper {
+   struct pipe_transfer base;
+   struct pipe_transfer *z_ptrans;
+   struct pipe_transfer *s_ptrans;
+   void *z, *s;
+   void *merged;
+};
+
+/**
+ * Helper to implement the PIPE_FORMAT_Z32_FLOAT_S8X24_UINT mappings when the
+ * driver stores the Z and S in separate resources.
+ *
+ * We malloc temporary storage, map each resource, and use the CPU to pack the
+ * values into the temporary.
+ *
+ * Note that the driver's unmap will be called with our ptrans: They need to
+ * detect it and call u_transfer_unmap_z32f_s8_helper() and return
+ * immediately.
+ *
+ * In both the map and unmap paths, the driver will need to be careful to
+ * unwrap its transfer_map()/unmap() method that would call us, so that it
+ * doesn't recurse when we call back into it.
+ */
+void *
+u_transfer_map_z32f_s8_helper(struct pipe_context *pctx,
+                              struct pipe_resource *z,
+                              struct pipe_resource *s,
+                              unsigned level, unsigned usage,
+                              const struct pipe_box *box,
+                              struct pipe_transfer **pptrans)
+{
+   struct u_transfer_z32f_s8_helper *trans = calloc(1, sizeof(*trans));
+   if (!trans)
+      return NULL;
+   struct pipe_transfer *ptrans = &trans->base;
+
+   pipe_resource_reference(&ptrans->resource, z);
+   ptrans->level = level;
+   ptrans->usage = usage;
+   ptrans->box = *box;
+
+   trans->z = pctx->transfer_map(pctx, z, level, usage, box,
+                                 &trans->z_ptrans);
+   if (!trans->z)
+      goto fail_unref;
+   trans->s = pctx->transfer_map(pctx, s, level, usage, box,
+                                 &trans->s_ptrans);
+   if (!trans->s)
+      goto fail_unmap_z;
+
+   ptrans->stride = 8 * box->width;
+   trans->merged = malloc(ptrans->stride * box->height);
+   if (!trans->merged)
+      goto fail_unmap_s;
+
+   if (usage & PIPE_TRANSFER_READ) {
+      util_format_z32_float_s8x24_uint_pack_z_float(trans->merged,
+                                                    ptrans->stride,
+                                                    trans->z,
+                                                    trans->z_ptrans->stride,
+                                                    box->width,
+                                                    box->height);
+      util_format_z32_float_s8x24_uint_pack_s_8uint(trans->merged,
+                                                    ptrans->stride,
+                                                    trans->s,
+                                                    trans->s_ptrans->stride,
+                                                    box->width,
+                                                    box->height);
+   }
+
+   *pptrans = ptrans;
+   return trans->merged;
+
+ fail_unmap_s:
+   pctx->transfer_unmap(pctx, trans->s_ptrans);
+ fail_unmap_z:
+   pctx->transfer_unmap(pctx, trans->z_ptrans);
+ fail_unref:
+   pipe_resource_reference(&ptrans->resource, NULL);
+   free(trans);
+   return NULL;
+}
+
+void u_transfer_unmap_z32f_s8_helper(struct pipe_context *pctx,
+                                     struct pipe_transfer *ptrans)
+{
+   struct u_transfer_z32f_s8_helper *trans =
+      (struct u_transfer_z32f_s8_helper *)ptrans;
+
+   if (ptrans->usage & PIPE_TRANSFER_WRITE) {
+      uint32_t width = ptrans->box.width;
+      uint32_t height = ptrans->box.height;
+
+      util_format_z32_float_s8x24_uint_unpack_z_float(trans->z,
+                                                      trans->z_ptrans->stride,
+                                                      trans->merged,
+                                                      ptrans->stride,
+                                                      width, height);
+      util_format_z32_float_s8x24_uint_unpack_s_8uint(trans->s,
+                                                      trans->s_ptrans->stride,
+                                                      trans->merged,
+                                                      ptrans->stride,
+                                                      width, height);
+   }
+
+   pctx->transfer_unmap(pctx, trans->s_ptrans);
+   pctx->transfer_unmap(pctx, trans->z_ptrans);
+
+   pipe_resource_reference(&ptrans->resource, NULL);
+   free(trans->merged);
    free(trans);
 }
