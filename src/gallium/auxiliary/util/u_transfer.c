@@ -153,3 +153,122 @@ void u_transfer_unmap_vtbl( struct pipe_context *pipe,
    struct u_resource *ur = u_resource(transfer->resource);
    ur->vtbl->transfer_unmap(pipe, transfer);
 }
+
+struct u_transfer_msaa_helper {
+   struct pipe_transfer base;
+   struct pipe_resource *ss;
+   struct pipe_transfer *wrapped;
+};
+
+/**
+ * Helper to implement the implicit MSAA resolve necessary in the
+ * pipe_transfer API.
+ *
+ * The driver should call this when the resource is multisampled.  We create a
+ * temporary single-sampled texture, blit to do the resolve if needed, and
+ * then call back to the driver to map the single-sampled texture.
+ *
+ * Note that the driver's unmap will be called with our ptrans: They need to
+ * detect it and call u_transfer_unmap_msaa_helper() and return immediately.
+ */
+void *
+u_transfer_map_msaa_helper(struct pipe_context *pctx,
+                           struct pipe_resource *prsc,
+                           unsigned level, unsigned usage,
+                           const struct pipe_box *box,
+                           struct pipe_transfer **pptrans)
+{
+   struct pipe_screen *pscreen = pctx->screen;
+   assert(prsc->nr_samples > 1);
+
+   struct u_transfer_msaa_helper *trans = calloc(1, sizeof(*trans));
+   if (!trans)
+      return NULL;
+   struct pipe_transfer *ptrans = &trans->base;
+
+   pipe_resource_reference(&ptrans->resource, prsc);
+   ptrans->level = level;
+   ptrans->usage = usage;
+   ptrans->box = *box;
+
+   struct pipe_resource temp_setup = {
+      .target = prsc->target,
+      .format = prsc->format,
+      .width0 = box->width,
+      .height0 = box->height,
+      .depth0 = 1,
+      .array_size = 1,
+   };
+   trans->ss = pscreen->resource_create(pscreen, &temp_setup);
+   if (!trans->ss) {
+      free(trans);
+      return NULL;
+   }
+
+   if (usage & PIPE_TRANSFER_READ) {
+      struct pipe_blit_info blit;
+      memset(&blit, 0, sizeof(blit));
+
+      blit.src.resource = ptrans->resource;
+      blit.src.format = ptrans->resource->format;
+      blit.src.level = ptrans->level;
+      blit.src.box = *box;
+
+      blit.dst.resource = trans->ss;
+      blit.dst.format = trans->ss->format;
+      blit.dst.box.width = box->width;
+      blit.dst.box.height = box->height;
+      blit.dst.box.depth = 1;
+
+      blit.mask = util_format_get_mask(prsc->format);
+      blit.filter = PIPE_TEX_FILTER_NEAREST;
+
+      pctx->blit(pctx, &blit);
+   }
+
+   void *ss_map = pctx->transfer_map(pctx, trans->ss, 0, usage, box,
+                                     &trans->wrapped);
+   if (!ss_map) {
+      free(trans);
+      return NULL;
+   }
+
+   *pptrans = ptrans;
+   return ss_map;
+}
+
+void u_transfer_unmap_msaa_helper(struct pipe_context *pctx,
+                                  struct pipe_transfer *ptrans)
+{
+   struct u_transfer_msaa_helper *trans =
+      (struct u_transfer_msaa_helper *)ptrans;
+
+   /* Unmap the single-sample resource, finishing whatever driver side storing
+    * is necessary.
+    */
+   pipe_transfer_unmap(pctx, trans->wrapped);
+
+   if (ptrans->usage & PIPE_TRANSFER_WRITE) {
+      struct pipe_blit_info blit;
+      memset(&blit, 0, sizeof(blit));
+
+      blit.src.resource = trans->ss;
+      blit.src.format = trans->ss->format;
+      blit.src.box.width = ptrans->box.width;
+      blit.src.box.height = ptrans->box.height;
+      blit.src.box.depth = 1;
+
+      blit.dst.resource = ptrans->resource;
+      blit.dst.format = ptrans->resource->format;
+      blit.dst.level = ptrans->level;
+      blit.dst.box = ptrans->box;
+
+      blit.mask = util_format_get_mask(ptrans->resource->format);
+      blit.filter = PIPE_TEX_FILTER_NEAREST;
+
+      pctx->blit(pctx, &blit);
+   }
+
+   pipe_resource_reference(&trans->ss, NULL);
+   free(trans);
+}

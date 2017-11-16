@@ -14,6 +14,16 @@ struct winsys_handle;
 extern "C" {
 #endif
 
+void *
+u_transfer_map_msaa_helper(struct pipe_context *pctx,
+                           struct pipe_resource *prsc,
+                           unsigned level, unsigned usage,
+                           const struct pipe_box *box,
+                           struct pipe_transfer **pptrans);
+
+void u_transfer_unmap_msaa_helper(struct pipe_context *pctx,
+                                  struct pipe_transfer *ptrans);
+
 boolean u_default_resource_get_handle(struct pipe_screen *screen,
                                       struct pipe_resource *resource,
                                       struct winsys_handle *handle);
