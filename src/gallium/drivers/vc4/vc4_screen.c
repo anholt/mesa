@@ -697,6 +697,8 @@ vc4_screen_create(int fd, struct renderonly *ro)
                 vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_THREADED_FS);
         screen->has_madvise =
                 vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_MADVISE);
+        screen->has_extended_cl =
+                vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_EXTENDED_CL);
 
         if (!vc4_get_chip_info(screen))
                 goto fail;

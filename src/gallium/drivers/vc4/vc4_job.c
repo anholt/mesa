@@ -364,12 +364,18 @@ vc4_submit_setup_rcl_msaa_surface(struct vc4_job *job,
         rsc->writes++;
 }
 
+#define MAX_CHUNKS		1
+
 /**
  * Submits the job to the kernel and then reinitializes it.
  */
 void
 vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
 {
+        struct vc4_screen *screen = vc4_screen(vc4->base.screen);
+        union drm_vc4_submit_cl_chunk chunks[MAX_CHUNKS] = { };
+        uint32_t nchunks = 0;
+
         if (!job->needs_flush)
                 goto done;
 
@@ -448,13 +454,26 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
 
         submit.bo_handles = (uintptr_t)job->bo_handles.base;
         submit.bo_handle_count = cl_offset(&job->bo_handles) / 4;
-        submit.bin_cl = (uintptr_t)job->bcl.base;
-        submit.bin_cl_size = cl_offset(&job->bcl);
+        if (!screen->has_extended_cl) {
+                submit.bin_cl = (uintptr_t)job->bcl.base;
+                submit.bin_cl_size = cl_offset(&job->bcl);
+        } else if (cl_offset(&job->bcl)) {
+                chunks[nchunks].bin.type = VC4_BIN_CL_CHUNK;
+                chunks[nchunks].bin.size = cl_offset(&job->bcl);
+                chunks[nchunks].bin.ptr = (uintptr_t)job->bcl.base;
+                nchunks++;
+        }
         submit.shader_rec = (uintptr_t)job->shader_rec.base;
         submit.shader_rec_size = cl_offset(&job->shader_rec);
         submit.shader_rec_count = job->shader_rec_count;
         submit.uniforms = (uintptr_t)job->uniforms.base;
         submit.uniforms_size = cl_offset(&job->uniforms);
+
+        if (nchunks) {
+                submit.flags |= VC4_SUBMIT_CL_EXTENDED;
+                submit.cl_chunks = (uintptr_t)chunks;
+                submit.num_cl_chunks = nchunks;
+        }
 
         assert(job->draw_min_x != ~0 && job->draw_min_y != ~0);
         submit.min_x_tile = job->draw_min_x / job->tile_width;
