@@ -699,6 +699,8 @@ vc4_screen_create(int fd, struct renderonly *ro)
                 vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_MADVISE);
         screen->has_extended_cl =
                 vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_EXTENDED_CL);
+        screen->has_perfmon_ioctl =
+                vc4_has_feature(screen, DRM_VC4_PARAM_SUPPORTS_PERFMON);
 
         if (!vc4_get_chip_info(screen))
                 goto fail;
@@ -724,6 +726,11 @@ vc4_screen_create(int fd, struct renderonly *ro)
         pscreen->get_device_vendor = vc4_screen_get_vendor;
         pscreen->get_compiler_options = vc4_screen_get_compiler_options;
         pscreen->query_dmabuf_modifiers = vc4_screen_query_dmabuf_modifiers;
+
+        if (screen->has_perfmon_ioctl) {
+                pscreen->get_driver_query_group_info = vc4_get_driver_query_group_info;
+                pscreen->get_driver_query_info = vc4_get_driver_query_info;
+        }
 
         return pscreen;
 

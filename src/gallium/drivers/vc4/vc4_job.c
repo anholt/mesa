@@ -364,7 +364,7 @@ vc4_submit_setup_rcl_msaa_surface(struct vc4_job *job,
         rsc->writes++;
 }
 
-#define MAX_CHUNKS		1
+#define MAX_CHUNKS		2
 
 /**
  * Submits the job to the kernel and then reinitializes it.
@@ -468,6 +468,13 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
         submit.shader_rec_count = job->shader_rec_count;
         submit.uniforms = (uintptr_t)job->uniforms.base;
         submit.uniforms_size = cl_offset(&job->uniforms);
+
+        if (vc4->perfmon && screen->has_extended_cl) {
+                chunks[nchunks].perfmon.type = VC4_PERFMON_CHUNK;
+                chunks[nchunks].perfmon.id = vc4->perfmon->id;
+                chunks[nchunks].perfmon.pad = 0;
+                nchunks++;
+        }
 
         if (nchunks) {
                 submit.flags |= VC4_SUBMIT_CL_EXTENDED;

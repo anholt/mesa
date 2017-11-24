@@ -312,6 +312,11 @@ struct vc4_job {
         struct vc4_job_key key;
 };
 
+struct vc4_hwperfmon {
+        uint32_t id;
+        uint64_t counters[DRM_VC4_MAX_PERF_COUNTERS];
+};
+
 struct vc4_context {
         struct pipe_context base;
 
@@ -390,6 +395,8 @@ struct vc4_context {
         struct pipe_viewport_state viewport;
         struct vc4_constbuf_stateobj constbuf[PIPE_SHADER_TYPES];
         struct vc4_vertexbuf_stateobj vertexbuf;
+
+        struct vc4_hwperfmon *perfmon;
         /** @} */
 };
 
@@ -446,6 +453,12 @@ vc4_sampler_state(struct pipe_sampler_state *psampler)
 {
         return (struct vc4_sampler_state *)psampler;
 }
+
+int vc4_get_driver_query_group_info(struct pipe_screen *pscreen,
+                                    unsigned index,
+                                    struct pipe_driver_query_group_info *info);
+int vc4_get_driver_query_info(struct pipe_screen *pscreen, unsigned index,
+                              struct pipe_driver_query_info *info);
 
 struct pipe_context *vc4_context_create(struct pipe_screen *pscreen,
                                         void *priv, unsigned flags);
