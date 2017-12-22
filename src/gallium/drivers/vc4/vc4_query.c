@@ -202,6 +202,7 @@ vc4_begin_query(struct pipe_context *pctx, struct pipe_query *pquery)
         if (ctx->perfmon)
                 return false;
 
+        vc4_flush(pctx);
         ctx->perfmon = query->hwperfmon;
         return true;
 }
@@ -218,6 +219,7 @@ vc4_end_query(struct pipe_context *pctx, struct pipe_query *pquery)
         if (ctx->perfmon != query->hwperfmon)
                 return false;
 
+        vc4_flush(pctx);
         ctx->perfmon = NULL;
         return true;
 }
