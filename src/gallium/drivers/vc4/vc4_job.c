@@ -513,6 +513,8 @@ vc4_job_submit(struct vc4_context *vc4, struct vc4_job *job)
                         warned = true;
                 } else if (!ret) {
                         vc4->last_emit_seqno = submit.seqno;
+                        if (vc4->perfmon)
+                                vc4->perfmon->seqno = submit.seqno;
                 }
         }
 

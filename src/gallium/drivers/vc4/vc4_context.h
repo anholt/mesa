@@ -316,6 +316,7 @@ struct vc4_hwperfmon {
         uint32_t id;
         uint64_t start_counters[DRM_VC4_MAX_PERF_COUNTERS];
         uint64_t counters[DRM_VC4_MAX_PERF_COUNTERS];
+        uint64_t seqno;
 };
 
 struct vc4_context {

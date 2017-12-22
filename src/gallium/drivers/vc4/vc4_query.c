@@ -253,6 +253,10 @@ vc4_get_query_result(struct pipe_context *pctx, struct pipe_query *pquery,
         if (ret)
                 return false;
 
+        if (!vc4_wait_seqno(ctx->screen,
+                            query->hwperfmon->seqno, ~0ull, "perfmon"))
+                return false;
+
         for (i = 0; i < query->num_queries; i++)
                 vresult->batch[i].u64 = (query->hwperfmon->counters[i] -
                                          query->hwperfmon->start_counters[i]);
