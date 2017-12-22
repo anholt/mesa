@@ -243,7 +243,7 @@ vc4_get_query_result(struct pipe_context *pctx, struct pipe_query *pquery,
                 return false;
 
         for (i = 0; i < query->num_queries; i++)
-                vresult[i].u64 = query->hwperfmon->counters[i];
+                vresult->batch[i].u64 = query->hwperfmon->counters[i];
 
         return true;
 }
