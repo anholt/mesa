@@ -103,6 +103,7 @@ int vc4_get_driver_query_info(struct pipe_screen *pscreen, unsigned index,
         if (index >= ARRAY_SIZE(v3d_counter_names))
                 return 0;
 
+        info->group_id = 0;
         info->name = v3d_counter_names[index];
         info->query_type = PIPE_QUERY_DRIVER_SPECIFIC + index;
         info->result_type = PIPE_DRIVER_QUERY_RESULT_TYPE_CUMULATIVE;
