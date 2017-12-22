@@ -202,6 +202,14 @@ vc4_begin_query(struct pipe_context *pctx, struct pipe_query *pquery)
         if (ctx->perfmon)
                 return false;
 
+        struct drm_vc4_perfmon_get_values req = {
+                .id = query->hwperfmon->id,
+                .values_ptr = (uintptr_t)query->hwperfmon->start_counters,
+        };
+        int ret = vc4_ioctl(ctx->fd, DRM_IOCTL_VC4_PERFMON_GET_VALUES, &req);
+        if (ret)
+                return false;
+
         vc4_flush(pctx);
         ctx->perfmon = query->hwperfmon;
         return true;
@@ -246,7 +254,8 @@ vc4_get_query_result(struct pipe_context *pctx, struct pipe_query *pquery,
                 return false;
 
         for (i = 0; i < query->num_queries; i++)
-                vresult->batch[i].u64 = query->hwperfmon->counters[i];
+                vresult->batch[i].u64 = (query->hwperfmon->counters[i] -
+                                         query->hwperfmon->start_counters[i]);
 
         return true;
 }
