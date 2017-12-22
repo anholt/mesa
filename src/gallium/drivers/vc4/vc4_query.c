@@ -43,6 +43,7 @@ static const char *v3d_counter_names[] = {
         "FEP-valid-quads",
         "TLB-quads-not-passing-stencil-test",
         "TLB-quads-not-passing-z-and-stencil-test",
+        "TLB-quads-passing-z-and-stencil-test",
         "TLB-quads-with-zero-coverage",
         "TLB-quads-with-non-zero-coverage",
         "TLB-quads-written-to-color-buffer",
