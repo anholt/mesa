@@ -150,6 +150,7 @@ glsl_to_nir(const struct gl_shader_program *shader_prog,
             const nir_shader_compiler_options *options)
 {
    struct gl_linked_shader *sh = shader_prog->_LinkedShaders[stage];
+   sh->Program->info.stage = stage;
 
    nir_shader *shader = nir_shader_create(NULL, stage, options,
                                           &sh->Program->info);

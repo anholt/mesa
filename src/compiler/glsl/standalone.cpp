@@ -163,6 +163,9 @@ initialize_context(struct gl_context *ctx, gl_api api)
    ctx->Const.Program[MESA_SHADER_COMPUTE].MaxImageUniforms = 8;
    ctx->Const.Program[MESA_SHADER_COMPUTE].MaxUniformBlocks = 12;
 
+   ctx->Const.MaxVertexStreams = 16;
+   ctx->Const.MaxTransformFeedbackBuffers = 4;
+
    switch (ctx->Const.GLSLVersion) {
    case 100:
       ctx->Const.MaxClipPlanes = 0;
@@ -571,6 +574,8 @@ standalone_compile_shader(const struct standalone_options *_options,
 
          if (!shader)
             continue;
+
+         do_mat_op_to_vec(shader->ir);
 
          add_neg_to_sub_visitor v;
          visit_list_elements(&v, shader->ir);
