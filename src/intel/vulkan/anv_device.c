@@ -2052,6 +2052,17 @@ void
 anv_device_set_lost(struct anv_device *device, const char *msg, ...)
 {
    device->_lost = true;
+
+   if (env_var_as_boolean("ANV_ABORT_ON_DEVICE_LOSS", false)) {
+      intel_loge("Device lost!");
+
+      va_list ap;
+      va_start(ap, msg);
+      intel_loge_v(msg, ap);
+      va_end(ap);
+
+      abort();
+   }
 }
 
 VkResult
