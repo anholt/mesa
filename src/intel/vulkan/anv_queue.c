@@ -42,7 +42,7 @@ anv_device_execbuf(struct anv_device *device,
    int ret = device->no_hw ? 0 : anv_gem_execbuffer(device, execbuf);
    if (ret != 0) {
       /* We don't know the real error. */
-      device->lost = true;
+      anv_device_set_lost(device, "execbuf2 failed: %m");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "execbuf2 failed: %m");
    }
@@ -245,7 +245,7 @@ out:
        */
       result = vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                          "vkQueueSubmit() failed");
-      device->lost = true;
+      anv_device_set_lost(device, "vkQueueSubmit() failed");
    }
 
    pthread_mutex_unlock(&device->mutex);
@@ -398,7 +398,7 @@ VkResult anv_GetFenceStatus(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_fence, fence, _fence);
 
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    struct anv_fence_impl *impl =
@@ -438,7 +438,7 @@ VkResult anv_GetFenceStatus(
             return VK_NOT_READY;
          } else {
             /* We don't know the real error. */
-            device->lost = true;
+            anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
             return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                              "drm_syncobj_wait failed: %m");
          }
@@ -526,7 +526,7 @@ anv_wait_for_syncobj_fences(struct anv_device *device,
          return VK_TIMEOUT;
       } else {
          /* We don't know the real error. */
-         device->lost = true;
+         anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
          return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                           "drm_syncobj_wait failed: %m");
       }
@@ -670,7 +670,7 @@ anv_wait_for_bo_fences(struct anv_device *device,
    }
 
 done:
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    return result;
@@ -760,7 +760,7 @@ VkResult anv_WaitForFences(
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
 
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    if (anv_all_fences_syncobj(fenceCount, pFences)) {

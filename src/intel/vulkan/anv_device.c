@@ -1711,7 +1711,7 @@ VkResult anv_CreateDevice(
    device->instance = physical_device->instance;
    device->chipset_id = physical_device->chipset_id;
    device->no_hw = physical_device->no_hw;
-   device->lost = false;
+   device->_lost = false;
 
    if (pAllocator)
       device->alloc = *pAllocator;
@@ -2048,6 +2048,12 @@ void anv_GetDeviceQueue2(
       *pQueue = NULL;
 }
 
+void
+anv_device_set_lost(struct anv_device *device, const char *msg, ...)
+{
+   device->_lost = true;
+}
+
 VkResult
 anv_device_query_status(struct anv_device *device)
 {
@@ -2055,24 +2061,24 @@ anv_device_query_status(struct anv_device *device)
     * for it.  However, it doesn't hurt to check and it potentially lets us
     * avoid an ioctl.
     */
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    uint32_t active, pending;
    int ret = anv_gem_gpu_get_reset_stats(device, &active, &pending);
    if (ret == -1) {
       /* We don't know the real error. */
-      device->lost = true;
+      anv_device_set_lost(device, "get_reset_stats failed: %m");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "get_reset_stats failed: %m");
    }
 
    if (active) {
-      device->lost = true;
+      anv_device_set_lost(device, "GPU hung on one of our command buffers");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "GPU hung on one of our command buffers");
    } else if (pending) {
-      device->lost = true;
+      anv_device_set_lost(device, "GPU hung with commands in-flight");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "GPU hung with commands in-flight");
    }
@@ -2092,7 +2098,7 @@ anv_device_bo_busy(struct anv_device *device, struct anv_bo *bo)
       return VK_NOT_READY;
    } else if (ret == -1) {
       /* We don't know the real error. */
-      device->lost = true;
+      anv_device_set_lost(device, "gem wait failed: %m");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "gem wait failed: %m");
    }
@@ -2115,7 +2121,7 @@ anv_device_wait(struct anv_device *device, struct anv_bo *bo,
       return VK_TIMEOUT;
    } else if (ret == -1) {
       /* We don't know the real error. */
-      device->lost = true;
+      anv_device_set_lost(device, "gem wait failed: %m");
       return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                        "gem wait failed: %m");
    }
@@ -2132,7 +2138,7 @@ VkResult anv_DeviceWaitIdle(
     VkDevice                                    _device)
 {
    ANV_FROM_HANDLE(anv_device, device, _device);
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    struct anv_batch batch;
@@ -2806,7 +2812,7 @@ VkResult anv_QueueBindSparse(
     VkFence                                     fence)
 {
    ANV_FROM_HANDLE(anv_queue, queue, _queue);
-   if (unlikely(queue->device->lost))
+   if (anv_device_is_lost(queue->device))
       return VK_ERROR_DEVICE_LOST;
 
    return vk_error(VK_ERROR_FEATURE_NOT_PRESENT);
@@ -2864,7 +2870,7 @@ VkResult anv_GetEventStatus(
    ANV_FROM_HANDLE(anv_device, device, _device);
    ANV_FROM_HANDLE(anv_event, event, _event);
 
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    if (!device->info.has_llc) {
@@ -3094,7 +3100,7 @@ VkResult anv_GetCalibratedTimestampsEXT(
                                 &pTimestamps[d]);
 
          if (ret != 0) {
-            device->lost = TRUE;
+            anv_device_set_lost(device, "Failed to get a timestamp");
             return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                              "Failed to read the TIMESTAMP register: %m");
          }

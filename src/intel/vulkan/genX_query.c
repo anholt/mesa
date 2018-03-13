@@ -181,7 +181,7 @@ wait_for_available(struct anv_device *device,
          continue;
       } else if (ret == -1) {
          /* We don't know the real error. */
-         device->lost = true;
+         anv_device_set_lost(device, "gem wait failed: %m");
          return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
                           "gem wait failed: %m");
       } else {
@@ -224,7 +224,7 @@ VkResult genX(GetQueryPoolResults)(
           pool->type == VK_QUERY_TYPE_PIPELINE_STATISTICS ||
           pool->type == VK_QUERY_TYPE_TIMESTAMP);
 
-   if (unlikely(device->lost))
+   if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
    if (pData == NULL)

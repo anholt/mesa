@@ -1028,7 +1028,7 @@ struct anv_device {
 
     pthread_mutex_t                             mutex;
     pthread_cond_t                              queue_submit;
-    bool                                        lost;
+    bool                                        _lost;
 };
 
 static inline struct anv_state_pool *
@@ -1074,6 +1074,15 @@ anv_state_flush(struct anv_device *device, struct anv_state state)
 
 void anv_device_init_blorp(struct anv_device *device);
 void anv_device_finish_blorp(struct anv_device *device);
+
+void anv_device_set_lost(struct anv_device *device,
+                         const char *msg, ...);
+
+static inline bool
+anv_device_is_lost(struct anv_device *device)
+{
+   return unlikely(device->_lost);
+}
 
 VkResult anv_device_execbuf(struct anv_device *device,
                             struct drm_i915_gem_execbuffer2 *execbuf,
