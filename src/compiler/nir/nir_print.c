@@ -488,6 +488,58 @@ print_var_decl(nir_variable *var, print_state *state)
 }
 
 static void
+print_deref_instr(nir_deref_instr *instr, print_state *state)
+{
+   FILE *fp = state->fp;
+
+   print_dest(&instr->dest, state);
+
+   if (instr->deref_type == nir_deref_type_var) {
+      fprintf(fp, " = deref %s", get_var_name(instr->var, state));
+      return;
+   } else if (instr->deref_type == nir_deref_type_cast) {
+      fprintf(fp, " = deref (%s) (%s *)&",
+              get_variable_mode_str(instr->mode),
+              glsl_get_type_name(instr->type));
+      print_src(&instr->parent, state);
+      return;
+   }
+
+   fprintf(fp, " = deref (%s) &", get_variable_mode_str(instr->mode));
+   print_src(&instr->parent, state);
+
+   assert(instr->parent.is_ssa);
+   nir_deref_instr *parent =
+      nir_instr_as_deref(instr->parent.ssa->parent_instr);
+
+   switch (instr->deref_type) {
+   case nir_deref_type_struct:
+      fprintf(fp, "->%s",
+              glsl_get_struct_elem_name(parent->type, instr->strct.index));
+      break;
+
+   case nir_deref_type_array: {
+      nir_const_value *const_index = nir_src_as_const_value(instr->arr.index);
+      if (const_index) {
+         fprintf(fp, "[%u]", const_index->u32[0]);
+      } else {
+         fprintf(fp, "[");
+         print_src(&instr->arr.index, state);
+         fprintf(fp, "]");
+      }
+      break;
+   }
+
+   case nir_deref_type_array_wildcard:
+      fprintf(fp, "[*]");
+      break;
+
+   default:
+      unreachable("Invalid deref instruction type");
+   }
+}
+
+static void
 print_var(nir_variable *var, print_state *state)
 {
    FILE *fp = state->fp;
@@ -922,6 +974,10 @@ print_instr(const nir_instr *instr, print_state *state, unsigned tabs)
    switch (instr->type) {
    case nir_instr_type_alu:
       print_alu_instr(nir_instr_as_alu(instr), state);
+      break;
+
+   case nir_instr_type_deref:
+      print_deref_instr(nir_instr_as_deref(instr), state);
       break;
 
    case nir_instr_type_call:
