@@ -81,6 +81,7 @@ name(const in_type *parent)                             \
 struct nir_function;
 struct nir_shader;
 struct nir_instr;
+struct nir_builder;
 
 
 /**
@@ -2604,6 +2605,8 @@ bool nir_lower_deref_instrs(nir_shader *shader,
                             enum nir_lower_deref_flags flags);
 
 void nir_lower_var_copy_instr(nir_intrinsic_instr *copy, nir_shader *shader);
+void nir_lower_deref_copy_instr(struct nir_builder *b,
+                                nir_intrinsic_instr *copy);
 bool nir_lower_var_copies(nir_shader *shader);
 
 void nir_fixup_deref_modes(nir_shader *shader);
