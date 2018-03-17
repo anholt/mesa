@@ -39,10 +39,15 @@ convert_block(nir_block *block, nir_builder *b)
 
       nir_intrinsic_instr *load_var = nir_instr_as_intrinsic(instr);
 
-      if (load_var->intrinsic != nir_intrinsic_load_var)
-         continue;
+      nir_variable *var;
+      if (load_var->intrinsic == nir_intrinsic_load_var) {
+         var = load_var->variables[0]->var;
+      } else if (load_var->intrinsic == nir_intrinsic_load_deref) {
+         var = nir_deref_instr_get_variable(nir_src_as_deref(load_var->src[0]));
+      } else {
+         continue; /* Not a load instruction */
+      }
 
-      nir_variable *var = load_var->variables[0]->var;
       if (var->data.mode != nir_var_system_value)
          continue;
 
@@ -150,6 +155,8 @@ convert_block(nir_block *block, nir_builder *b)
 
       nir_ssa_def_rewrite_uses(&load_var->dest.ssa, nir_src_for_ssa(sysval));
       nir_instr_remove(&load_var->instr);
+      if (load_var->intrinsic == nir_intrinsic_load_deref)
+         nir_deref_instr_cleanup(nir_src_as_deref(load_var->src[0]));
 
       progress = true;
    }
