@@ -219,7 +219,8 @@ try_mask_partial_io(nir_shader *shader, nir_deref_var *deref, bool is_output_rea
 }
 
 static void
-gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
+gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader,
+                      void *dead_ctx)
 {
    switch (instr->intrinsic) {
    case nir_intrinsic_discard:
@@ -228,21 +229,32 @@ gather_intrinsic_info(nir_intrinsic_instr *instr, nir_shader *shader)
       shader->info.fs.uses_discard = true;
       break;
 
+   case nir_intrinsic_interp_deref_at_centroid:
+   case nir_intrinsic_interp_deref_at_sample:
+   case nir_intrinsic_interp_deref_at_offset:
    case nir_intrinsic_interp_var_at_centroid:
    case nir_intrinsic_interp_var_at_sample:
    case nir_intrinsic_interp_var_at_offset:
+   case nir_intrinsic_load_deref:
    case nir_intrinsic_load_var:
+   case nir_intrinsic_store_deref:
    case nir_intrinsic_store_var: {
-      nir_variable *var = instr->variables[0]->var;
+      nir_deref_var *deref;
+      if (nir_intrinsic_infos[instr->intrinsic].num_variables > 0)
+         deref = instr->variables[0];
+      else
+         deref = nir_deref_instr_to_deref(nir_src_as_deref(instr->src[0]), dead_ctx);
+      nir_variable *var = deref->var;
 
       if (var->data.mode == nir_var_shader_in ||
           var->data.mode == nir_var_shader_out) {
          bool is_output_read = false;
          if (var->data.mode == nir_var_shader_out &&
-             instr->intrinsic == nir_intrinsic_load_var)
+             (instr->intrinsic == nir_intrinsic_load_var ||
+              instr->intrinsic == nir_intrinsic_load_deref))
             is_output_read = true;
 
-         if (!try_mask_partial_io(shader, instr->variables[0], is_output_read))
+         if (!try_mask_partial_io(shader, deref, is_output_read))
             mark_whole_variable(shader, var, is_output_read);
 
          /* We need to track which input_reads bits correspond to a
@@ -328,7 +340,7 @@ gather_alu_info(nir_alu_instr *instr, nir_shader *shader)
 }
 
 static void
-gather_info_block(nir_block *block, nir_shader *shader)
+gather_info_block(nir_block *block, nir_shader *shader, void *dead_ctx)
 {
    nir_foreach_instr(instr, block) {
       switch (instr->type) {
@@ -336,7 +348,7 @@ gather_info_block(nir_block *block, nir_shader *shader)
          gather_alu_info(nir_instr_as_alu(instr), shader);
          break;
       case nir_instr_type_intrinsic:
-         gather_intrinsic_info(nir_instr_as_intrinsic(instr), shader);
+         gather_intrinsic_info(nir_instr_as_intrinsic(instr), shader, dead_ctx);
          break;
       case nir_instr_type_tex:
          gather_tex_info(nir_instr_as_tex(instr), shader);
@@ -384,7 +396,10 @@ nir_shader_gather_info(nir_shader *shader, nir_function_impl *entrypoint)
    if (shader->info.stage == MESA_SHADER_FRAGMENT) {
       shader->info.fs.uses_sample_qualifier = false;
    }
+
+   void *dead_ctx = ralloc_context(NULL);
    nir_foreach_block(block, entrypoint) {
-      gather_info_block(block, shader);
+      gather_info_block(block, shader, dead_ctx);
    }
+   ralloc_free(dead_ctx);
 }
