@@ -229,6 +229,8 @@ radv_shader_compile_to_nir(struct radv_device *device,
 
 		free(spec_entries);
 
+		NIR_PASS_V(nir, nir_lower_deref_instrs, ~0);
+
 		/* We have to lower away local constant initializers right before we
 		 * inline functions.  That way they get properly initialized at the top
 		 * of the function and not at the top of its caller.
