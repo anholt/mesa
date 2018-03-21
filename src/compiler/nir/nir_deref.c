@@ -73,6 +73,19 @@ nir_deref_path_finish(struct nir_deref_path *path)
       ralloc_free(path->path);
 }
 
+void
+nir_deref_instr_cleanup(nir_deref_instr *instr)
+{
+   for (nir_deref_instr *d = instr; d; d = nir_deref_instr_parent(d)) {
+      /* If anyone is using this deref, leave it alone */
+      assert(d->dest.is_ssa);
+      if (!list_empty(&d->dest.ssa.uses))
+         return;
+
+      nir_instr_remove(&d->instr);
+   }
+}
+
 nir_deref_var *
 nir_deref_instr_to_deref(nir_deref_instr *instr, void *mem_ctx)
 {
