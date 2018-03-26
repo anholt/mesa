@@ -634,8 +634,8 @@ find_trip_count(loop_info_state *state)
  * due to array access heuristics.
  */
 static bool
-force_unroll_array_access(loop_info_state *state, nir_shader *ns,
-                          nir_deref_var *variable)
+force_unroll_array_access_var(loop_info_state *state, nir_shader *ns,
+                              nir_deref_var *variable)
 {
    nir_deref *tail = &variable->deref;
 
@@ -676,6 +676,37 @@ force_unroll_array_access(loop_info_state *state, nir_shader *ns,
 }
 
 static bool
+force_unroll_array_access(loop_info_state *state, nir_shader *ns,
+                          nir_deref_instr *deref)
+{
+   for (nir_deref_instr *d = deref; d; d = nir_deref_instr_parent(d)) {
+      if (d->deref_type != nir_deref_type_array)
+         continue;
+
+      assert(d->arr.index.is_ssa);
+      nir_loop_variable *array_index = get_loop_var(d->arr.index.ssa, state);
+
+      if (array_index->type != basic_induction)
+         continue;
+
+      nir_deref_instr *parent = nir_deref_instr_parent(d);
+      assert(glsl_type_is_array(parent->type) ||
+             glsl_type_is_matrix(parent->type));
+      if (glsl_get_length(parent->type) == state->loop->info->trip_count) {
+         state->loop->info->force_unroll = true;
+         return true;
+      }
+
+      if (deref->mode & state->indirect_mask) {
+         state->loop->info->force_unroll = true;
+         return true;
+      }
+   }
+
+   return false;
+}
+
+static bool
 force_unroll_heuristics(loop_info_state *state, nir_shader *ns,
                         nir_block *block)
 {
@@ -694,9 +725,22 @@ force_unroll_heuristics(loop_info_state *state, nir_shader *ns,
          unsigned num_vars =
             nir_intrinsic_infos[intrin->intrinsic].num_variables;
          for (unsigned i = 0; i < num_vars; i++) {
-            if (force_unroll_array_access(state, ns, intrin->variables[i]))
+            if (force_unroll_array_access_var(state, ns, intrin->variables[i]))
                return true;
          }
+      }
+
+      if (intrin->intrinsic == nir_intrinsic_load_deref ||
+          intrin->intrinsic == nir_intrinsic_store_deref ||
+          intrin->intrinsic == nir_intrinsic_copy_deref) {
+         if (force_unroll_array_access(state, ns,
+                                       nir_src_as_deref(intrin->src[0])))
+            return true;
+
+         if (intrin->intrinsic == nir_intrinsic_copy_deref &&
+             force_unroll_array_access(state, ns,
+                                       nir_src_as_deref(intrin->src[1])))
+            return true;
       }
    }
 
