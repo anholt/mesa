@@ -911,62 +911,6 @@ typedef enum {
    nir_deref_type_cast,
 } nir_deref_type;
 
-typedef struct nir_deref {
-   nir_deref_type deref_type;
-   struct nir_deref *child;
-   const struct glsl_type *type;
-} nir_deref;
-
-typedef struct {
-   nir_deref deref;
-
-   nir_variable *var;
-} nir_deref_var;
-
-/* This enum describes how the array is referenced.  If the deref is
- * direct then the base_offset is used.  If the deref is indirect then
- * offset is given by base_offset + indirect.  If the deref is a wildcard
- * then the deref refers to all of the elements of the array at the same
- * time.  Wildcard dereferences are only ever allowed in copy_var
- * intrinsics and the source and destination derefs must have matching
- * wildcards.
- */
-typedef enum {
-   nir_deref_array_type_direct,
-   nir_deref_array_type_indirect,
-   nir_deref_array_type_wildcard,
-} nir_deref_array_type;
-
-typedef struct {
-   nir_deref deref;
-
-   nir_deref_array_type deref_array_type;
-   unsigned base_offset;
-   nir_src indirect;
-} nir_deref_array;
-
-typedef struct {
-   nir_deref deref;
-
-   unsigned index;
-} nir_deref_struct;
-
-NIR_DEFINE_CAST(nir_deref_as_var, nir_deref, nir_deref_var, deref,
-                deref_type, nir_deref_type_var)
-NIR_DEFINE_CAST(nir_deref_as_array, nir_deref, nir_deref_array, deref,
-                deref_type, nir_deref_type_array)
-NIR_DEFINE_CAST(nir_deref_as_struct, nir_deref, nir_deref_struct, deref,
-                deref_type, nir_deref_type_struct)
-
-/* Returns the last deref in the chain. */
-static inline nir_deref *
-nir_deref_tail(nir_deref *deref)
-{
-   while (deref->child)
-      deref = deref->child;
-   return deref;
-}
-
 typedef struct {
    nir_instr instr;
 
@@ -1037,9 +981,6 @@ nir_deref_instr_get_variable(const nir_deref_instr *instr)
 
 void nir_deref_instr_cleanup(nir_deref_instr *instr);
 
-nir_deref_var *
-nir_deref_instr_to_deref(nir_deref_instr *instr, void *mem_ctx);
-
 typedef struct {
    nir_instr instr;
 
@@ -1097,8 +1038,6 @@ typedef struct {
    uint8_t num_components;
 
    int const_index[NIR_INTRINSIC_MAX_CONST_INDEX];
-
-   nir_deref_var *variables[2];
 
    nir_src src[];
 } nir_intrinsic_instr;
@@ -1222,9 +1161,6 @@ typedef struct {
     */
    unsigned dest_components;
 
-   /** the number of inputs/outputs that are variables */
-   unsigned num_variables;
-
    /** the number of constant indices used by the intrinsic */
    unsigned num_indices;
 
@@ -1347,12 +1283,6 @@ typedef struct {
    /** The size of the texture array or 0 if it's not an array */
    unsigned texture_array_size;
 
-   /** The texture deref
-    *
-    * If this is null, use texture_index instead.
-    */
-   nir_deref_var *texture;
-
    /** The sampler index
     *
     * The following operations do not require a sampler and, as such, this
@@ -1369,12 +1299,6 @@ typedef struct {
     * then the sampler index is given by sampler_index + sampler_offset.
     */
    unsigned sampler_index;
-
-   /** The sampler deref
-    *
-    * If this is null, use sampler_index instead.
-    */
-   nir_deref_var *sampler;
 } nir_tex_instr;
 
 static inline unsigned
@@ -2148,14 +2072,6 @@ nir_ssa_undef_instr *nir_ssa_undef_instr_create(nir_shader *shader,
                                                 unsigned num_components,
                                                 unsigned bit_size);
 
-nir_deref_var *nir_deref_var_create(void *mem_ctx, nir_variable *var);
-nir_deref_array *nir_deref_array_create(void *mem_ctx);
-nir_deref_struct *nir_deref_struct_create(void *mem_ctx, unsigned field_index);
-
-typedef bool (*nir_deref_foreach_leaf_cb)(nir_deref_var *deref, void *state);
-bool nir_deref_foreach_leaf(nir_deref_var *deref,
-                            nir_deref_foreach_leaf_cb cb, void *state);
-
 nir_const_value nir_alu_binop_identity(nir_op binop, unsigned bit_size);
 
 /**
@@ -2387,8 +2303,6 @@ void nir_instr_move_src(nir_instr *dest_instr, nir_src *dest, nir_src *src);
 void nir_if_rewrite_condition(nir_if *if_stmt, nir_src new_src);
 void nir_instr_rewrite_dest(nir_instr *instr, nir_dest *dest,
                             nir_dest new_dest);
-void nir_instr_rewrite_deref(nir_instr *instr, nir_deref_var **deref,
-                             nir_deref_var *new_deref);
 
 void nir_ssa_dest_init(nir_instr *instr, nir_dest *dest,
                        unsigned num_components, unsigned bit_size,
@@ -2483,8 +2397,6 @@ nir_shader *nir_shader_clone(void *mem_ctx, const nir_shader *s);
 nir_function_impl *nir_function_impl_clone(const nir_function_impl *fi);
 nir_constant *nir_constant_clone(const nir_constant *c, nir_variable *var);
 nir_variable *nir_variable_clone(const nir_variable *c, nir_shader *shader);
-nir_deref *nir_deref_clone(const nir_deref *deref, void *mem_ctx);
-nir_deref_var *nir_deref_var_clone(const nir_deref_var *deref, void *mem_ctx);
 
 nir_shader *nir_shader_serialize_deserialize(void *mem_ctx, nir_shader *s);
 
