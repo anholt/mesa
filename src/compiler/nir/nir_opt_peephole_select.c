@@ -77,6 +77,17 @@ block_check_for_allowed_instrs(nir_block *block, unsigned *count, bool alu_ok)
             }
             break;
 
+         case nir_intrinsic_load_deref:
+            switch (nir_src_as_deref(intrin->src[0])->mode) {
+            case nir_var_shader_in:
+            case nir_var_uniform:
+               break;
+
+            default:
+               return false;
+            }
+            break;
+
          case nir_intrinsic_load_uniform:
             if (!alu_ok)
                return false;
