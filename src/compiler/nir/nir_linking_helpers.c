@@ -71,14 +71,11 @@ tcs_add_output_reads(nir_shader *shader, uint64_t *read, uint64_t *patches_read)
                continue;
 
             nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-            nir_variable *var;
-            if (intrin->intrinsic == nir_intrinsic_load_var) {
-               var = intrin->variables[0]->var;
-            } else if (intrin->intrinsic == nir_intrinsic_load_deref) {
-               var = nir_deref_instr_get_variable(nir_src_as_deref(intrin->src[0]));
-            } else {
+            if (intrin->intrinsic != nir_intrinsic_load_deref)
                continue;
-            }
+
+            nir_variable *var =
+               nir_deref_instr_get_variable(nir_src_as_deref(intrin->src[0]));
 
             if (var->data.mode != nir_var_shader_out)
                continue;
