@@ -92,17 +92,6 @@ lower_wpos_center_block(nir_builder *b, nir_block *block,
                update_fragcoord(b, intr, for_sample_shading);
                progress = true;
             }
-         } else if (intr->intrinsic == nir_intrinsic_load_var) {
-            nir_deref_var *dvar = intr->variables[0];
-            nir_variable *var = dvar->var;
-
-            if (var->data.mode == nir_var_shader_in &&
-                var->data.location == VARYING_SLOT_POS) {
-               /* gl_FragCoord should not have array/struct derefs: */
-               assert(dvar->deref.child == NULL);
-               update_fragcoord(b, intr, for_sample_shading);
-               progress = true;
-            }
          }
       }
    }
