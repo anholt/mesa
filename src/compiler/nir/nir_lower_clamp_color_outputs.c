@@ -67,9 +67,6 @@ lower_intrinsic(lower_state *state, nir_intrinsic_instr *intr)
    nir_ssa_def *s;
 
    switch (intr->intrinsic) {
-   case nir_intrinsic_store_var:
-      out = intr->variables[0]->var;
-      break;
    case nir_intrinsic_store_deref:
       out = nir_deref_instr_get_variable(nir_src_as_deref(intr->src[0]));
       break;
