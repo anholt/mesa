@@ -55,27 +55,10 @@ mark_global_var_uses_block(nir_block *block, nir_function_impl *impl,
                            struct hash_table *var_func_table)
 {
    nir_foreach_instr(instr, block) {
-      switch (instr->type) {
-      case nir_instr_type_deref: {
+      if (instr->type ==  nir_instr_type_deref) {
          nir_deref_instr *deref = nir_instr_as_deref(instr);
          if (deref->deref_type == nir_deref_type_var)
             register_var_use(deref->var, impl, var_func_table);
-         break;
-      }
-
-      case nir_instr_type_intrinsic: {
-         nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
-         unsigned num_vars =
-            nir_intrinsic_infos[intrin->intrinsic].num_variables;
-
-         for (unsigned i = 0; i < num_vars; i++)
-            register_var_use(intrin->variables[i]->var, impl, var_func_table);
-         break;
-      }
-
-      default:
-         /* Nothing to do */
-         break;
       }
    }
 
