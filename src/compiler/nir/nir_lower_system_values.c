@@ -37,21 +37,17 @@ convert_block(nir_block *block, nir_builder *b)
       if (instr->type != nir_instr_type_intrinsic)
          continue;
 
-      nir_intrinsic_instr *load_var = nir_instr_as_intrinsic(instr);
+      nir_intrinsic_instr *load_deref = nir_instr_as_intrinsic(instr);
+      if (load_deref->intrinsic != nir_intrinsic_load_deref)
+         continue;
 
-      nir_variable *var;
-      if (load_var->intrinsic == nir_intrinsic_load_var) {
-         var = load_var->variables[0]->var;
-      } else if (load_var->intrinsic == nir_intrinsic_load_deref) {
-         var = nir_deref_instr_get_variable(nir_src_as_deref(load_var->src[0]));
-      } else {
-         continue; /* Not a load instruction */
-      }
+      nir_variable *var =
+         nir_deref_instr_get_variable(nir_src_as_deref(load_deref->src[0]));
 
       if (var->data.mode != nir_var_system_value)
          continue;
 
-      b->cursor = nir_after_instr(&load_var->instr);
+      b->cursor = nir_after_instr(&load_deref->instr);
 
       nir_ssa_def *sysval = NULL;
       switch (var->data.location) {
@@ -163,10 +159,10 @@ convert_block(nir_block *block, nir_builder *b)
          sysval = nir_load_system_value(b, sysval_op, 0);
       }
 
-      nir_ssa_def_rewrite_uses(&load_var->dest.ssa, nir_src_for_ssa(sysval));
-      nir_instr_remove(&load_var->instr);
-      if (load_var->intrinsic == nir_intrinsic_load_deref)
-         nir_deref_instr_cleanup(nir_src_as_deref(load_var->src[0]));
+      nir_ssa_def_rewrite_uses(&load_deref->dest.ssa, nir_src_for_ssa(sysval));
+      nir_instr_remove(&load_deref->instr);
+      if (load_deref->intrinsic == nir_intrinsic_load_deref)
+         nir_deref_instr_cleanup(nir_src_as_deref(load_deref->src[0]));
 
       progress = true;
    }
