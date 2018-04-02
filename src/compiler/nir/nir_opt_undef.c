@@ -108,6 +108,7 @@ static bool
 opt_undef_store(nir_intrinsic_instr *intrin)
 {
    switch (intrin->intrinsic) {
+   case nir_intrinsic_store_deref:
    case nir_intrinsic_store_var:
    case nir_intrinsic_store_output:
    case nir_intrinsic_store_per_vertex_output:
