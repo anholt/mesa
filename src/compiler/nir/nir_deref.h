@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-struct nir_deref_path {
+typedef struct nir_deref_path {
    /** Short path so we can keep it on the stack most of the time. */
    nir_deref_instr *_short_path[7];
 
@@ -42,7 +42,7 @@ struct nir_deref_path {
     * element in the array is a NULL pointer which acts as a terminator.
     */
    nir_deref_instr **path;
-};
+} nir_deref_path;
 
 void nir_deref_path_init(struct nir_deref_path *path,
                          nir_deref_instr *deref, void *mem_ctx);
