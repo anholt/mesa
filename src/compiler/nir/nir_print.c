@@ -494,17 +494,19 @@ print_deref_instr(nir_deref_instr *instr, print_state *state)
    print_dest(&instr->dest, state);
 
    if (instr->deref_type == nir_deref_type_var) {
-      fprintf(fp, " = deref %s", get_var_name(instr->var, state));
+      fprintf(fp, " = deref_var %s", get_var_name(instr->var, state));
       return;
    } else if (instr->deref_type == nir_deref_type_cast) {
-      fprintf(fp, " = deref (%s) (%s *)&",
+      fprintf(fp, " = deref_cast (%s) (%s *)&",
               get_variable_mode_str(instr->mode),
               glsl_get_type_name(instr->type));
       print_src(&instr->parent, state);
       return;
    }
 
-   fprintf(fp, " = deref (%s) &", get_variable_mode_str(instr->mode));
+   fprintf(fp, " = deref_%s (%s) &",
+          (instr->deref_type == nir_deref_type_struct) ? "struct" : "array",
+          get_variable_mode_str(instr->mode));
    print_src(&instr->parent, state);
 
    assert(instr->parent.is_ssa);
