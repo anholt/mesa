@@ -1084,6 +1084,11 @@ validate_function_impl(nir_function_impl *impl, validate_state *state)
    state->impl = impl;
    state->parent_node = &impl->cf_node;
 
+   /* clean up dead deref instructions, which can exist at the exit of
+    * one pass, but before running DCE, since they confuse nir_validate:
+    */
+   nir_deref_function_cleanup(impl);
+
    exec_list_validate(&impl->locals);
    nir_foreach_variable(var, &impl->locals) {
       validate_var_decl(var, false, state);

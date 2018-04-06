@@ -73,17 +73,35 @@ nir_deref_path_finish(struct nir_deref_path *path)
       ralloc_free(path->path);
 }
 
-void
+bool
 nir_deref_instr_cleanup(nir_deref_instr *instr)
 {
+   bool progress = false;
+
    for (nir_deref_instr *d = instr; d; d = nir_deref_instr_parent(d)) {
       /* If anyone is using this deref, leave it alone */
       assert(d->dest.is_ssa);
       if (!list_empty(&d->dest.ssa.uses))
-         return;
+         break;
 
       nir_instr_remove(&d->instr);
+      progress = true;
    }
+
+   return progress;
+}
+
+void
+nir_deref_function_cleanup(nir_function_impl *impl)
+{
+   bool progress;
+   do {
+      progress = false;
+      nir_foreach_block(block, impl)
+         nir_foreach_instr_safe(instr, block)
+            if (instr->type == nir_instr_type_deref)
+               progress |= nir_deref_instr_cleanup(nir_instr_as_deref(instr));
+   } while (progress);
 }
 
 void

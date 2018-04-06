@@ -979,7 +979,7 @@ nir_deref_instr_get_variable(const nir_deref_instr *instr)
    return instr->var;
 }
 
-void nir_deref_instr_cleanup(nir_deref_instr *instr);
+bool nir_deref_instr_cleanup(nir_deref_instr *instr);
 
 typedef struct {
    nir_instr instr;
@@ -1741,6 +1741,8 @@ typedef struct {
 
    nir_metadata valid_metadata;
 } nir_function_impl;
+
+void nir_deref_function_cleanup(nir_function_impl *impl);
 
 ATTRIBUTE_RETURNS_NONNULL static inline nir_block *
 nir_start_block(nir_function_impl *impl)
