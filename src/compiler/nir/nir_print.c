@@ -504,9 +504,10 @@ print_deref_instr(nir_deref_instr *instr, print_state *state)
       return;
    }
 
-   fprintf(fp, " = deref_%s (%s) &",
+   fprintf(fp, " = deref_%s (%s) (%s *)&",
           (instr->deref_type == nir_deref_type_struct) ? "struct" : "array",
-          get_variable_mode_str(instr->mode));
+          get_variable_mode_str(instr->mode),
+          glsl_get_type_name(instr->type));
    print_src(&instr->parent, state);
 
    assert(instr->parent.is_ssa);
