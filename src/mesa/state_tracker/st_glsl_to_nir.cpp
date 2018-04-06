@@ -574,8 +574,6 @@ st_nir_get_mesa_program(struct gl_context *ctx,
 
    nir_shader *nir = st_glsl_to_nir(st, prog, shader_program, shader->Stage);
 
-   nir_lower_deref_instrs(nir, (nir_lower_deref_flags)~0);
-
    set_st_program(prog, shader_program, nir);
    prog->nir = nir;
 }
