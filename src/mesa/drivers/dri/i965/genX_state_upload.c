@@ -3051,7 +3051,26 @@ set_blend_entry_bits(struct brw_context *brw, BLEND_ENTRY_GENXML *entry, int i,
          dstA = fix_dual_blend_alpha_to_one(dstA);
       }
 
-      entry->ColorBufferBlendEnable = true;
+      /* BRW_NEW_FS_PROG_DATA */
+      const struct brw_wm_prog_data *wm_prog_data =
+         brw_wm_prog_data(brw->wm.base.prog_data);
+
+      /* The Dual Source Blending documentation says:
+       *
+       * "If SRC1 is included in a src/dst blend factor and
+       * a DualSource RT Write message is not used, results
+       * are UNDEFINED. (This reflects the same restriction in DX APIs,
+       * where undefined results are produced if “o1” is not written
+       * by a PS – there are no default values defined).
+       * If SRC1 is not included in a src/dst blend factor,
+       * dual source blending must be disabled."
+       *
+       * There is no way to gracefully fix this undefined situation
+       * so we just disable the blending to prevent possible issues.
+       */
+      entry->ColorBufferBlendEnable =
+         !ctx->Color.Blend[0]._UsesDualSrc || wm_prog_data->dual_src_blend;
+
       entry->DestinationBlendFactor = blend_factor(dstRGB);
       entry->SourceBlendFactor = blend_factor(srcRGB);
       entry->DestinationAlphaBlendFactor = blend_factor(dstA);
@@ -3197,6 +3216,7 @@ static const struct brw_tracked_state genX(blend_state) = {
               _NEW_MULTISAMPLE,
       .brw = BRW_NEW_BATCH |
              BRW_NEW_BLORP |
+             BRW_NEW_FS_PROG_DATA |
              BRW_NEW_STATE_BASE_ADDRESS,
    },
    .emit = genX(upload_blend_state),
@@ -4829,7 +4849,25 @@ genX(upload_ps_blend)(struct brw_context *brw)
             dstA = fix_dual_blend_alpha_to_one(dstA);
          }
 
-         pb.ColorBufferBlendEnable = true;
+         /* BRW_NEW_FS_PROG_DATA */
+         const struct brw_wm_prog_data *wm_prog_data =
+            brw_wm_prog_data(brw->wm.base.prog_data);
+
+         /* The Dual Source Blending documentation says:
+          *
+          * "If SRC1 is included in a src/dst blend factor and
+          * a DualSource RT Write message is not used, results
+          * are UNDEFINED. (This reflects the same restriction in DX APIs,
+          * where undefined results are produced if “o1” is not written
+          * by a PS – there are no default values defined).
+          * If SRC1 is not included in a src/dst blend factor,
+          * dual source blending must be disabled."
+          *
+          * There is no way to gracefully fix this undefined situation
+          * so we just disable the blending to prevent possible issues.
+          */
+         pb.ColorBufferBlendEnable =
+            !color->Blend[0]._UsesDualSrc || wm_prog_data->dual_src_blend;
          pb.SourceAlphaBlendFactor = brw_translate_blend_factor(srcA);
          pb.DestinationAlphaBlendFactor = brw_translate_blend_factor(dstA);
          pb.SourceBlendFactor = brw_translate_blend_factor(srcRGB);
@@ -4848,7 +4886,8 @@ static const struct brw_tracked_state genX(ps_blend) = {
               _NEW_MULTISAMPLE,
       .brw = BRW_NEW_BLORP |
              BRW_NEW_CONTEXT |
-             BRW_NEW_FRAGMENT_PROGRAM,
+             BRW_NEW_FRAGMENT_PROGRAM |
+             BRW_NEW_FS_PROG_DATA,
    },
    .emit = genX(upload_ps_blend)
 };
