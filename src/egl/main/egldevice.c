@@ -37,6 +37,8 @@ struct _egl_device {
    _EGLDevice *Next;
 
    const char *extensions;
+
+   EGLBoolean MESA_device_software;
 };
 
 void
@@ -47,6 +49,12 @@ _eglFiniDevice(void)
    /* atexit function is called with global mutex locked */
 
    dev_list = _eglGlobal.DeviceList;
+
+   /* The first device is static allocated SW device */
+   assert(dev_list);
+   assert(_eglDeviceSupports(dev_list, _EGL_DEVICE_SOFTWARE));
+   dev_list = dev_list->Next;
+
    while (dev_list) {
       /* pop list head */
       dev = dev_list;
@@ -74,6 +82,11 @@ _eglCheckDeviceHandle(EGLDeviceEXT device)
    return (cur != NULL);
 }
 
+_EGLDevice _eglSoftwareDevice = {
+   .extensions = "EGL_MESA_device_software",
+   .MESA_device_software = EGL_TRUE,
+};
+
 /* Adds a device in DeviceList, if needed for the given fd.
  *
  * If a software device, the fd is ignored.
@@ -84,6 +97,13 @@ _eglAddDevice(int fd, bool software)
    _EGLDevice *dev;
 
    mtx_lock(_eglGlobal.Mutex);
+   dev = _eglGlobal.DeviceList;
+
+   /* The first device is always software */
+   assert(dev);
+   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
+   if (software)
+      goto out;
 
    dev = NULL;
 
@@ -96,6 +116,8 @@ EGLBoolean
 _eglDeviceSupports(_EGLDevice *dev, _EGLDeviceExtension ext)
 {
    switch (ext) {
+   case _EGL_DEVICE_SOFTWARE:
+      return dev->MESA_device_software;
    default:
       assert(0);
       return EGL_FALSE;
@@ -139,6 +161,11 @@ _eglRefreshDeviceList(void)
    int count = 0;
 
    dev = _eglGlobal.DeviceList;
+
+   /* The first device is always software */
+   assert(dev);
+   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
+   count++;
 
    return count;
 }
