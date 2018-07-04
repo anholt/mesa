@@ -60,12 +60,16 @@ _eglAddDevice(int fd, bool software);
 
 enum _egl_device_extension {
    _EGL_DEVICE_SOFTWARE,
+   _EGL_DEVICE_DRM,
 };
 
 typedef enum _egl_device_extension _EGLDeviceExtension;
 
 EGLBoolean
 _eglDeviceSupports(_EGLDevice *dev, _EGLDeviceExtension ext);
+
+const char *
+_eglGetDRMDeviceRenderNode(_EGLDevice *dev);
 
 EGLBoolean
 _eglQueryDeviceAttribEXT(_EGLDevice *dev, EGLint attribute,
