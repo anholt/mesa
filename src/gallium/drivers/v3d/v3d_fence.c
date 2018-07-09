@@ -42,7 +42,7 @@
 
 struct v3d_fence {
         struct pipe_reference reference;
-        uint32_t sync;
+        int fd;
 };
 
 static void
@@ -50,13 +50,12 @@ v3d_fence_reference(struct pipe_screen *pscreen,
                     struct pipe_fence_handle **pp,
                     struct pipe_fence_handle *pf)
 {
-        struct v3d_screen *screen = v3d_screen(pscreen);
         struct v3d_fence **p = (struct v3d_fence **)pp;
         struct v3d_fence *f = (struct v3d_fence *)pf;
         struct v3d_fence *old = *p;
 
         if (pipe_reference(&(*p)->reference, &f->reference)) {
-                drmSyncobjDestroy(screen->fd, old->sync);
+                close(old->fd);
                 free(old);
         }
         *p = f;
@@ -70,10 +69,29 @@ v3d_fence_finish(struct pipe_screen *pscreen,
 {
         struct v3d_screen *screen = v3d_screen(pscreen);
         struct v3d_fence *f = (struct v3d_fence *)pf;
+        int ret;
 
-        return drmSyncobjWait(screen->fd, &f->sync, 1,
-                              os_time_get_absolute_timeout(timeout_ns),
-                              0, NULL) == 0;
+        unsigned syncobj;
+        ret = drmSyncobjCreate(screen->fd, 0, &syncobj);
+        if (ret) {
+                fprintf(stderr, "Failed to create syncobj to wait on: %d\n",
+                        ret);
+                return false;
+        }
+
+        drmSyncobjImportSyncFile(screen->fd, syncobj, f->fd);
+        if (ret) {
+                fprintf(stderr, "Failed to import fence to syncobj: %d\n", ret);
+                return false;
+        }
+
+        ret = drmSyncobjWait(screen->fd, &syncobj, 1,
+                             os_time_get_absolute_timeout(timeout_ns),
+                             0, NULL) == 0;
+
+        drmSyncobjDestroy(screen->fd, syncobj);
+
+        return ret == 0;
 }
 
 struct v3d_fence *
@@ -83,18 +101,16 @@ v3d_fence_create(struct v3d_context *v3d)
         if (!f)
                 return NULL;
 
-        uint32_t new_sync;
-        /* Make a new sync object for the context. */
-        int ret = drmSyncobjCreate(v3d->fd, DRM_SYNCOBJ_CREATE_SIGNALED,
-                                   &new_sync);
-        if (ret) {
+        /* Snapshot the last V3D rendering's out fence.  We'd rather have
+         * another syncobj instead of a sync file, but this is all we get.
+         */
+        drmSyncobjExportSyncFile(v3d->fd, v3d->out_sync, &f->fd);
+        if (f->fd == -1) {
                 free(f);
                 return NULL;
         }
 
         pipe_reference_init(&f->reference, 1);
-        f->sync = v3d->out_sync;
-        v3d->out_sync = new_sync;
 
         return f;
 }
