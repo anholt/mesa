@@ -6180,9 +6180,18 @@ ast_function_definition::hir(exec_list *instructions,
       }
    }
 
+   /* On ES2, function parameters may be redeclared to be hidden within the
+    * function.  Do this by creating a new scope inside the function.
+    */
+   if (state->is_version(0, 100) && !state->is_version(0, 300))
+      state->symbols->push_scope();
+
    /* Convert the body of the function to HIR. */
    this->body->hir(&signature->body, state);
    signature->is_defined = true;
+
+   if (state->is_version(0, 100) && !state->is_version(0, 300))
+      state->symbols->pop_scope();
 
    state->symbols->pop_scope();
 
