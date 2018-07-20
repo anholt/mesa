@@ -882,13 +882,22 @@ emit_ds_state(struct anv_pipeline *pipeline,
 #endif
 }
 
+MAYBE_UNUSED static bool
+is_dual_src_blend_factor(VkBlendFactor factor)
+{
+   return factor == VK_BLEND_FACTOR_SRC1_COLOR ||
+          factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR ||
+          factor == VK_BLEND_FACTOR_SRC1_ALPHA ||
+          factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+}
+
 static void
 emit_cb_state(struct anv_pipeline *pipeline,
               const VkPipelineColorBlendStateCreateInfo *info,
               const VkPipelineMultisampleStateCreateInfo *ms_info)
 {
    struct anv_device *device = pipeline->device;
-
+   const struct brw_wm_prog_data *wm_prog_data = get_wm_prog_data(pipeline);
 
    struct GENX(BLEND_STATE) blend_state = {
 #if GEN_GEN >= 8
@@ -973,6 +982,32 @@ emit_cb_state(struct anv_pipeline *pipeline,
 #else
          entry.IndependentAlphaBlendEnable = true;
 #endif
+      }
+
+      /* The Dual Source Blending documentation says:
+       *
+       * "If SRC1 is included in a src/dst blend factor and
+       * a DualSource RT Write message is not used, results
+       * are UNDEFINED. (This reflects the same restriction in DX APIs,
+       * where undefined results are produced if “o1” is not written
+       * by a PS – there are no default values defined)."
+       *
+       * There is no way to gracefully fix this undefined situation
+       * so we just disable the blending to prevent possible issues.
+       */
+      if (!wm_prog_data->dual_src_blend &&
+          (is_dual_src_blend_factor(a->srcColorBlendFactor) ||
+           is_dual_src_blend_factor(a->dstColorBlendFactor) ||
+           is_dual_src_blend_factor(a->srcAlphaBlendFactor) ||
+           is_dual_src_blend_factor(a->dstAlphaBlendFactor))) {
+         vk_debug_report(&device->instance->debug_report_callbacks,
+                         VK_DEBUG_REPORT_WARNING_BIT_EXT,
+                         VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT,
+                         (uint64_t)(uintptr_t)device,
+                         0, 0, "anv",
+                         "Enabled dual-src blend factors without writing both targets "
+                         "in the shader.  Disabling blending to avoid GPU hangs.");
+         entry.ColorBufferBlendEnable = false;
       }
 
       if (a->colorWriteMask != 0)
@@ -1506,15 +1541,6 @@ emit_3dstate_wm(struct anv_pipeline *pipeline, struct anv_subpass *subpass,
 #endif
       }
    }
-}
-
-UNUSED static bool
-is_dual_src_blend_factor(VkBlendFactor factor)
-{
-   return factor == VK_BLEND_FACTOR_SRC1_COLOR ||
-          factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR ||
-          factor == VK_BLEND_FACTOR_SRC1_ALPHA ||
-          factor == VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
 }
 
 static void
