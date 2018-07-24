@@ -218,6 +218,8 @@ files_libfreedreno = files(
   'ir3/disasm-a3xx.c',
   'ir3/instr-a3xx.h',
   'ir3/ir3.c',
+  'ir3/ir3_cache.c',
+  'ir3/ir3_cache.h',
   'ir3/ir3_compiler_nir.c',
   'ir3/ir3_compiler.c',
   'ir3/ir3_compiler.h',

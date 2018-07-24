@@ -38,6 +38,8 @@
 #include "fd5_texture.h"
 #include "fd5_format.h"
 
+#include "ir3_cache.h"
+
 static struct ir3_shader *
 create_shader_stateobj(struct pipe_context *pctx, const struct pipe_shader_state *cso,
 		enum shader_t type)
