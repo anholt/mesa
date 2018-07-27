@@ -26,9 +26,6 @@
 #include "nir.h"
 #include "nir_builder.h"
 
-/* This optimization is done together with copy propagation. */
-#define nir_opt_dead_write_vars nir_opt_copy_prop_vars
-
 namespace {
 
 class nir_vars_test : public ::testing::Test {
