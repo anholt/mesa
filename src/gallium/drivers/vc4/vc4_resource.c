@@ -1129,7 +1129,8 @@ vc4_resource_screen_init(struct pipe_screen *pscreen)
         pscreen->resource_get_handle = vc4_resource_get_handle;
         pscreen->resource_destroy = vc4_resource_destroy;
         pscreen->transfer_helper = u_transfer_helper_create(&transfer_vtbl,
-                                                            false, false, true);
+                                                            false, false,
+                                                            false, true);
 
         /* Test if the kernel has GET_TILING; it will return -EINVAL if the
          * ioctl does not exist, but -ENOENT if we pass an impossible handle.
