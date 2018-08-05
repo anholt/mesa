@@ -612,7 +612,10 @@ void Instruction::print() const
       if (asFlow()->target.bb)
          PRINT(" %sBB:%i", colour[TXT_BRA], asFlow()->target.bb->getId());
    } else {
-      PRINT("%s ", operationStr[op]);
+      if (asTex())
+         PRINT("%s%s ", operationStr[op], asTex()->tex.scalar ? "s" : "");
+      else
+         PRINT("%s ", operationStr[op]);
       if (op == OP_LINTERP || op == OP_PINTERP)
          PRINT("%s ", interpStr[ipa]);
       switch (op) {
