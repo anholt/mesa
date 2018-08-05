@@ -359,6 +359,31 @@ static const char *interpStr[16] =
    "samp sc"
 };
 
+static const char *texMaskStr[16] =
+{
+   "____",
+   "r___",
+   "_g__",
+   "rg__",
+   "__b_",
+   "r_b_",
+   "_gb_",
+   "rgb_",
+   "___a",
+   "r__a",
+   "_g_a",
+   "rg_a",
+   "__ba",
+   "r_ba",
+   "_gba",
+   "rgba",
+};
+
+static const char *gatherCompStr[4] =
+{
+   "r", "g", "b", "a",
+};
+
 #define PRINT(args...)                                \
    do {                                               \
       pos += snprintf(&buf[pos], size - pos, args);   \
@@ -651,10 +676,14 @@ void Instruction::print() const
       }
       if (perPatch)
          PRINT("patch ");
-      if (asTex())
-         PRINT("%s %s$r%u $s%u %s", asTex()->tex.target.getName(),
-               colour[TXT_MEM], asTex()->tex.r, asTex()->tex.s,
-               colour[TXT_INSN]);
+      if (asTex()) {
+         PRINT("%s %s$r%u $s%u ", asTex()->tex.target.getName(),
+               colour[TXT_MEM], asTex()->tex.r, asTex()->tex.s);
+         if (op == OP_TXG)
+            PRINT("%s ", gatherCompStr[asTex()->tex.gatherComp]);
+         PRINT("%s %s", texMaskStr[asTex()->tex.mask], colour[TXT_INSN]);
+      }
+
       if (postFactor)
          PRINT("x2^%i ", postFactor);
       PRINT("%s%s", dnz ? "dnz " : (ftz ? "ftz " : ""),  DataTypeStr[dType]);
