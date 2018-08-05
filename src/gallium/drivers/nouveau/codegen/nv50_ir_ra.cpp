@@ -261,6 +261,7 @@ private:
       bool insertConstraintMoves();
 
       void condenseDefs(Instruction *);
+      void condenseDefs(Instruction *, const int first, const int last);
       void condenseSrcs(Instruction *, const int first, const int last);
 
       void addHazard(Instruction *i, const ValueRef *src);
@@ -2048,24 +2049,35 @@ RegAlloc::InsertConstraintsPass::addHazard(Instruction *i, const ValueRef *src)
 void
 RegAlloc::InsertConstraintsPass::condenseDefs(Instruction *insn)
 {
-   uint8_t size = 0;
    int n;
-   for (n = 0; insn->defExists(n) && insn->def(n).getFile() == FILE_GPR; ++n)
-      size += insn->getDef(n)->reg.size;
-   if (n < 2)
+   for (n = 0; insn->defExists(n) && insn->def(n).getFile() == FILE_GPR; ++n);
+   condenseDefs(insn, 0, n - 1);
+}
+
+void
+RegAlloc::InsertConstraintsPass::condenseDefs(Instruction *insn,
+                                              const int a, const int b)
+{
+   uint8_t size = 0;
+   if (a >= b)
       return;
+   for (int s = a; s <= b; ++s)
+      size += insn->getDef(s)->reg.size;
+   if (!size)
+      return;
+
    LValue *lval = new_LValue(func, FILE_GPR);
    lval->reg.size = size;
 
    Instruction *split = new_Instruction(func, OP_SPLIT, typeOfSize(size));
    split->setSrc(0, lval);
-   for (int d = 0; d < n; ++d) {
-      split->setDef(d, insn->getDef(d));
+   for (int d = a; d <= b; ++d) {
+      split->setDef(d - a, insn->getDef(d));
       insn->setDef(d, NULL);
    }
-   insn->setDef(0, lval);
+   insn->setDef(a, lval);
 
-   for (int k = 1, d = n; insn->defExists(d); ++d, ++k) {
+   for (int k = a + 1, d = b + 1; insn->defExists(d); ++d, ++k) {
       insn->setDef(k, insn->getDef(d));
       insn->setDef(d, NULL);
    }
@@ -2075,6 +2087,7 @@ RegAlloc::InsertConstraintsPass::condenseDefs(Instruction *insn)
    insn->bb->insertAfter(insn, split);
    constrList.push_back(split);
 }
+
 void
 RegAlloc::InsertConstraintsPass::condenseSrcs(Instruction *insn,
                                               const int a, const int b)
