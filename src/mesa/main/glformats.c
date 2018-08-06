@@ -2803,6 +2803,17 @@ _mesa_es3_error_check_format_and_type(const struct gl_context *ctx,
       internalFormat = effectiveInternalFormat;
    }
 
+   /* The GLES variant of EXT_texture_compression_s3tc is very vague and
+    * doesn't list valid types. Just do exactly what the spec says.
+    */
+   if (ctx->Extensions.EXT_texture_compression_s3tc &&
+       (internalFormat == GL_COMPRESSED_RGB_S3TC_DXT1_EXT ||
+        internalFormat == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT ||
+        internalFormat == GL_COMPRESSED_RGBA_S3TC_DXT3_EXT ||
+        internalFormat == GL_COMPRESSED_RGBA_S3TC_DXT5_EXT))
+      return format == GL_RGB || format == GL_RGBA ? GL_NO_ERROR :
+                                                     GL_INVALID_OPERATION;
+
    switch (format) {
    case GL_BGRA_EXT:
       if (type != GL_UNSIGNED_BYTE || internalFormat != GL_BGRA)
