@@ -38,10 +38,7 @@
  *  1) Copy-propagation on variables that have indirect access.  This includes
  *     propagating from indirect stores into indirect loads.
  *
- *  2) Dead code elimination of store_var and copy_var intrinsics based on
- *     killed destination values.
- *
- *  3) Removal of redundant load_deref intrinsics.  We can't trust regular CSE
+ *  2) Removal of redundant load_deref intrinsics.  We can't trust regular CSE
  *     to do this because it isn't aware of variable writes that may alias the
  *     value and make the former load invalid.
  *
@@ -51,6 +48,8 @@
  * rapidly get out of hand.  Fortunately, for anything that is only ever
  * accessed directly, we get SSA based copy-propagation which is extremely
  * powerful so this isn't that great a loss.
+ *
+ * Removal of dead writes to variables is handled by another pass.
  */
 
 struct value {
@@ -64,9 +63,6 @@ struct value {
 struct copy_entry {
    struct list_head link;
 
-   nir_instr *store_instr[4];
-
-   unsigned comps_may_be_read;
    struct value src;
 
    nir_deref_instr *dst;
@@ -114,44 +110,6 @@ copy_entry_remove(struct copy_prop_var_state *state, struct copy_entry *entry)
    list_add(&entry->link, &state->copy_free_list);
 }
 
-static void
-remove_dead_writes(struct copy_prop_var_state *state,
-                   struct copy_entry *entry, unsigned write_mask)
-{
-   /* We're overwriting another entry.  Some of it's components may not
-    * have been read yet and, if that's the case, we may be able to delete
-    * some instructions but we have to be careful.
-    */
-   unsigned dead_comps = write_mask & ~entry->comps_may_be_read;
-
-   for (unsigned mask = dead_comps; mask;) {
-      unsigned i = u_bit_scan(&mask);
-
-      nir_instr *instr = entry->store_instr[i];
-
-      /* We may have already deleted it on a previous iteration */
-      if (!instr)
-         continue;
-
-      /* See if this instr is used anywhere that it's not dead */
-      bool keep = false;
-      for (unsigned j = 0; j < 4; j++) {
-         if (entry->store_instr[j] == instr) {
-            if (dead_comps & (1 << j)) {
-               entry->store_instr[j] = NULL;
-            } else {
-               keep = true;
-            }
-         }
-      }
-
-      if (!keep) {
-         nir_instr_remove(instr);
-         state->progress = true;
-      }
-   }
-}
-
 static struct copy_entry *
 lookup_entry_for_deref(struct copy_prop_var_state *state,
                        nir_deref_instr *deref,
@@ -163,16 +121,6 @@ lookup_entry_for_deref(struct copy_prop_var_state *state,
    }
 
    return NULL;
-}
-
-static void
-mark_aliased_entries_as_read(struct copy_prop_var_state *state,
-                             nir_deref_instr *deref, unsigned components)
-{
-   list_for_each_entry(struct copy_entry, iter, &state->copies, link) {
-      if (nir_compare_derefs(iter->dst, deref) & nir_derefs_may_alias_bit)
-         iter->comps_may_be_read |= components;
-   }
 }
 
 static struct copy_entry *
@@ -191,11 +139,6 @@ get_entry_and_kill_aliases(struct copy_prop_var_state *state,
       }
 
       nir_deref_compare_result comp = nir_compare_derefs(iter->dst, deref);
-      /* This is a store operation.  If we completely overwrite some value, we
-       * want to delete any dead writes that may be present.
-       */
-      if (comp & nir_derefs_b_contains_a_bit)
-         remove_dead_writes(state, iter, write_mask);
 
       if (comp & nir_derefs_equal_bit) {
          assert(entry == NULL);
@@ -228,25 +171,19 @@ apply_barrier_for_modes(struct copy_prop_var_state *state,
 
 static void
 store_to_entry(struct copy_prop_var_state *state, struct copy_entry *entry,
-               const struct value *value, unsigned write_mask,
-               nir_instr *store_instr)
+               const struct value *value, unsigned write_mask)
 {
-   entry->comps_may_be_read &= ~write_mask;
    if (value->is_ssa) {
       entry->src.is_ssa = true;
       /* Only overwrite the written components */
       for (unsigned i = 0; i < 4; i++) {
-         if (write_mask & (1 << i)) {
-            entry->store_instr[i] = store_instr;
+         if (write_mask & (1 << i))
             entry->src.ssa[i] = value->ssa[i];
-         }
       }
    } else {
       /* Non-ssa stores always write everything */
       entry->src.is_ssa = false;
       entry->src.deref = value->deref;
-      for (unsigned i = 0; i < 4; i++)
-         entry->store_instr[i] = store_instr;
    }
 }
 
@@ -490,9 +427,6 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
       case nir_intrinsic_load_deref: {
          nir_deref_instr *src = nir_src_as_deref(intrin->src[0]);
 
-         uint8_t comps_read = nir_ssa_def_components_read(&intrin->dest.ssa);
-         mark_aliased_entries_as_read(state, src, comps_read);
-
          struct copy_entry *src_entry =
             lookup_entry_for_deref(state, src, nir_derefs_a_contains_b_bit);
          struct value value;
@@ -549,7 +483,7 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
           * subsequent store.
           */
          store_to_entry(state, store_entry, &value,
-                        ((1 << intrin->num_components) - 1), NULL);
+                        ((1 << intrin->num_components) - 1));
          break;
       }
 
@@ -565,7 +499,7 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
          unsigned wrmask = nir_intrinsic_write_mask(intrin);
          struct copy_entry *entry =
             get_entry_and_kill_aliases(state, dst, wrmask);
-         store_to_entry(state, entry, &value, wrmask, &intrin->instr);
+         store_to_entry(state, entry, &value, wrmask);
          break;
       }
 
@@ -578,8 +512,6 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
             nir_instr_remove(instr);
             continue;
          }
-
-         mark_aliased_entries_as_read(state, src, 0xf);
 
          struct copy_entry *src_entry =
             lookup_entry_for_deref(state, src, nir_derefs_a_contains_b_bit);
@@ -610,7 +542,7 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
 
          struct copy_entry *dst_entry =
             get_entry_and_kill_aliases(state, dst, 0xf);
-         store_to_entry(state, dst_entry, &value, 0xf, &intrin->instr);
+         store_to_entry(state, dst_entry, &value, 0xf);
          break;
       }
 
