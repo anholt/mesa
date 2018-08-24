@@ -59,7 +59,9 @@ EXTRA_DIST = \
 	$(POS) \
 	$(MOS) \
 	SConscript \
-	meson.build
+	meson.build \
+	LINGUAS \
+	POTFILES
 
 BUILT_SOURCES = options.h
 CLEANFILES = \

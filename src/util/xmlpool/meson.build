@@ -35,3 +35,6 @@ xmlpool_options_h = custom_target(
   capture : true,
   depend_files : _langs_po_files,
 )
+
+i18n = import('i18n')
+i18n.gettext('xmlpool')
