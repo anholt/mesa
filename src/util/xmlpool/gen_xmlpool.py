@@ -8,12 +8,12 @@
 #
 
 from __future__ import print_function
-
 import argparse
-import io
-import sys
 import gettext
+import io
+import os
 import re
+import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument('template')
@@ -166,8 +166,10 @@ def expandMatches (matches, translations, end=None):
 translations = [("en", gettext.NullTranslations())]
 for lang in args.languages:
     try:
-        trans = gettext.translation ("options", args.localedir, [lang])
-    except IOError:
+        filename = os.path.join(args.localedir, '{}.gmo'.format(lang))
+        with io.open(filename, 'rb') as f:
+            trans = gettext.GNUTranslations(f)
+    except (IOError, OSError):
         sys.stderr.write ("Warning: language '%s' not found.\n" % lang)
         continue
     translations.append ((lang, trans))

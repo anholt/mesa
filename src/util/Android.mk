@@ -87,13 +87,13 @@ $(MESA_DRI_OPTIONS_LANGS:%=$(intermediates)/xmlpool/%.po): $(intermediates)/xmlp
 PRIVATE_SCRIPT := $(LOCAL_PATH)/xmlpool/gen_xmlpool.py
 PRIVATE_LOCALEDIR := $(intermediates)/xmlpool
 PRIVATE_TEMPLATE_HEADER := $(LOCAL_PATH)/xmlpool/t_options.h
-PRIVATE_MO_FILES := $(MESA_DRI_OPTIONS_LANGS:%=$(intermediates)/xmlpool/%/LC_MESSAGES/options.mo)
+PRIVATE_MO_FILES := $(MESA_DRI_OPTIONS_LANGS:%=$(intermediates)/xmlpool/%.gmo)
 
 LOCAL_GENERATED_SOURCES += $(PRIVATE_MO_FILES)
 
 $(LOCAL_GENERATED_SOURCES): PRIVATE_PYTHON := $(MESA_PYTHON2)
 
-$(PRIVATE_MO_FILES): $(intermediates)/xmlpool/%/LC_MESSAGES/options.mo: $(intermediates)/xmlpool/%.po
+$(PRIVATE_MO_FILES): $(intermediates)/xmlpool/%.gmo: $(intermediates)/xmlpool/%.po
 	mkdir -p $(dir $@)
 	msgfmt -o $@ $<
 

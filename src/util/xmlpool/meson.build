@@ -30,7 +30,7 @@ xmlpool_options_h = custom_target(
   input : ['gen_xmlpool.py', 't_options.h'],
   output : 'options.h',
   command : [
-    prog_python, '@INPUT@', meson.current_source_dir(), _langs,
+    prog_python, '@INPUT@', meson.current_build_dir(), _langs,
   ],
   capture : true,
   depend_files : _langs_po_files,

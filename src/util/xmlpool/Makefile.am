@@ -47,10 +47,10 @@ POS=ca.po de.po es.po nl.po fr.po sv.po
 # Don't change anything below, unless you know what you're doing.
 #
 LANGS=$(POS:%.po=%)
-MOS=$(POS:%.po=%/LC_MESSAGES/options.mo)
+MOS=$(POS:%.po=%.gmo)
 POT=xmlpool.pot
 
-.PHONY: all clean pot po mo
+.PHONY: all clean clean-local pot po mo
 
 EXTRA_DIST = \
 	gen_xmlpool.py \
@@ -69,17 +69,19 @@ CLEANFILES = \
 	$(POS) \
 	$(MOS)
 
+clean-local:
+	rm -f $(MOS)
+
 # Default target options.h
 LOCALEDIR := .
 options.h: t_options.h $(MOS)
 	$(AM_V_GEN) $(PYTHON) $(PYTHON_FLAGS) $(srcdir)/gen_xmlpool.py $(srcdir)/t_options.h $(LOCALEDIR) $(LANGS) > options.h
 
 # Update .mo files from the corresponding .po files.
-%/LC_MESSAGES/options.mo: %.po
+%.gmo: %.po
 	@mo="$@"; \
 	lang=$${mo%%/*}; \
 	echo "Updating ($$lang) $@ from $?."; \
-	$(MKDIR_P) $$lang/LC_MESSAGES; \
 	msgfmt -o $@ $?
 
 # Use this target to create or update .po files with new messages in
