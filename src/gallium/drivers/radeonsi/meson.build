@@ -27,6 +27,7 @@ files_libradeonsi = files(
   'si_clear.c',
   'si_compute.c',
   'si_compute.h',
+  'si_compute_blit.c',
   'si_cp_dma.c',
   'si_debug.c',
   'si_descriptors.c',

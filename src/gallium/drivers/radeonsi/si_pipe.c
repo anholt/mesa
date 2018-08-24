@@ -195,6 +195,10 @@ static void si_destroy_context(struct pipe_context *context)
 		sctx->b.delete_vs_state(&sctx->b, sctx->vs_blit_color_layered);
 	if (sctx->vs_blit_texcoord)
 		sctx->b.delete_vs_state(&sctx->b, sctx->vs_blit_texcoord);
+	if (sctx->cs_clear_buffer)
+		sctx->b.delete_compute_state(&sctx->b, sctx->cs_clear_buffer);
+	if (sctx->cs_copy_buffer)
+		sctx->b.delete_compute_state(&sctx->b, sctx->cs_copy_buffer);
 
 	if (sctx->blitter)
 		util_blitter_destroy(sctx->blitter);
@@ -416,7 +420,8 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 
 	sctx->allocator_zeroed_memory =
 			u_suballocator_create(&sctx->b, sscreen->info.gart_page_size,
-					      0, PIPE_USAGE_DEFAULT, 0, true);
+					      0, PIPE_USAGE_DEFAULT,
+					      SI_RESOURCE_FLAG_SO_FILLED_SIZE, true);
 	if (!sctx->allocator_zeroed_memory)
 		goto fail;
 
@@ -453,7 +458,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 	si_init_clear_functions(sctx);
 	si_init_blit_functions(sctx);
 	si_init_compute_functions(sctx);
-	si_init_cp_dma_functions(sctx);
+	si_init_compute_blit_functions(sctx);
 	si_init_debug_functions(sctx);
 	si_init_msaa_functions(sctx);
 	si_init_streamout_functions(sctx);
@@ -502,6 +507,14 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 
 	if (sscreen->debug_flags & DBG(FORCE_DMA))
 		sctx->b.resource_copy_region = sctx->dma_copy;
+
+	bool dst_stream_policy = SI_COMPUTE_DST_CACHE_POLICY != L2_LRU;
+	sctx->cs_clear_buffer = si_create_dma_compute_shader(&sctx->b,
+					     SI_COMPUTE_CLEAR_DW_PER_THREAD,
+					     dst_stream_policy, false);
+	sctx->cs_copy_buffer = si_create_dma_compute_shader(&sctx->b,
+					     SI_COMPUTE_COPY_DW_PER_THREAD,
+					     dst_stream_policy, true);
 
 	sctx->blitter = util_blitter_create(&sctx->b);
 	if (sctx->blitter == NULL)
@@ -561,9 +574,10 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 				 &sctx->null_const_buf);
 
 		/* Clear the NULL constant buffer, because loads should return zeros. */
+		uint32_t clear_value = 0;
 		si_clear_buffer(sctx, sctx->null_const_buf.buffer, 0,
-				sctx->null_const_buf.buffer->width0, 0,
-				SI_COHERENCY_SHADER);
+				sctx->null_const_buf.buffer->width0,
+				&clear_value, 4, SI_COHERENCY_SHADER);
 	}
 
 	uint64_t max_threads_per_block;

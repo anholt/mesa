@@ -52,6 +52,11 @@
 /* Alignment for optimal CP DMA performance. */
 #define SI_CPDMA_ALIGNMENT		32
 
+/* Tunables for compute-based clear_buffer and copy_buffer: */
+#define SI_COMPUTE_CLEAR_DW_PER_THREAD	4
+#define SI_COMPUTE_COPY_DW_PER_THREAD	4
+#define SI_COMPUTE_DST_CACHE_POLICY	L2_STREAM
+
 /* Pipeline & streamout query controls. */
 #define SI_CONTEXT_START_PIPELINE_STATS	(1 << 0)
 #define SI_CONTEXT_STOP_PIPELINE_STATS	(1 << 1)
@@ -102,6 +107,7 @@
 #define SI_RESOURCE_FLAG_UNMAPPABLE	(PIPE_RESOURCE_FLAG_DRV_PRIV << 4)
 #define SI_RESOURCE_FLAG_READ_ONLY	(PIPE_RESOURCE_FLAG_DRV_PRIV << 5)
 #define SI_RESOURCE_FLAG_32BIT		(PIPE_RESOURCE_FLAG_DRV_PRIV << 6)
+#define SI_RESOURCE_FLAG_SO_FILLED_SIZE	(PIPE_RESOURCE_FLAG_DRV_PRIV << 7)
 
 /* Debug flags. */
 enum {
@@ -171,6 +177,19 @@ enum {
 
 #define DBG_ALL_SHADERS		(((1 << (DBG_CS + 1)) - 1))
 #define DBG(name)		(1ull << DBG_##name)
+
+enum si_cache_policy {
+	L2_BYPASS,
+	L2_STREAM, /* same as SLC=1 */
+	L2_LRU,    /* same as SLC=0 */
+};
+
+enum si_coherency {
+	SI_COHERENCY_NONE, /* no cache flushes needed */
+	SI_COHERENCY_SHADER,
+	SI_COHERENCY_CB_META,
+	SI_COHERENCY_CP,
+};
 
 struct si_compute;
 struct hash_table;
@@ -773,6 +792,8 @@ struct si_context {
 	void				*vs_blit_color;
 	void				*vs_blit_color_layered;
 	void				*vs_blit_texcoord;
+	void				*cs_clear_buffer;
+	void				*cs_copy_buffer;
 	struct si_screen		*screen;
 	struct pipe_debug_callback	debug;
 	struct ac_llvm_compiler		compiler; /* only non-threaded compilation */
@@ -1110,6 +1131,17 @@ void vi_dcc_clear_level(struct si_context *sctx,
 			unsigned level, unsigned clear_value);
 void si_init_clear_functions(struct si_context *sctx);
 
+/* si_compute_blit.c */
+unsigned si_get_flush_flags(struct si_context *sctx, enum si_coherency coher,
+			    enum si_cache_policy cache_policy);
+void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
+		     uint64_t offset, uint64_t size, uint32_t *clear_value,
+		     uint32_t clear_value_size, enum si_coherency coher);
+void si_copy_buffer(struct si_context *sctx,
+		    struct pipe_resource *dst, struct pipe_resource *src,
+		    uint64_t dst_offset, uint64_t src_offset, unsigned size);
+void si_init_compute_blit_functions(struct si_context *sctx);
+
 /* si_cp_dma.c */
 #define SI_CPDMA_SKIP_CHECK_CS_SPACE	(1 << 0) /* don't call need_cs_space */
 #define SI_CPDMA_SKIP_SYNC_AFTER	(1 << 1) /* don't wait for DMA after the copy */
@@ -1122,39 +1154,20 @@ void si_init_clear_functions(struct si_context *sctx);
 			   SI_CPDMA_SKIP_GFX_SYNC | \
 			   SI_CPDMA_SKIP_BO_LIST_UPDATE)
 
-enum si_cache_policy {
-	L2_BYPASS,
-	L2_STREAM, /* same as SLC=1 */
-	L2_LRU,    /* same as SLC=0 */
-};
-
-enum si_coherency {
-	SI_COHERENCY_NONE, /* no cache flushes needed */
-	SI_COHERENCY_SHADER,
-	SI_COHERENCY_CB_META,
-};
-
 void si_cp_dma_wait_for_idle(struct si_context *sctx);
 void si_cp_dma_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
 			    uint64_t offset, uint64_t size, unsigned value,
 			    enum si_coherency coher,
 			    enum si_cache_policy cache_policy);
-void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
-		     uint64_t offset, uint64_t size, unsigned value,
-		     enum si_coherency coher);
 void si_cp_dma_copy_buffer(struct si_context *sctx,
 			   struct pipe_resource *dst, struct pipe_resource *src,
 			   uint64_t dst_offset, uint64_t src_offset, unsigned size,
 			   unsigned user_flags, enum si_coherency coher,
 			   enum si_cache_policy cache_policy);
-void si_copy_buffer(struct si_context *sctx,
-		    struct pipe_resource *dst, struct pipe_resource *src,
-		    uint64_t dst_offset, uint64_t src_offset, unsigned size);
 void cik_prefetch_TC_L2_async(struct si_context *sctx, struct pipe_resource *buf,
 			      uint64_t offset, unsigned size);
 void cik_emit_prefetch_L2(struct si_context *sctx, bool vertex_stage_only);
 void si_test_gds(struct si_context *sctx);
-void si_init_cp_dma_functions(struct si_context *sctx);
 
 /* si_debug.c */
 void si_save_cs(struct radeon_winsys *ws, struct radeon_cmdbuf *cs,

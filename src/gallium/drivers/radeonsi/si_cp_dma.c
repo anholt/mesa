@@ -25,12 +25,6 @@
 #include "si_pipe.h"
 #include "sid.h"
 
-/* Recommended maximum sizes for optimal performance.
- * Fall back to compute or SDMA if the size is greater.
- */
-#define CP_DMA_COPY_PERF_THRESHOLD	(64 * 1024) /* copied from Vulkan */
-#define CP_DMA_CLEAR_PERF_THRESHOLD	(32 * 1024) /* guess (clear is much slower) */
-
 /* Set this if you want the ME to wait until CP DMA is done.
  * It should be set on the last CP DMA packet. */
 #define CP_DMA_SYNC		(1 << 0)
@@ -155,35 +149,6 @@ void si_cp_dma_wait_for_idle(struct si_context *sctx)
 	si_emit_cp_dma(sctx, 0, 0, 0, CP_DMA_SYNC, L2_BYPASS);
 }
 
-static unsigned get_flush_flags(struct si_context *sctx, enum si_coherency coher,
-				enum si_cache_policy cache_policy)
-{
-	switch (coher) {
-	default:
-	case SI_COHERENCY_NONE:
-		return 0;
-	case SI_COHERENCY_SHADER:
-		assert(sctx->chip_class != SI || cache_policy == L2_BYPASS);
-		return SI_CONTEXT_INV_SMEM_L1 |
-		       SI_CONTEXT_INV_VMEM_L1 |
-		       (cache_policy == L2_BYPASS ? SI_CONTEXT_INV_GLOBAL_L2 : 0);
-	case SI_COHERENCY_CB_META:
-		assert(sctx->chip_class >= GFX9 ? cache_policy != L2_BYPASS :
-						  cache_policy == L2_BYPASS);
-		return SI_CONTEXT_FLUSH_AND_INV_CB;
-	}
-}
-
-static enum si_cache_policy get_cache_policy(struct si_context *sctx,
-					     enum si_coherency coher)
-{
-	if ((sctx->chip_class >= GFX9 && coher == SI_COHERENCY_CB_META) ||
-	    (sctx->chip_class >= CIK && coher == SI_COHERENCY_SHADER))
-		return L2_LRU;
-
-	return L2_BYPASS;
-}
-
 static void si_cp_dma_prepare(struct si_context *sctx, struct pipe_resource *dst,
 			      struct pipe_resource *src, unsigned byte_count,
 			      uint64_t remaining_size, unsigned user_flags,
@@ -262,7 +227,7 @@ void si_cp_dma_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
 	/* Flush the caches. */
 	sctx->flags |= SI_CONTEXT_PS_PARTIAL_FLUSH |
 		       SI_CONTEXT_CS_PARTIAL_FLUSH |
-		       get_flush_flags(sctx, coher, cache_policy);
+		       si_get_flush_flags(sctx, coher, cache_policy);
 
 	while (size) {
 		unsigned byte_count = MIN2(size, cp_dma_max_byte_count(sctx));
@@ -284,122 +249,6 @@ void si_cp_dma_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
 	/* If it's not a framebuffer fast clear... */
 	if (coher == SI_COHERENCY_SHADER)
 		sctx->num_cp_dma_calls++;
-}
-
-/* dst == NULL means GDS. */
-void si_clear_buffer(struct si_context *sctx, struct pipe_resource *dst,
-		     uint64_t offset, uint64_t size, unsigned value,
-		     enum si_coherency coher)
-{
-	struct radeon_winsys *ws = sctx->ws;
-	struct r600_resource *rdst = r600_resource(dst);
-	enum si_cache_policy cache_policy = get_cache_policy(sctx, coher);
-	uint64_t dma_clear_size;
-
-	if (!size)
-		return;
-
-	dma_clear_size = size & ~3ull;
-
-	/* dma_clear_buffer can use clear_buffer on failure. Make sure that
-	 * doesn't happen. We don't want an infinite recursion: */
-	if (sctx->dma_cs &&
-	    !(dst->flags & PIPE_RESOURCE_FLAG_SPARSE) &&
-	    (offset % 4 == 0) &&
-	    /* CP DMA is very slow. Always use SDMA for big clears. This
-	     * alone improves DeusEx:MD performance by 70%. */
-	    (size > CP_DMA_CLEAR_PERF_THRESHOLD ||
-	     /* Buffers not used by the GFX IB yet will be cleared by SDMA.
-	      * This happens to move most buffer clears to SDMA, including
-	      * DCC and CMASK clears, because pipe->clear clears them before
-	      * si_emit_framebuffer_state (in a draw call) adds them.
-	      * For example, DeusEx:MD has 21 buffer clears per frame and all
-	      * of them are moved to SDMA thanks to this. */
-	     !ws->cs_is_buffer_referenced(sctx->gfx_cs, rdst->buf,
-				          RADEON_USAGE_READWRITE))) {
-		si_sdma_clear_buffer(sctx, dst, offset, dma_clear_size, value);
-
-		offset += dma_clear_size;
-		size -= dma_clear_size;
-	} else if (dma_clear_size >= 4) {
-		si_cp_dma_clear_buffer(sctx, dst, offset, dma_clear_size, value,
-				       coher, cache_policy);
-
-		offset += dma_clear_size;
-		size -= dma_clear_size;
-	}
-
-	if (size) {
-		/* Handle non-dword alignment.
-		 *
-		 * This function is called for embedded texture metadata clears,
-		 * but those should always be properly aligned. */
-		assert(dst);
-		assert(dst->target == PIPE_BUFFER);
-		assert(size < 4);
-
-		pipe_buffer_write(&sctx->b, dst, offset, size, &value);
-	}
-}
-
-static void si_pipe_clear_buffer(struct pipe_context *ctx,
-				 struct pipe_resource *dst,
-				 unsigned offset, unsigned size,
-				 const void *clear_value_ptr,
-				 int clear_value_size)
-{
-	struct si_context *sctx = (struct si_context*)ctx;
-	uint32_t dword_value;
-	unsigned i;
-
-	assert(offset % clear_value_size == 0);
-	assert(size % clear_value_size == 0);
-
-	if (clear_value_size > 4) {
-		const uint32_t *u32 = clear_value_ptr;
-		bool clear_dword_duplicated = true;
-
-		/* See if we can lower large fills to dword fills. */
-		for (i = 1; i < clear_value_size / 4; i++)
-			if (u32[0] != u32[i]) {
-				clear_dword_duplicated = false;
-				break;
-			}
-
-		if (!clear_dword_duplicated) {
-			/* Use transform feedback for 64-bit, 96-bit, and
-			 * 128-bit fills.
-			 */
-			union pipe_color_union clear_value;
-
-			memcpy(&clear_value, clear_value_ptr, clear_value_size);
-			si_blitter_begin(sctx, SI_DISABLE_RENDER_COND);
-			util_blitter_clear_buffer(sctx->blitter, dst, offset,
-						  size, clear_value_size / 4,
-						  &clear_value);
-			si_blitter_end(sctx);
-			return;
-		}
-	}
-
-	/* Expand the clear value to a dword. */
-	switch (clear_value_size) {
-	case 1:
-		dword_value = *(uint8_t*)clear_value_ptr;
-		dword_value |= (dword_value << 8) |
-			       (dword_value << 16) |
-			       (dword_value << 24);
-		break;
-	case 2:
-		dword_value = *(uint16_t*)clear_value_ptr;
-		dword_value |= dword_value << 16;
-		break;
-	default:
-		dword_value = *(uint32_t*)clear_value_ptr;
-	}
-
-	si_clear_buffer(sctx, dst, offset, size, dword_value,
-			SI_COHERENCY_SHADER);
 }
 
 /**
@@ -509,7 +358,7 @@ void si_cp_dma_copy_buffer(struct si_context *sctx,
 	if ((dst || src) && !(user_flags & SI_CPDMA_SKIP_GFX_SYNC)) {
 		sctx->flags |= SI_CONTEXT_PS_PARTIAL_FLUSH |
 			       SI_CONTEXT_CS_PARTIAL_FLUSH |
-			       get_flush_flags(sctx, coher, cache_policy);
+			       si_get_flush_flags(sctx, coher, cache_policy);
 	}
 
 	/* This is the main part doing the copying. Src is always aligned. */
@@ -549,26 +398,12 @@ void si_cp_dma_copy_buffer(struct si_context *sctx,
 		si_cp_dma_realign_engine(sctx, realign_size, user_flags, coher,
 					 cache_policy, &is_first);
 	}
-}
 
-void si_copy_buffer(struct si_context *sctx,
-		    struct pipe_resource *dst, struct pipe_resource *src,
-		    uint64_t dst_offset, uint64_t src_offset, unsigned size)
-{
-	enum si_coherency coher = SI_COHERENCY_SHADER;
-	enum si_cache_policy cache_policy = get_cache_policy(sctx, coher);
-
-	if (!size)
-		return;
-
-	si_cp_dma_copy_buffer(sctx, dst, src, dst_offset, src_offset, size,
-			      0, coher, cache_policy);
-
-	if (cache_policy != L2_BYPASS)
+	if (dst && cache_policy != L2_BYPASS)
 		r600_resource(dst)->TC_L2_dirty = true;
 
-	/* If it's not a prefetch... */
-	if (dst_offset != src_offset)
+	/* If it's not a prefetch or GDS copy... */
+	if (dst && src && (dst != src || dst_offset != src_offset))
 		sctx->num_cp_dma_calls++;
 }
 
@@ -743,9 +578,4 @@ void si_test_gds(struct si_context *sctx)
 	pipe_resource_reference(&src, NULL);
 	pipe_resource_reference(&dst, NULL);
 	exit(0);
-}
-
-void si_init_cp_dma_functions(struct si_context *sctx)
-{
-	sctx->b.clear_buffer = si_pipe_clear_buffer;
 }
