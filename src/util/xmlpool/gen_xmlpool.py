@@ -9,24 +9,22 @@
 
 from __future__ import print_function
 
+import argparse
 import io
 import sys
 import gettext
 import re
 
+parser = argparse.ArgumentParser()
+parser.add_argument('template')
+parser.add_argument('localedir')
+parser.add_argument('languages', nargs='*')
+args = parser.parse_args()
 
 if sys.version_info < (3, 0):
     gettext_method = 'ugettext'
 else:
     gettext_method = 'gettext'
-
-# Path to t_options.h
-template_header_path = sys.argv[1]
-
-localedir = sys.argv[2]
-
-# List of supported languages
-languages = sys.argv[3:]
 
 # Escape special characters in C strings
 def escapeCString (s):
@@ -166,9 +164,9 @@ def expandMatches (matches, translations, end=None):
 # Compile a list of translation classes to all supported languages.
 # The first translation is always a NullTranslations.
 translations = [("en", gettext.NullTranslations())]
-for lang in languages:
+for lang in args.languages:
     try:
-        trans = gettext.translation ("options", localedir, [lang])
+        trans = gettext.translation ("options", args.localedir, [lang])
     except IOError:
         sys.stderr.write ("Warning: language '%s' not found.\n" % lang)
         continue
@@ -188,7 +186,7 @@ print("/***********************************************************************\
 
 # Process the options template and generate options.h with all
 # translations.
-template = io.open (template_header_path, mode="rt", encoding='utf-8')
+template = io.open (args.template, mode="rt", encoding='utf-8')
 descMatches = []
 for line in template:
     if len(descMatches) > 0:
