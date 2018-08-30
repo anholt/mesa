@@ -553,6 +553,7 @@ brw_nir_optimize(nir_shader *nir, const struct brw_compiler *compiler,
          OPT(nir_opt_find_array_copies);
       }
       OPT(nir_opt_copy_prop_vars);
+      OPT(nir_opt_dead_write_vars);
 
       if (is_scalar) {
          OPT(nir_lower_alu_to_scalar);
