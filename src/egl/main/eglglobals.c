@@ -63,6 +63,9 @@ struct _egl_global _eglGlobal =
 
    .ClientOnlyExtensionString =
    "EGL_EXT_client_extensions"
+   " EGL_EXT_device_base"
+   " EGL_EXT_device_enumeration"
+   " EGL_EXT_device_query"
    " EGL_EXT_platform_base"
    " EGL_KHR_client_get_all_proc_addresses"
    " EGL_KHR_debug",
