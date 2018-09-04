@@ -694,6 +694,7 @@ static const struct dri2_egl_display_vtbl dri2_drm_display_vtbl = {
 EGLBoolean
 dri2_initialize_drm(_EGLDriver *drv, _EGLDisplay *disp)
 {
+   _EGLDevice *dev;
    struct dri2_egl_display *dri2_dpy;
    struct gbm_device *gbm;
    const char *err;
@@ -735,6 +736,14 @@ dri2_initialize_drm(_EGLDriver *drv, _EGLDisplay *disp)
       err = "DRI2: gbm device using incorrect/incompatible backend";
       goto cleanup;
    }
+
+   dev = _eglAddDevice(dri2_dpy->fd, false);
+   if (!dev) {
+      err = "DRI2: failed to find EGLDevice";
+      goto cleanup;
+   }
+
+   disp->Device = dev;
 
    dri2_dpy->gbm_dri = gbm_dri_device(gbm);
    dri2_dpy->driver_name = strdup(dri2_dpy->gbm_dri->driver_name);

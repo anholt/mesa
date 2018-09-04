@@ -1271,6 +1271,7 @@ disconnect:
 static EGLBoolean
 dri2_initialize_x11_swrast(_EGLDriver *drv, _EGLDisplay *disp)
 {
+   _EGLDevice *dev;
    struct dri2_egl_display *dri2_dpy;
 
    dri2_dpy = calloc(1, sizeof *dri2_dpy);
@@ -1280,6 +1281,14 @@ dri2_initialize_x11_swrast(_EGLDriver *drv, _EGLDisplay *disp)
    dri2_dpy->fd = -1;
    if (!dri2_get_xcb_connection(drv, disp, dri2_dpy))
       goto cleanup;
+
+   dev = _eglAddDevice(dri2_dpy->fd, true);
+   if (!dev) {
+      _eglError(EGL_NOT_INITIALIZED, "DRI2: failed to find EGLDevice");
+      goto cleanup;
+   }
+
+   disp->Device = dev;
 
    /*
     * Every hardware driver_name is set using strdup. Doing the same in
@@ -1349,6 +1358,7 @@ static const __DRIextension *dri3_image_loader_extensions[] = {
 static EGLBoolean
 dri2_initialize_x11_dri3(_EGLDriver *drv, _EGLDisplay *disp)
 {
+   _EGLDevice *dev;
    struct dri2_egl_display *dri2_dpy;
 
    dri2_dpy = calloc(1, sizeof *dri2_dpy);
@@ -1361,6 +1371,14 @@ dri2_initialize_x11_dri3(_EGLDriver *drv, _EGLDisplay *disp)
 
    if (!dri3_x11_connect(dri2_dpy))
       goto cleanup;
+
+   dev = _eglAddDevice(dri2_dpy->fd, false);
+   if (!dev) {
+      _eglError(EGL_NOT_INITIALIZED, "DRI2: failed to find EGLDevice");
+      goto cleanup;
+   }
+
+   disp->Device = dev;
 
    if (!dri2_load_driver_dri3(disp))
       goto cleanup;
@@ -1447,6 +1465,7 @@ static const __DRIextension *dri2_loader_extensions[] = {
 static EGLBoolean
 dri2_initialize_x11_dri2(_EGLDriver *drv, _EGLDisplay *disp)
 {
+   _EGLDevice *dev;
    struct dri2_egl_display *dri2_dpy;
 
    dri2_dpy = calloc(1, sizeof *dri2_dpy);
@@ -1459,6 +1478,14 @@ dri2_initialize_x11_dri2(_EGLDriver *drv, _EGLDisplay *disp)
 
    if (!dri2_x11_connect(dri2_dpy))
       goto cleanup;
+
+   dev = _eglAddDevice(dri2_dpy->fd, false);
+   if (!dev) {
+      _eglError(EGL_NOT_INITIALIZED, "DRI2: failed to find EGLDevice");
+      goto cleanup;
+   }
+
+   disp->Device = dev;
 
    if (!dri2_load_driver(disp))
       goto cleanup;

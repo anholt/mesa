@@ -71,6 +71,7 @@ struct zwp_linux_dmabuf_v1;
 
 #include "eglconfig.h"
 #include "eglcontext.h"
+#include "egldevice.h"
 #include "egldisplay.h"
 #include "egldriver.h"
 #include "eglcurrent.h"

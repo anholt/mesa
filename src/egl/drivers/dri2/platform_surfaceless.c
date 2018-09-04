@@ -304,8 +304,16 @@ surfaceless_probe_device(_EGLDisplay *dpy, bool swrast)
       }
 
       dri2_dpy->fd = fd;
-      if (dri2_load_driver_dri3(dpy))
+      if (dri2_load_driver_dri3(dpy)) {
+         _EGLDevice *dev = _eglAddDevice(dri2_dpy->fd, swrast);
+         if (!dev) {
+            dlclose(dri2_dpy->driver);
+            _eglLog(_EGL_WARNING, "DRI2: failed to find EGLDevice");
+            continue;
+         }
+         dpy->Device = dev;
          return true;
+      }
 
       close(fd);
       dri2_dpy->fd = -1;

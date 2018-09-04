@@ -207,7 +207,15 @@ extern "C"
 EGLBoolean
 init_haiku(_EGLDriver *drv, _EGLDisplay *dpy)
 {
+	_EGLDevice *dev;
 	CALLED();
+
+	dev = _eglAddDevice(-1, true);
+	if (!dev) {
+		_eglError(EGL_NOT_INITIALIZED, "DRI2: failed to find EGLDevice");
+		return EGL_FALSE;
+	}
+	disp->Device = dev;
 
 	TRACE("Add configs\n");
 	if (!haiku_add_configs_for_visuals(dpy))
