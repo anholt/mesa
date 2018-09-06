@@ -6023,6 +6023,12 @@ fs_visitor::dump_instruction(backend_instruction *be_inst, FILE *file)
          case BRW_REGISTER_TYPE_UD:
             fprintf(file, "%uu", inst->src[i].ud);
             break;
+         case BRW_REGISTER_TYPE_Q:
+            fprintf(file, "%" PRId64 "q", inst->src[i].d64);
+            break;
+         case BRW_REGISTER_TYPE_UQ:
+            fprintf(file, "%" PRIu64 "uq", inst->src[i].u64);
+            break;
          case BRW_REGISTER_TYPE_VF:
             fprintf(file, "[%-gF, %-gF, %-gF, %-gF]",
                     brw_vf_to_float((inst->src[i].ud >>  0) & 0xff),
