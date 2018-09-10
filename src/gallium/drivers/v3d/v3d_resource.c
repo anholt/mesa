@@ -811,6 +811,12 @@ v3d_create_surface(struct pipe_context *pctx,
 
         surface->format = v3d_get_rt_format(&screen->devinfo, psurf->format);
 
+        const struct util_format_description *desc =
+                util_format_description(psurf->format);
+
+        surface->swap_rb = (desc->swizzle[0] == PIPE_SWIZZLE_Z &&
+                            psurf->format != PIPE_FORMAT_B5G6R5_UNORM);
+
         if (util_format_is_depth_or_stencil(psurf->format)) {
                 switch (psurf->format) {
                 case PIPE_FORMAT_Z16_UNORM:

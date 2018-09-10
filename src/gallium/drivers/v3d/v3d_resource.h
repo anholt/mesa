@@ -104,6 +104,13 @@ struct v3d_surface {
          */
         uint8_t internal_bpp;
 
+        /**
+         * If the R and B channels should be swapped.  On V3D 3.x, we do it in
+         * the shader and the blend equation.  On V3D 4.1+, we can use the new
+         * TLB load/store flags instead of recompiling.
+         */
+        bool swap_rb;
+
         uint32_t padded_height_of_output_image_in_uif_blocks;
 
         /* If the resource being referenced is separate stencil, then this is
