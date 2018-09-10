@@ -93,7 +93,7 @@ struct radv_shader_context {
 	uint64_t output_mask;
 
 	bool is_gs_copy_shader;
-	LLVMValueRef gs_next_vertex;
+	LLVMValueRef gs_next_vertex[4];
 	unsigned gs_max_out_vertices;
 
 	unsigned tes_primitive_mode;
@@ -1704,11 +1704,9 @@ visit_emit_vertex(struct ac_shader_abi *abi, unsigned stream, LLVMValueRef *addr
 	unsigned offset = 0;
 	struct radv_shader_context *ctx = radv_shader_context_from_abi(abi);
 
-	assert(stream == 0);
-
 	/* Write vertex attribute values to GSVS ring */
 	gs_next_vertex = LLVMBuildLoad(ctx->ac.builder,
-				       ctx->gs_next_vertex,
+				       ctx->gs_next_vertex[stream],
 				       "");
 
 	/* If this thread has already emitted the declared maximum number of
@@ -1723,10 +1721,13 @@ visit_emit_vertex(struct ac_shader_abi *abi, unsigned stream, LLVMValueRef *addr
 	for (unsigned i = 0; i < AC_LLVM_MAX_OUTPUTS; ++i) {
 		unsigned output_usage_mask =
 			ctx->shader_info->info.gs.output_usage_mask[i];
+		uint8_t output_stream =
+			ctx->shader_info->info.gs.output_streams[i];
 		LLVMValueRef *out_ptr = &addrs[i * 4];
 		int length = util_last_bit(output_usage_mask);
 
-		if (!(ctx->output_mask & (1ull << i)))
+		if (!(ctx->output_mask & (1ull << i)) ||
+		    output_stream != stream)
 			continue;
 
 		for (unsigned j = 0; j < length; j++) {
@@ -1757,9 +1758,11 @@ visit_emit_vertex(struct ac_shader_abi *abi, unsigned stream, LLVMValueRef *addr
 
 	gs_next_vertex = LLVMBuildAdd(ctx->ac.builder, gs_next_vertex,
 				      ctx->ac.i32_1, "");
-	LLVMBuildStore(ctx->ac.builder, gs_next_vertex, ctx->gs_next_vertex);
+	LLVMBuildStore(ctx->ac.builder, gs_next_vertex, ctx->gs_next_vertex[stream]);
 
-	ac_build_sendmsg(&ctx->ac, AC_SENDMSG_GS_OP_EMIT | AC_SENDMSG_GS | (0 << 8), ctx->gs_wave_id);
+	ac_build_sendmsg(&ctx->ac,
+			 AC_SENDMSG_GS_OP_EMIT | AC_SENDMSG_GS | (stream << 8),
+			 ctx->gs_wave_id);
 }
 
 static void
@@ -3321,7 +3324,10 @@ LLVMModuleRef ac_translate_nir_to_llvm(struct ac_llvm_compiler *ac_llvm,
 		ctx.output_mask = 0;
 
 		if (shaders[i]->info.stage == MESA_SHADER_GEOMETRY) {
-			ctx.gs_next_vertex = ac_build_alloca(&ctx.ac, ctx.ac.i32, "gs_next_vertex");
+			for (int i = 0; i < 4; i++) {
+				ctx.gs_next_vertex[i] =
+					ac_build_alloca(&ctx.ac, ctx.ac.i32, "");
+			}
 			ctx.gs_max_out_vertices = shaders[i]->info.gs.vertices_out;
 			ctx.abi.load_inputs = load_gs_input;
 			ctx.abi.emit_primitive = visit_end_primitive;
