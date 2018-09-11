@@ -435,6 +435,17 @@ gather_info_output_decl_ps(const nir_shader *nir, const nir_variable *var,
 }
 
 static void
+gather_info_output_decl_gs(const nir_shader *nir, const nir_variable *var,
+			   struct radv_shader_info *info)
+{
+	unsigned stream = var->data.stream;
+
+	assert(stream < 4);
+
+	info->gs.max_stream = MAX2(info->gs.max_stream, stream);
+}
+
+static void
 gather_info_output_decl(const nir_shader *nir, const nir_variable *var,
 			struct radv_shader_info *info,
 			const struct radv_nir_compiler_options *options)
@@ -446,6 +457,9 @@ gather_info_output_decl(const nir_shader *nir, const nir_variable *var,
 	case MESA_SHADER_VERTEX:
 		if (options->key.vs.as_ls)
 			gather_info_output_decl_ls(nir, var, info);
+		break;
+	case MESA_SHADER_GEOMETRY:
+		gather_info_output_decl_gs(nir, var, info);
 		break;
 	default:
 		break;
