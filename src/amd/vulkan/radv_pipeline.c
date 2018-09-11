@@ -2988,20 +2988,33 @@ radv_pipeline_generate_geometry_shader(struct radeon_cmdbuf *cs,
 				       const struct radv_gs_state *gs_state)
 {
 	struct radv_shader_variant *gs;
+	unsigned gs_max_out_vertices;
+	uint8_t *num_components;
+	uint8_t max_stream;
+	unsigned offset;
 	uint64_t va;
 
 	gs = pipeline->shaders[MESA_SHADER_GEOMETRY];
 	if (!gs)
 		return;
 
-	uint32_t gsvs_itemsize = gs->info.gs.max_gsvs_emit_size >> 2;
+	gs_max_out_vertices = gs->info.gs.vertices_out;
+	max_stream = gs->info.info.gs.max_stream;
+	num_components = gs->info.info.gs.num_stream_output_components;
+
+	offset = num_components[0] * gs_max_out_vertices;
 
 	radeon_set_context_reg_seq(cs, R_028A60_VGT_GSVS_RING_OFFSET_1, 3);
-	radeon_emit(cs, gsvs_itemsize);
-	radeon_emit(cs, gsvs_itemsize);
-	radeon_emit(cs, gsvs_itemsize);
-
-	radeon_set_context_reg(cs, R_028AB0_VGT_GSVS_RING_ITEMSIZE, gsvs_itemsize);
+	radeon_emit(cs, offset);
+	if (max_stream >= 1)
+		offset += num_components[1] * gs_max_out_vertices;
+	radeon_emit(cs, offset);
+	if (max_stream >= 2)
+		offset += num_components[2] * gs_max_out_vertices;
+	radeon_emit(cs, offset);
+	if (max_stream >= 3)
+		offset += num_components[3] * gs_max_out_vertices;
+	radeon_set_context_reg(cs, R_028AB0_VGT_GSVS_RING_ITEMSIZE, offset);
 
 	radeon_set_context_reg(cs, R_028B38_VGT_GS_MAX_VERT_OUT, gs->info.gs.vertices_out);
 
