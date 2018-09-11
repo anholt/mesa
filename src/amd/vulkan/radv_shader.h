@@ -159,6 +159,7 @@ struct radv_shader_info {
 	} vs;
 	struct {
 		uint8_t output_usage_mask[VARYING_SLOT_VAR31 + 1];
+		uint8_t num_stream_output_components[4];
 		uint8_t max_stream;
 	} gs;
 	struct {
