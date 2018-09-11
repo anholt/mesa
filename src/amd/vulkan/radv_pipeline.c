@@ -3018,12 +3018,11 @@ radv_pipeline_generate_geometry_shader(struct radeon_cmdbuf *cs,
 
 	radeon_set_context_reg(cs, R_028B38_VGT_GS_MAX_VERT_OUT, gs->info.gs.vertices_out);
 
-	uint32_t gs_vert_itemsize = gs->info.gs.gsvs_vertex_size;
 	radeon_set_context_reg_seq(cs, R_028B5C_VGT_GS_VERT_ITEMSIZE, 4);
-	radeon_emit(cs, gs_vert_itemsize >> 2);
-	radeon_emit(cs, 0);
-	radeon_emit(cs, 0);
-	radeon_emit(cs, 0);
+	radeon_emit(cs, num_components[0]);
+	radeon_emit(cs, (max_stream >= 1) ? num_components[1] : 0);
+	radeon_emit(cs, (max_stream >= 2) ? num_components[2] : 0);
+	radeon_emit(cs, (max_stream >= 3) ? num_components[3] : 0);
 
 	uint32_t gs_num_invocations = gs->info.gs.invocations;
 	radeon_set_context_reg(cs, R_028B90_VGT_GS_INSTANCE_CNT,
