@@ -78,7 +78,7 @@ struct radv_shader_context {
 	LLVMValueRef gs_vtx_offset[6];
 
 	LLVMValueRef esgs_ring;
-	LLVMValueRef gsvs_ring;
+	LLVMValueRef gsvs_ring[4];
 	LLVMValueRef hs_ring_tess_offchip;
 	LLVMValueRef hs_ring_tess_factor;
 
@@ -1747,7 +1747,8 @@ visit_emit_vertex(struct ac_shader_abi *abi, unsigned stream, LLVMValueRef *addr
 			out_val = ac_to_integer(&ctx->ac, out_val);
 			out_val = LLVMBuildZExtOrBitCast(ctx->ac.builder, out_val, ctx->ac.i32, "");
 
-			ac_build_buffer_store_dword(&ctx->ac, ctx->gsvs_ring,
+			ac_build_buffer_store_dword(&ctx->ac,
+						    ctx->gsvs_ring[stream],
 						    out_val, 1,
 						    voffset, ctx->gs2vs_offset, 0,
 						    1, 1, true, true);
@@ -3134,42 +3135,76 @@ ac_setup_rings(struct radv_shader_context *ctx)
 	}
 
 	if (ctx->is_gs_copy_shader) {
-		ctx->gsvs_ring =
+		ctx->gsvs_ring[0] =
 			ac_build_load_to_sgpr(&ctx->ac, ctx->ring_offsets,
 					      LLVMConstInt(ctx->ac.i32,
 							   RING_GSVS_VS, false));
 	}
 
 	if (ctx->stage == MESA_SHADER_GEOMETRY) {
+		/* The conceptual layout of the GSVS ring is
+		 *   v0c0 .. vLv0 v0c1 .. vLc1 ..
+		 * but the real memory layout is swizzled across
+		 * threads:
+		 *   t0v0c0 .. t15v0c0 t0v1c0 .. t15v1c0 ... t15vLcL
+		 *   t16v0c0 ..
+		 * Override the buffer descriptor accordingly.
+		 */
+		LLVMTypeRef v2i64 = LLVMVectorType(ctx->ac.i64, 2);
+		uint64_t stream_offset = 0;
 		unsigned num_records = 64;
 		LLVMValueRef base_ring;
-		LLVMValueRef ring, tmp;
-		unsigned stride;
 
 		base_ring =
 			ac_build_load_to_sgpr(&ctx->ac, ctx->ring_offsets,
 					      LLVMConstInt(ctx->ac.i32,
 							   RING_GSVS_GS, false));
 
-		stride = ctx->max_gsvs_emit_size;
+		for (unsigned stream = 0; stream < 4; stream++) {
+			unsigned num_components, stride;
+			LLVMValueRef ring, tmp;
 
-		ring = LLVMBuildBitCast(ctx->ac.builder, base_ring,
-					ctx->ac.v4i32, "");
+			num_components =
+				ctx->shader_info->info.gs.num_stream_output_components[stream];
 
-		tmp = LLVMBuildExtractElement(ctx->ac.builder, ring,
-					      ctx->ac.i32_1, "");
-		tmp = LLVMBuildOr(ctx->ac.builder, tmp,
-				  LLVMConstInt(ctx->ac.i32,
-					       S_008F04_STRIDE(stride), false), "");
-		ring = LLVMBuildInsertElement(ctx->ac.builder, ring, tmp,
-					      ctx->ac.i32_1, "");
+			if (!num_components)
+				continue;
 
-		ring = LLVMBuildInsertElement(ctx->ac.builder, ring,
-					      LLVMConstInt(ctx->ac.i32,
-							   num_records, false),
-					      LLVMConstInt(ctx->ac.i32, 2, false), "");
+			stride = 4 * num_components * ctx->gs_max_out_vertices;
 
-		ctx->gsvs_ring = ring;
+			/* Limit on the stride field for <= CIK. */
+			assert(stride < (1 << 14));
+
+			ring = LLVMBuildBitCast(ctx->ac.builder,
+						base_ring, v2i64, "");
+			tmp = LLVMBuildExtractElement(ctx->ac.builder,
+						      ring, ctx->ac.i32_0, "");
+			tmp = LLVMBuildAdd(ctx->ac.builder, tmp,
+					   LLVMConstInt(ctx->ac.i64,
+							stream_offset, 0), "");
+			ring = LLVMBuildInsertElement(ctx->ac.builder,
+						      ring, tmp, ctx->ac.i32_0, "");
+
+			stream_offset += stride * 64;
+
+			ring = LLVMBuildBitCast(ctx->ac.builder, ring,
+						ctx->ac.v4i32, "");
+
+			tmp = LLVMBuildExtractElement(ctx->ac.builder, ring,
+						      ctx->ac.i32_1, "");
+			tmp = LLVMBuildOr(ctx->ac.builder, tmp,
+					  LLVMConstInt(ctx->ac.i32,
+						       S_008F04_STRIDE(stride), false), "");
+			ring = LLVMBuildInsertElement(ctx->ac.builder, ring, tmp,
+						      ctx->ac.i32_1, "");
+
+			ring = LLVMBuildInsertElement(ctx->ac.builder, ring,
+						      LLVMConstInt(ctx->ac.i32,
+								   num_records, false),
+						      LLVMConstInt(ctx->ac.i32, 2, false), "");
+
+			ctx->gsvs_ring[stream] = ring;
+		}
 	}
 
 	if (ctx->stage == MESA_SHADER_TESS_CTRL ||
@@ -3620,7 +3655,8 @@ ac_gs_copy_shader_emit(struct radv_shader_context *ctx)
 
 			offset++;
 
-			value = ac_build_buffer_load(&ctx->ac, ctx->gsvs_ring,
+			value = ac_build_buffer_load(&ctx->ac,
+						     ctx->gsvs_ring[0],
 						     1, ctx->ac.i32_0,
 						     vtx_offset, soffset,
 						     0, 1, 1, true, false);
