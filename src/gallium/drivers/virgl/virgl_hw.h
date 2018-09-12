@@ -231,6 +231,7 @@ enum virgl_formats {
 #define VIRGL_CAP_SHADER_CLOCK         (1 << 11)
 #define VIRGL_CAP_TEXTURE_BARRIER      (1 << 12)
 #define VIRGL_CAP_TGSI_COMPONENTS      (1 << 13)
+#define VIRGL_CAP_GUEST_MAY_INIT_LOG   (1 << 14)
 
 /* virgl bind flags - these are compatible with mesa 10.5 gallium.
  * but are fixed, no other should be passed to virgl either.
