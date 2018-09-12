@@ -131,10 +131,130 @@ nir_vars_test::find_next_intrinsic(nir_intrinsic_op intrinsic,
 }
 
 /* Allow grouping the tests while still sharing the helpers. */
+class nir_redundant_load_vars_test : public nir_vars_test {};
 class nir_copy_prop_vars_test : public nir_vars_test {};
 class nir_dead_write_vars_test : public nir_vars_test {};
 
 } // namespace
+
+TEST_F(nir_redundant_load_vars_test, duplicated_load)
+{
+   /* Load a variable twice in the same block.  One should be removed. */
+
+   nir_variable *in = create_int(nir_var_shader_in, "in");
+   nir_variable **out = create_many_int(nir_var_shader_out, "out", 2);
+
+   nir_store_var(b, out[0], nir_load_var(b, in), 1);
+   nir_store_var(b, out[1], nir_load_var(b, in), 1);
+
+   nir_validate_shader(b->shader);
+
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 2);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_validate_shader(b->shader);
+
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
+}
+
+TEST_F(nir_redundant_load_vars_test, DISABLED_duplicated_load_in_two_blocks)
+{
+   /* Load a variable twice in different blocks.  One should be removed. */
+
+   nir_variable *in = create_int(nir_var_shader_in, "in");
+   nir_variable **out = create_many_int(nir_var_shader_out, "out", 2);
+
+   nir_store_var(b, out[0], nir_load_var(b, in), 1);
+
+   /* Forces the stores to be in different blocks. */
+   nir_pop_if(b, nir_push_if(b, nir_imm_int(b, 0)));
+
+   nir_store_var(b, out[1], nir_load_var(b, in), 1);
+
+   nir_validate_shader(b->shader);
+
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 2);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_validate_shader(b->shader);
+
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
+}
+
+TEST_F(nir_redundant_load_vars_test, DISABLED_invalidate_inside_if_block)
+{
+   /* Load variables, then write to some of then in different branches of the
+    * if statement.  They should be invalidated accordingly.
+    */
+
+   nir_variable **g = create_many_int(nir_var_global, "g", 3);
+   nir_variable **out = create_many_int(nir_var_shader_out, "out", 3);
+
+   nir_load_var(b, g[0]);
+   nir_load_var(b, g[1]);
+   nir_load_var(b, g[2]);
+
+   nir_if *if_stmt = nir_push_if(b, nir_imm_int(b, 0));
+   nir_store_var(b, g[0], nir_imm_int(b, 10), 1);
+
+   nir_push_else(b, if_stmt);
+   nir_store_var(b, g[1], nir_imm_int(b, 20), 1);
+
+   nir_pop_if(b, if_stmt);
+
+   nir_store_var(b, out[0], nir_load_var(b, g[0]), 1);
+   nir_store_var(b, out[1], nir_load_var(b, g[1]), 1);
+   nir_store_var(b, out[2], nir_load_var(b, g[2]), 1);
+
+   nir_validate_shader(b->shader);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   /* There are 3 initial loads, plus 2 loads for the values invalidated
+    * inside the if statement.
+    */
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 5);
+
+   /* We only load g[2] once. */
+   unsigned g2_load_count = 0;
+   nir_intrinsic_instr *load = NULL;
+   for (int i = 0; i < 5; i++) {
+      load = find_next_intrinsic(nir_intrinsic_load_deref, load);
+      if (nir_intrinsic_get_var(load, 0) == g[2])
+         g2_load_count++;
+   }
+   EXPECT_EQ(g2_load_count, 1);
+}
+
+TEST_F(nir_redundant_load_vars_test, invalidate_live_load_in_the_end_of_loop)
+{
+   /* Invalidating a load in the end of loop body will apply to the whole loop
+    * body.
+    */
+
+   nir_variable *v = create_int(nir_var_shader_storage, "v");
+
+   nir_load_var(b, v);
+
+   nir_loop *loop = nir_push_loop(b);
+
+   nir_if *if_stmt = nir_push_if(b, nir_imm_int(b, 0));
+   nir_jump(b, nir_jump_break);
+   nir_pop_if(b, if_stmt);
+
+   nir_load_var(b, v);
+   nir_store_var(b, v, nir_imm_int(b, 10), 1);
+
+   nir_pop_loop(b, loop);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   ASSERT_FALSE(progress);
+}
 
 TEST_F(nir_copy_prop_vars_test, simple_copies)
 {
@@ -169,6 +289,186 @@ TEST_F(nir_copy_prop_vars_test, simple_store_load)
 
    nir_ssa_def *stored_value = nir_imm_ivec2(b, 10, 20);
    nir_store_var(b, v[0], stored_value, mask);
+
+   nir_ssa_def *read_value = nir_load_var(b, v[0]);
+   nir_store_var(b, v[1], read_value, mask);
+
+   nir_validate_shader(b->shader);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_validate_shader(b->shader);
+
+   ASSERT_EQ(count_intrinsics(nir_intrinsic_store_deref), 2);
+
+   nir_intrinsic_instr *store = NULL;
+   for (int i = 0; i < 2; i++) {
+      store = find_next_intrinsic(nir_intrinsic_store_deref, store);
+      ASSERT_TRUE(store->src[1].is_ssa);
+      EXPECT_EQ(store->src[1].ssa, stored_value);
+   }
+}
+
+TEST_F(nir_copy_prop_vars_test, store_store_load)
+{
+   nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
+   unsigned mask = 1 | 2;
+
+   nir_ssa_def *first_value = nir_imm_ivec2(b, 10, 20);
+   nir_store_var(b, v[0], first_value, mask);
+
+   nir_ssa_def *second_value = nir_imm_ivec2(b, 30, 40);
+   nir_store_var(b, v[0], second_value, mask);
+
+   nir_ssa_def *read_value = nir_load_var(b, v[0]);
+   nir_store_var(b, v[1], read_value, mask);
+
+   nir_validate_shader(b->shader);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_validate_shader(b->shader);
+
+   /* Store to v[1] should use second_value directly. */
+   nir_intrinsic_instr *store_to_v1 = NULL;
+   while ((store_to_v1 = find_next_intrinsic(nir_intrinsic_store_deref, store_to_v1)) != NULL) {
+      if (nir_intrinsic_get_var(store_to_v1, 0) == v[1]) {
+         ASSERT_TRUE(store_to_v1->src[1].is_ssa);
+         EXPECT_EQ(store_to_v1->src[1].ssa, second_value);
+         break;
+      }
+   }
+   EXPECT_TRUE(store_to_v1);
+}
+
+TEST_F(nir_copy_prop_vars_test, store_store_load_different_components)
+{
+   nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
+
+   nir_ssa_def *first_value = nir_imm_ivec2(b, 10, 20);
+   nir_store_var(b, v[0], first_value, 1 << 1);
+
+   nir_ssa_def *second_value = nir_imm_ivec2(b, 30, 40);
+   nir_store_var(b, v[0], second_value, 1 << 0);
+
+   nir_ssa_def *read_value = nir_load_var(b, v[0]);
+   nir_store_var(b, v[1], read_value, 1 << 1);
+
+   nir_validate_shader(b->shader);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_validate_shader(b->shader);
+
+   nir_opt_constant_folding(b->shader);
+   nir_validate_shader(b->shader);
+
+   /* Store to v[1] should use first_value directly.  The write of
+    * second_value did not overwrite the component it uses.
+    */
+   nir_intrinsic_instr *store_to_v1 = NULL;
+   while ((store_to_v1 = find_next_intrinsic(nir_intrinsic_store_deref, store_to_v1)) != NULL) {
+      if (nir_intrinsic_get_var(store_to_v1, 0) == v[1]) {
+         ASSERT_TRUE(store_to_v1->src[1].is_ssa);
+
+         nir_const_value *const_index = nir_src_as_const_value(store_to_v1->src[1]);
+         ASSERT_TRUE(const_index);
+         ASSERT_EQ(const_index->u32[1], 20);
+         break;
+      }
+   }
+   EXPECT_TRUE(store_to_v1);
+}
+
+TEST_F(nir_copy_prop_vars_test, DISABLED_store_store_load_different_components_in_many_blocks)
+{
+   nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
+
+   nir_ssa_def *first_value = nir_imm_ivec2(b, 10, 20);
+   nir_store_var(b, v[0], first_value, 1 << 1);
+
+   /* Adding an if statement will cause blocks to be created. */
+   nir_pop_if(b, nir_push_if(b, nir_imm_int(b, 0)));
+
+   nir_ssa_def *second_value = nir_imm_ivec2(b, 30, 40);
+   nir_store_var(b, v[0], second_value, 1 << 0);
+
+   /* Adding an if statement will cause blocks to be created. */
+   nir_pop_if(b, nir_push_if(b, nir_imm_int(b, 0)));
+
+   nir_ssa_def *read_value = nir_load_var(b, v[0]);
+   nir_store_var(b, v[1], read_value, 1 << 1);
+
+   nir_validate_shader(b->shader);
+
+   nir_print_shader(b->shader, stdout);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   EXPECT_TRUE(progress);
+
+   nir_print_shader(b->shader, stdout);
+
+   nir_validate_shader(b->shader);
+
+   nir_opt_constant_folding(b->shader);
+   nir_validate_shader(b->shader);
+
+   /* Store to v[1] should use first_value directly.  The write of
+    * second_value did not overwrite the component it uses.
+    */
+   nir_intrinsic_instr *store_to_v1 = NULL;
+   while ((store_to_v1 = find_next_intrinsic(nir_intrinsic_store_deref, store_to_v1)) != NULL) {
+      if (nir_intrinsic_get_var(store_to_v1, 0) == v[1]) {
+         ASSERT_TRUE(store_to_v1->src[1].is_ssa);
+
+         nir_const_value *const_index = nir_src_as_const_value(store_to_v1->src[1]);
+         ASSERT_TRUE(const_index);
+         ASSERT_EQ(const_index->u32[1], 20);
+         break;
+      }
+   }
+   EXPECT_TRUE(store_to_v1);
+}
+
+TEST_F(nir_copy_prop_vars_test, DISABLED_memory_barrier_in_two_blocks)
+{
+   nir_variable **v = create_many_int(nir_var_shader_storage, "v", 4);
+
+   nir_store_var(b, v[0], nir_imm_int(b, 1), 1);
+   nir_store_var(b, v[1], nir_imm_int(b, 2), 1);
+
+   /* Split into many blocks. */
+   nir_pop_if(b, nir_push_if(b, nir_imm_int(b, 0)));
+
+   nir_store_var(b, v[2], nir_load_var(b, v[0]), 1);
+
+   nir_builder_instr_insert(b, &nir_intrinsic_instr_create(b->shader, nir_intrinsic_memory_barrier)->instr);
+
+   nir_store_var(b, v[3], nir_load_var(b, v[1]), 1);
+
+   bool progress = nir_opt_copy_prop_vars(b->shader);
+   ASSERT_TRUE(progress);
+
+   /* Only the second load will remain after the optimization. */
+   ASSERT_EQ(1, count_intrinsics(nir_intrinsic_load_deref));
+   nir_intrinsic_instr *load = NULL;
+   load = find_next_intrinsic(nir_intrinsic_load_deref, load);
+   ASSERT_EQ(nir_intrinsic_get_var(load, 0), v[1]);
+}
+
+TEST_F(nir_copy_prop_vars_test, DISABLED_simple_store_load_in_two_blocks)
+{
+   nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
+   unsigned mask = 1 | 2;
+
+   nir_ssa_def *stored_value = nir_imm_ivec2(b, 10, 20);
+   nir_store_var(b, v[0], stored_value, mask);
+
+   /* Adding an if statement will cause blocks to be created. */
+   nir_pop_if(b, nir_push_if(b, nir_imm_int(b, 0)));
 
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, mask);
