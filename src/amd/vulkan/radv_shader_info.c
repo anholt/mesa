@@ -440,11 +440,13 @@ gather_info_output_decl_gs(const nir_shader *nir, const nir_variable *var,
 {
 	unsigned num_components = glsl_get_component_slots(var->type);
 	unsigned stream = var->data.stream;
+	unsigned idx = var->data.location;
 
 	assert(stream < 4);
 
 	info->gs.max_stream = MAX2(info->gs.max_stream, stream);
 	info->gs.num_stream_output_components[stream] += num_components;
+	info->gs.output_streams[idx] = stream;
 }
 
 static void
