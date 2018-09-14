@@ -159,7 +159,7 @@ TEST_F(nir_redundant_load_vars_test, duplicated_load)
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
 }
 
-TEST_F(nir_redundant_load_vars_test, DISABLED_duplicated_load_in_two_blocks)
+TEST_F(nir_redundant_load_vars_test, duplicated_load_in_two_blocks)
 {
    /* Load a variable twice in different blocks.  One should be removed. */
 
@@ -185,7 +185,7 @@ TEST_F(nir_redundant_load_vars_test, DISABLED_duplicated_load_in_two_blocks)
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
 }
 
-TEST_F(nir_redundant_load_vars_test, DISABLED_invalidate_inside_if_block)
+TEST_F(nir_redundant_load_vars_test, invalidate_inside_if_block)
 {
    /* Load variables, then write to some of then in different branches of the
     * if statement.  They should be invalidated accordingly.
@@ -383,7 +383,7 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components)
    EXPECT_TRUE(store_to_v1);
 }
 
-TEST_F(nir_copy_prop_vars_test, DISABLED_store_store_load_different_components_in_many_blocks)
+TEST_F(nir_copy_prop_vars_test, store_store_load_different_components_in_many_blocks)
 {
    nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
 
@@ -433,7 +433,7 @@ TEST_F(nir_copy_prop_vars_test, DISABLED_store_store_load_different_components_i
    EXPECT_TRUE(store_to_v1);
 }
 
-TEST_F(nir_copy_prop_vars_test, DISABLED_memory_barrier_in_two_blocks)
+TEST_F(nir_copy_prop_vars_test, memory_barrier_in_two_blocks)
 {
    nir_variable **v = create_many_int(nir_var_shader_storage, "v", 4);
 
@@ -459,7 +459,7 @@ TEST_F(nir_copy_prop_vars_test, DISABLED_memory_barrier_in_two_blocks)
    ASSERT_EQ(nir_intrinsic_get_var(load, 0), v[1]);
 }
 
-TEST_F(nir_copy_prop_vars_test, DISABLED_simple_store_load_in_two_blocks)
+TEST_F(nir_copy_prop_vars_test, simple_store_load_in_two_blocks)
 {
    nir_variable **v = create_many_ivec2(nir_var_local, "v", 2);
    unsigned mask = 1 | 2;
