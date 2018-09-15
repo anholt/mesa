@@ -3247,25 +3247,6 @@ create_frag_coord(struct ir3_context *ctx, unsigned comp)
 	}
 }
 
-static uint64_t
-input_bitmask(struct ir3_context *ctx, nir_variable *in)
-{
-	unsigned ncomp = glsl_get_components(in->type);
-	unsigned slot = in->data.location;
-
-	/* let's pretend things other than vec4 don't exist: */
-	ncomp = MAX2(ncomp, 4);
-
-	if (ctx->so->type == SHADER_FRAGMENT) {
-		/* see st_nir_fixup_varying_slots(): */
-		if (slot >= VARYING_SLOT_VAR9)
-			slot -= 9;
-	}
-
-	/* Note that info.inputs_read is in units of vec4 slots: */
-	return ((1ull << (ncomp/4)) - 1) << slot;
-}
-
 static void
 setup_input(struct ir3_context *ctx, nir_variable *in)
 {
@@ -3284,9 +3265,8 @@ setup_input(struct ir3_context *ctx, nir_variable *in)
 	/* skip unread inputs, we could end up with (for example), unsplit
 	 * matrix/etc inputs in the case they are not read, so just silently
 	 * skip these.
-	 *
 	 */
-	if (!(ctx->s->info.inputs_read & input_bitmask(ctx, in)))
+	if (ncomp > 4)
 		return;
 
 	compile_assert(ctx, ncomp == 4);
