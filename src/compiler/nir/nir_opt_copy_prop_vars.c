@@ -404,6 +404,15 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
       copy_entry_remove(state, iter);
 
    nir_foreach_instr_safe(instr, block) {
+      if (instr->type == nir_instr_type_call) {
+         apply_barrier_for_modes(copies, nir_var_shader_out |
+                                         nir_var_global |
+                                         nir_var_local |
+                                         nir_var_shader_storage |
+                                         nir_var_shared);
+         continue;
+      }
+
       if (instr->type != nir_instr_type_intrinsic)
          continue;
 
@@ -411,12 +420,9 @@ copy_prop_vars_block(struct copy_prop_var_state *state,
       switch (intrin->intrinsic) {
       case nir_intrinsic_barrier:
       case nir_intrinsic_memory_barrier:
-         /* If we hit a barrier, we need to trash everything that may possibly
-          * be accessible to another thread.  Locals, globals, and things of
-          * the like are safe, however.
-          */
-         apply_barrier_for_modes(state, ~(nir_var_local | nir_var_global |
-                                          nir_var_shader_in | nir_var_uniform));
+         apply_barrier_for_modes(copies, nir_var_shader_out |
+                                         nir_var_shader_storage |
+                                         nir_var_shared);
          break;
 
       case nir_intrinsic_emit_vertex:
