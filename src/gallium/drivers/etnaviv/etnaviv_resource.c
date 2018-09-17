@@ -176,6 +176,15 @@ setup_miptree(struct etna_resource *rsc, unsigned paddingX, unsigned paddingY,
    return size;
 }
 
+/* Is rs alignment needed? */
+static bool is_rs_align(struct etna_screen *screen,
+                        const struct pipe_resource *tmpl)
+{
+   return screen->specs.use_blt ? false : (
+      VIV_FEATURE(screen, chipMinorFeatures1, TEXTURE_HALIGN) ||
+      !etna_resource_sampler_only(tmpl));
+}
+
 /* Create a new resource object, using the given template info */
 struct pipe_resource *
 etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
@@ -217,11 +226,9 @@ etna_resource_alloc(struct pipe_screen *pscreen, unsigned layout,
        * resolve engine's width.  If not, we must not align resources used
        * only for textures. If this GPU uses the BLT engine, never do RS align.
        */
-      bool rs_align = screen->specs.use_blt ? false : (
-                         VIV_FEATURE(screen, chipMinorFeatures1, TEXTURE_HALIGN) ||
-                         !etna_resource_sampler_only(templat));
-      etna_layout_multiple(layout, screen->specs.pixel_pipes, rs_align, &paddingX,
-                           &paddingY, &halign);
+      etna_layout_multiple(layout, screen->specs.pixel_pipes,
+                           is_rs_align (screen, templat),
+                           &paddingX, &paddingY, &halign);
       assert(paddingX && paddingY);
    } else {
       /* Compressed textures are padded to their block size, but we don't have
@@ -519,7 +526,7 @@ etna_resource_from_handle(struct pipe_screen *pscreen,
    /* Determine padding of the imported resource. */
    unsigned paddingX = 0, paddingY = 0;
    etna_layout_multiple(rsc->layout, screen->specs.pixel_pipes,
-                        VIV_FEATURE(screen, chipMinorFeatures1, TEXTURE_HALIGN),
+                        is_rs_align(screen, tmpl),
                         &paddingX, &paddingY, &rsc->halign);
 
    if (!screen->specs.use_blt)
