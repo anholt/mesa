@@ -29,6 +29,7 @@
 
 #include "fd6_context.h"
 #include "fd6_blend.h"
+#include "fd6_blitter.h"
 #include "fd6_draw.h"
 #include "fd6_emit.h"
 #include "fd6_gmem.h"
@@ -119,6 +120,7 @@ fd6_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 	fd_context_setup_common_vbos(&fd6_ctx->base);
 
 	fd6_query_context_init(pctx);
+	fd6_blitter_init(pctx);
 
 	fd6_ctx->border_color_uploader = u_upload_create(pctx, 4096, 0,
                                                          PIPE_USAGE_STREAM, 0);
