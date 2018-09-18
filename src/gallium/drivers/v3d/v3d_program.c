@@ -193,9 +193,6 @@ v3d_shader_state_create(struct pipe_context *pctx,
                  */
                 s = cso->ir.nir;
 
-                NIR_PASS_V(s, nir_lower_io, nir_var_all & ~nir_var_uniform,
-                           type_size,
-                           (nir_lower_io_options)0);
                 NIR_PASS_V(s, nir_lower_io, nir_var_uniform,
                            uniforms_type_size,
                            (nir_lower_io_options)0);
@@ -212,6 +209,10 @@ v3d_shader_state_create(struct pipe_context *pctx,
 
                 so->was_tgsi = true;
         }
+
+        NIR_PASS_V(s, nir_lower_io, nir_var_all & ~nir_var_uniform,
+                   type_size,
+                   (nir_lower_io_options)0);
 
         NIR_PASS_V(s, nir_opt_global_to_local);
         NIR_PASS_V(s, nir_lower_regs_to_ssa);
