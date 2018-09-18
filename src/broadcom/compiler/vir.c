@@ -585,6 +585,12 @@ vir_compile_init(const struct v3d_compiler *compiler,
         return c;
 }
 
+static int
+type_size_vec4(const struct glsl_type *type)
+{
+        return glsl_count_attribute_slots(type, false);
+}
+
 static void
 v3d_lower_nir(struct v3d_compile *c)
 {
@@ -712,6 +718,16 @@ uint64_t *v3d_compile_vs(const struct v3d_compiler *compiler,
                                                  program_id, variant_id);
 
         c->vs_key = key;
+
+        /* Split our input vars and dead code eliminate the unused
+         * components.
+         */
+        NIR_PASS_V(c->s, nir_lower_io_to_scalar_early, nir_var_shader_in);
+        v3d_optimize_nir(c->s);
+        NIR_PASS_V(c->s, nir_remove_dead_variables, nir_var_shader_in);
+        NIR_PASS_V(c->s, nir_lower_io, nir_var_shader_in,
+                   type_size_vec4,
+                   (nir_lower_io_options)0);
 
         v3d_lower_nir(c);
 
