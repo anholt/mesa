@@ -1274,7 +1274,7 @@ ntq_emit_vpm_read(struct v3d_compile *c,
 }
 
 static void
-ntq_setup_inputs(struct v3d_compile *c)
+ntq_setup_vpm_inputs(struct v3d_compile *c)
 {
         unsigned num_entries = 0;
         unsigned num_components = 0;
@@ -1297,24 +1297,22 @@ ntq_setup_inputs(struct v3d_compile *c)
         qsort(&vars, num_entries, sizeof(*vars), driver_location_compare);
 
         uint32_t vpm_components_queued = 0;
-        if (c->s->info.stage == MESA_SHADER_VERTEX) {
-                bool uses_iid = c->s->info.system_values_read &
-                        (1ull << SYSTEM_VALUE_INSTANCE_ID);
-                bool uses_vid = c->s->info.system_values_read &
-                        (1ull << SYSTEM_VALUE_VERTEX_ID);
+        bool uses_iid = c->s->info.system_values_read &
+                (1ull << SYSTEM_VALUE_INSTANCE_ID);
+        bool uses_vid = c->s->info.system_values_read &
+                (1ull << SYSTEM_VALUE_VERTEX_ID);
 
-                num_components += uses_iid;
-                num_components += uses_vid;
+        num_components += uses_iid;
+        num_components += uses_vid;
 
-                if (uses_iid) {
-                        c->iid = ntq_emit_vpm_read(c, &vpm_components_queued,
-                                                   &num_components, ~0);
-                }
+        if (uses_iid) {
+                c->iid = ntq_emit_vpm_read(c, &vpm_components_queued,
+                                           &num_components, ~0);
+        }
 
-                if (uses_vid) {
-                        c->vid = ntq_emit_vpm_read(c, &vpm_components_queued,
-                                                   &num_components, ~0);
-                }
+        if (uses_vid) {
+                c->vid = ntq_emit_vpm_read(c, &vpm_components_queued,
+                                           &num_components, ~0);
         }
 
         for (unsigned i = 0; i < num_entries; i++) {
@@ -1327,40 +1325,71 @@ ntq_setup_inputs(struct v3d_compile *c)
                 resize_qreg_array(c, &c->inputs, &c->inputs_array_size,
                                   (loc + 1) * 4);
 
-                if (c->s->info.stage == MESA_SHADER_FRAGMENT) {
-                        if (var->data.location == VARYING_SLOT_POS) {
-                                emit_fragcoord_input(c, loc);
-                        } else if (var->data.location == VARYING_SLOT_PNTC ||
-                                   (var->data.location >= VARYING_SLOT_VAR0 &&
-                                    (c->fs_key->point_sprite_mask &
-                                     (1 << (var->data.location -
-                                            VARYING_SLOT_VAR0))))) {
-                                c->inputs[loc * 4 + 0] = c->point_x;
-                                c->inputs[loc * 4 + 1] = c->point_y;
-                        } else {
-                                emit_fragment_input(c, loc, var);
-                        }
-                } else {
-                        int var_components = glsl_get_components(var->type);
+                int var_components = glsl_get_components(var->type);
 
-                        for (int i = 0; i < var_components; i++) {
-                                c->inputs[loc * 4 + i] =
-                                        ntq_emit_vpm_read(c,
-                                                          &vpm_components_queued,
-                                                          &num_components,
-                                                          loc * 4 + i);
+                for (int i = 0; i < var_components; i++) {
+                        c->inputs[loc * 4 + i] =
+                                ntq_emit_vpm_read(c,
+                                                  &vpm_components_queued,
+                                                  &num_components,
+                                                  loc * 4 + i);
 
-                        }
-                        c->vattr_sizes[loc] = var_components;
                 }
+                c->vattr_sizes[loc] = var_components;
         }
 
-        if (c->s->info.stage == MESA_SHADER_VERTEX) {
-                if (c->devinfo->ver >= 40) {
-                        assert(vpm_components_queued == num_components);
+        if (c->devinfo->ver >= 40) {
+                assert(vpm_components_queued == num_components);
+        } else {
+                assert(vpm_components_queued == 0);
+                assert(num_components == 0);
+        }
+}
+
+static void
+ntq_setup_fs_inputs(struct v3d_compile *c)
+{
+        unsigned num_entries = 0;
+        unsigned num_components = 0;
+        nir_foreach_variable(var, &c->s->inputs) {
+                num_entries++;
+                num_components += glsl_get_components(var->type);
+        }
+
+        nir_variable *vars[num_entries];
+
+        unsigned i = 0;
+        nir_foreach_variable(var, &c->s->inputs)
+                vars[i++] = var;
+
+        /* Sort the variables so that we emit the input setup in
+         * driver_location order.  This is required for VPM reads, whose data
+         * is fetched into the VPM in driver_location (TGSI register index)
+         * order.
+         */
+        qsort(&vars, num_entries, sizeof(*vars), driver_location_compare);
+
+        for (unsigned i = 0; i < num_entries; i++) {
+                nir_variable *var = vars[i];
+                unsigned array_len = MAX2(glsl_get_length(var->type), 1);
+                unsigned loc = var->data.driver_location;
+
+                assert(array_len == 1);
+                (void)array_len;
+                resize_qreg_array(c, &c->inputs, &c->inputs_array_size,
+                                  (loc + 1) * 4);
+
+                if (var->data.location == VARYING_SLOT_POS) {
+                        emit_fragcoord_input(c, loc);
+                } else if (var->data.location == VARYING_SLOT_PNTC ||
+                           (var->data.location >= VARYING_SLOT_VAR0 &&
+                            (c->fs_key->point_sprite_mask &
+                             (1 << (var->data.location -
+                                    VARYING_SLOT_VAR0))))) {
+                        c->inputs[loc * 4 + 0] = c->point_x;
+                        c->inputs[loc * 4 + 1] = c->point_y;
                 } else {
-                        assert(vpm_components_queued == 0);
-                        assert(num_components == 0);
+                        emit_fragment_input(c, loc, var);
                 }
         }
 }
@@ -1903,7 +1932,11 @@ nir_to_vir(struct v3d_compile *c)
                 }
         }
 
-        ntq_setup_inputs(c);
+        if (c->s->info.stage == MESA_SHADER_FRAGMENT)
+                ntq_setup_fs_inputs(c);
+        else
+                ntq_setup_vpm_inputs(c);
+
         ntq_setup_outputs(c);
         ntq_setup_uniforms(c);
         ntq_setup_registers(c, &c->s->registers);
