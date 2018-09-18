@@ -1276,34 +1276,35 @@ ntq_emit_vpm_read(struct v3d_compile *c,
 static void
 ntq_setup_vpm_inputs(struct v3d_compile *c)
 {
-        unsigned num_entries = 0;
-        unsigned num_components = 0;
+        /* Figure out how many components of each vertex attribute the shader
+         * uses.  Each variable should have been split to individual
+         * components and unused ones DCEed.  The vertex fetcher will load
+         * from the start of the attribute to the number of components we
+         * declare we need in c->vattr_sizes[].
+         */
         nir_foreach_variable(var, &c->s->inputs) {
-                num_entries++;
-                num_components += glsl_get_components(var->type);
+                /* No VS attribute array support. */
+                assert(MAX2(glsl_get_length(var->type), 1) == 1);
+
+                unsigned loc = var->data.driver_location;
+                int start_component = var->data.location_frac;
+                int num_components = glsl_get_components(var->type);
+
+                c->vattr_sizes[loc] = MAX2(c->vattr_sizes[loc],
+                                           start_component + num_components);
         }
 
-        nir_variable *vars[num_entries];
-
-        unsigned i = 0;
-        nir_foreach_variable(var, &c->s->inputs)
-                vars[i++] = var;
-
-        /* Sort the variables so that we emit the input setup in
-         * driver_location order.  This is required for VPM reads, whose data
-         * is fetched into the VPM in driver_location (TGSI register index)
-         * order.
-         */
-        qsort(&vars, num_entries, sizeof(*vars), driver_location_compare);
-
+        unsigned num_components = 0;
         uint32_t vpm_components_queued = 0;
         bool uses_iid = c->s->info.system_values_read &
                 (1ull << SYSTEM_VALUE_INSTANCE_ID);
         bool uses_vid = c->s->info.system_values_read &
                 (1ull << SYSTEM_VALUE_VERTEX_ID);
-
         num_components += uses_iid;
         num_components += uses_vid;
+
+        for (int i = 0; i < ARRAY_SIZE(c->vattr_sizes); i++)
+                num_components += c->vattr_sizes[i];
 
         if (uses_iid) {
                 c->iid = ntq_emit_vpm_read(c, &vpm_components_queued,
@@ -1315,19 +1316,11 @@ ntq_setup_vpm_inputs(struct v3d_compile *c)
                                            &num_components, ~0);
         }
 
-        for (unsigned i = 0; i < num_entries; i++) {
-                nir_variable *var = vars[i];
-                unsigned array_len = MAX2(glsl_get_length(var->type), 1);
-                unsigned loc = var->data.driver_location;
-
-                assert(array_len == 1);
-                (void)array_len;
+        for (int loc = 0; loc < ARRAY_SIZE(c->vattr_sizes); loc++) {
                 resize_qreg_array(c, &c->inputs, &c->inputs_array_size,
                                   (loc + 1) * 4);
 
-                int var_components = glsl_get_components(var->type);
-
-                for (int i = 0; i < var_components; i++) {
+                for (int i = 0; i < c->vattr_sizes[loc]; i++) {
                         c->inputs[loc * 4 + i] =
                                 ntq_emit_vpm_read(c,
                                                   &vpm_components_queued,
@@ -1335,7 +1328,6 @@ ntq_setup_vpm_inputs(struct v3d_compile *c)
                                                   loc * 4 + i);
 
                 }
-                c->vattr_sizes[loc] = var_components;
         }
 
         if (c->devinfo->ver >= 40) {
