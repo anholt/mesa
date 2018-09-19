@@ -344,6 +344,7 @@ ttn_emit_declaration(struct ttn_compile *c)
                }
                case TGSI_SEMANTIC_POSITION:
                   var->data.location = FRAG_RESULT_DEPTH;
+                  var->type = glsl_float_type();
                   break;
                default:
                   fprintf(stderr, "Bad TGSI semantic: %d/%d\n",
