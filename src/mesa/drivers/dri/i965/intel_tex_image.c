@@ -192,7 +192,7 @@ intel_texsubimage_tiled_memcpy(struct gl_context * ctx,
    struct brw_bo *bo;
 
    uint32_t cpp;
-   mem_copy_fn mem_copy = NULL;
+   mem_copy_fn_type copy_type;
 
    /* This fastpath is restricted to specific texture types:
     * a 2D BGRA, RGBA, L8 or A8 texture. It could be generalized to support
@@ -222,7 +222,8 @@ intel_texsubimage_tiled_memcpy(struct gl_context * ctx,
    if (ctx->_ImageTransferState)
       return false;
 
-   if (!intel_get_memcpy(texImage->TexFormat, format, type, &mem_copy, &cpp))
+   if (!intel_get_memcpy_type(texImage->TexFormat, format, type, &copy_type,
+                              &cpp))
       return false;
 
    /* If this is a nontrivial texture view, let another path handle it instead. */
@@ -297,7 +298,7 @@ intel_texsubimage_tiled_memcpy(struct gl_context * ctx,
       image->mt->surf.row_pitch_B, src_pitch,
       brw->has_swizzling,
       image->mt->surf.tiling,
-      mem_copy
+      copy_type
    );
 
    brw_bo_unmap(bo);
@@ -694,7 +695,7 @@ intel_gettexsubimage_tiled_memcpy(struct gl_context *ctx,
    struct brw_bo *bo;
 
    uint32_t cpp;
-   mem_copy_fn mem_copy = NULL;
+   mem_copy_fn_type copy_type;
 
    /* This fastpath is restricted to specific texture types:
     * a 2D BGRA, RGBA, L8 or A8 texture. It could be generalized to support
@@ -728,7 +729,8 @@ intel_gettexsubimage_tiled_memcpy(struct gl_context *ctx,
    if (texImage->_BaseFormat == GL_RGB)
       return false;
 
-   if (!intel_get_memcpy(texImage->TexFormat, format, type, &mem_copy, &cpp))
+   if (!intel_get_memcpy_type(texImage->TexFormat, format, type, &copy_type,
+                              &cpp))
       return false;
 
    /* If this is a nontrivial texture view, let another path handle it instead. */
@@ -800,7 +802,7 @@ intel_gettexsubimage_tiled_memcpy(struct gl_context *ctx,
       dst_pitch, image->mt->surf.row_pitch_B,
       brw->has_swizzling,
       image->mt->surf.tiling,
-      mem_copy
+      copy_type
    );
 
    brw_bo_unmap(bo);

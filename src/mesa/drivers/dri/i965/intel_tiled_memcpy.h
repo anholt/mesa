@@ -35,6 +35,12 @@
 #include <stdint.h>
 #include "main/mtypes.h"
 
+typedef enum {
+  INTEL_COPY_MEMCPY = 0,
+  INTEL_COPY_RGBA8,
+  INTEL_COPY_INVALID,
+} mem_copy_fn_type;
+
 typedef void *(*mem_copy_fn)(void *dest, const void *src, size_t n);
 
 void
@@ -44,7 +50,7 @@ linear_to_tiled(uint32_t xt1, uint32_t xt2,
                 uint32_t dst_pitch, int32_t src_pitch,
                 bool has_swizzling,
                 enum isl_tiling tiling,
-                mem_copy_fn mem_copy);
+                mem_copy_fn_type copy_type);
 
 void
 tiled_to_linear(uint32_t xt1, uint32_t xt2,
@@ -53,9 +59,10 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
                 int32_t dst_pitch, uint32_t src_pitch,
                 bool has_swizzling,
                 enum isl_tiling tiling,
-                mem_copy_fn mem_copy);
+                mem_copy_fn_type copy_type);
 
-bool intel_get_memcpy(mesa_format tiledFormat, GLenum format,
-                      GLenum type, mem_copy_fn *mem_copy, uint32_t *cpp);
+bool intel_get_memcpy_type(mesa_format tiledFormat, GLenum format,
+                           GLenum type, mem_copy_fn_type *copy_type,
+                           uint32_t *cpp);
 
 #endif /* INTEL_TILED_MEMCPY */

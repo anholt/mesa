@@ -230,7 +230,7 @@ typedef void (*tile_copy_fn)(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                              char *dst, const char *src,
                              int32_t linear_pitch,
                              uint32_t swizzle_bit,
-                             mem_copy_fn mem_copy);
+                             mem_copy_fn_type copy_type);
 
 /**
  * Copy texture data from linear to X tile layout.
@@ -566,6 +566,19 @@ ytiled_to_linear(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
    }
 }
 
+static mem_copy_fn
+choose_copy_function(mem_copy_fn_type copy_type)
+{
+   switch(copy_type) {
+   case INTEL_COPY_MEMCPY:
+      return memcpy;
+   case INTEL_COPY_RGBA8:
+      return rgba8_copy;
+   default:
+      assert(!"unreachable");
+   }
+   return NULL;
+}
 
 /**
  * Copy texture data from linear to X tile layout, faster.
@@ -582,8 +595,10 @@ linear_to_xtiled_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                         char *dst, const char *src,
                         int32_t src_pitch,
                         uint32_t swizzle_bit,
-                        mem_copy_fn mem_copy)
+                        mem_copy_fn_type copy_type)
 {
+   mem_copy_fn mem_copy = choose_copy_function(copy_type);
+
    if (x0 == 0 && x3 == xtile_width && y0 == 0 && y1 == xtile_height) {
       if (mem_copy == memcpy)
          return linear_to_xtiled(0, 0, xtile_width, xtile_width, 0, xtile_height,
@@ -625,8 +640,10 @@ linear_to_ytiled_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                         char *dst, const char *src,
                         int32_t src_pitch,
                         uint32_t swizzle_bit,
-                        mem_copy_fn mem_copy)
+                        mem_copy_fn_type copy_type)
 {
+   mem_copy_fn mem_copy = choose_copy_function(copy_type);
+
    if (x0 == 0 && x3 == ytile_width && y0 == 0 && y1 == ytile_height) {
       if (mem_copy == memcpy)
          return linear_to_ytiled(0, 0, ytile_width, ytile_width, 0, ytile_height,
@@ -667,8 +684,10 @@ xtiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                         char *dst, const char *src,
                         int32_t dst_pitch,
                         uint32_t swizzle_bit,
-                        mem_copy_fn mem_copy)
+                        mem_copy_fn_type copy_type)
 {
+   mem_copy_fn mem_copy = choose_copy_function(copy_type);
+
    if (x0 == 0 && x3 == xtile_width && y0 == 0 && y1 == xtile_height) {
       if (mem_copy == memcpy)
          return xtiled_to_linear(0, 0, xtile_width, xtile_width, 0, xtile_height,
@@ -709,8 +728,10 @@ ytiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
                         char *dst, const char *src,
                         int32_t dst_pitch,
                         uint32_t swizzle_bit,
-                        mem_copy_fn mem_copy)
+                        mem_copy_fn_type copy_type)
 {
+   mem_copy_fn mem_copy = choose_copy_function(copy_type);
+
    if (x0 == 0 && x3 == ytile_width && y0 == 0 && y1 == ytile_height) {
       if (mem_copy == memcpy)
          return ytiled_to_linear(0, 0, ytile_width, ytile_width, 0, ytile_height,
@@ -754,7 +775,7 @@ linear_to_tiled(uint32_t xt1, uint32_t xt2,
                 uint32_t dst_pitch, int32_t src_pitch,
                 bool has_swizzling,
                 enum isl_tiling tiling,
-                mem_copy_fn mem_copy)
+                mem_copy_fn_type copy_type)
 {
    tile_copy_fn tile_copy;
    uint32_t xt0, xt3;
@@ -822,7 +843,7 @@ linear_to_tiled(uint32_t xt1, uint32_t xt2,
                    src + (ptrdiff_t)xt - xt1 + ((ptrdiff_t)yt - yt1) * src_pitch,
                    src_pitch,
                    swizzle_bit,
-                   mem_copy);
+                   copy_type);
       }
    }
 }
@@ -845,7 +866,7 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
                 int32_t dst_pitch, uint32_t src_pitch,
                 bool has_swizzling,
                 enum isl_tiling tiling,
-                mem_copy_fn mem_copy)
+                mem_copy_fn_type copy_type)
 {
    tile_copy_fn tile_copy;
    uint32_t xt0, xt3;
@@ -913,7 +934,7 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
                    src + (ptrdiff_t)xt * th  +  (ptrdiff_t)yt        * src_pitch,
                    dst_pitch,
                    swizzle_bit,
-                   mem_copy);
+                   copy_type);
       }
    }
 }
@@ -939,9 +960,12 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
  *
  * \return true if the format and type combination are valid
  */
-bool intel_get_memcpy(mesa_format tiledFormat, GLenum format,
-                      GLenum type, mem_copy_fn *mem_copy, uint32_t *cpp)
+bool
+intel_get_memcpy_type(mesa_format tiledFormat, GLenum format, GLenum type,
+                      mem_copy_fn_type *copy_type, uint32_t *cpp)
 {
+   *copy_type = INTEL_COPY_INVALID;
+
    if (type == GL_UNSIGNED_INT_8_8_8_8_REV &&
        !(format == GL_RGBA || format == GL_BGRA))
       return false; /* Invalid type/format combination */
@@ -949,16 +973,16 @@ bool intel_get_memcpy(mesa_format tiledFormat, GLenum format,
    if ((tiledFormat == MESA_FORMAT_L_UNORM8 && format == GL_LUMINANCE) ||
        (tiledFormat == MESA_FORMAT_A_UNORM8 && format == GL_ALPHA)) {
       *cpp = 1;
-      *mem_copy = memcpy;
+      *copy_type = INTEL_COPY_MEMCPY;
    } else if ((tiledFormat == MESA_FORMAT_B8G8R8A8_UNORM) ||
               (tiledFormat == MESA_FORMAT_B8G8R8X8_UNORM) ||
               (tiledFormat == MESA_FORMAT_B8G8R8A8_SRGB) ||
               (tiledFormat == MESA_FORMAT_B8G8R8X8_SRGB)) {
       *cpp = 4;
       if (format == GL_BGRA) {
-         *mem_copy = memcpy;
+         *copy_type = INTEL_COPY_MEMCPY;
       } else if (format == GL_RGBA) {
-         *mem_copy = rgba8_copy;
+         *copy_type = INTEL_COPY_RGBA8;
       }
    } else if ((tiledFormat == MESA_FORMAT_R8G8B8A8_UNORM) ||
               (tiledFormat == MESA_FORMAT_R8G8B8X8_UNORM) ||
@@ -969,13 +993,13 @@ bool intel_get_memcpy(mesa_format tiledFormat, GLenum format,
          /* Copying from RGBA to BGRA is the same as BGRA to RGBA so we can
           * use the same function.
           */
-         *mem_copy = rgba8_copy;
+         *copy_type = INTEL_COPY_RGBA8;
       } else if (format == GL_RGBA) {
-         *mem_copy = memcpy;
+         *copy_type = INTEL_COPY_MEMCPY;
       }
    }
 
-   if (!(*mem_copy))
+   if (*copy_type == INTEL_COPY_INVALID)
       return false;
 
    return true;
