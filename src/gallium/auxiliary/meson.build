@@ -322,6 +322,7 @@ files_libgallium = files(
   'util/u_pack_color.h',
   'util/u_pointer.h',
   'util/u_prim.h',
+  'util/u_prim.c',
   'util/u_prim_restart.c',
   'util/u_prim_restart.h',
   'util/u_pstipple.c',

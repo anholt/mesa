@@ -39,7 +39,6 @@
 #include "util/u_memory.h"
 #include "util/u_string.h"
 #include "util/u_math.h"
-#include "util/u_prim.h"
 #include <inttypes.h>
 
 #include <stdio.h>
@@ -411,31 +410,6 @@ debug_print_format(const char *msg, unsigned fmt )
    debug_printf("%s: %s\n", msg, util_format_name(fmt));
 }
 #endif
-
-
-/** Return string name of given primitive type */
-const char *
-u_prim_name(enum pipe_prim_type prim)
-{
-   static const struct debug_named_value names[] = {
-      DEBUG_NAMED_VALUE(PIPE_PRIM_POINTS),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_LINES),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_LINE_LOOP),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_LINE_STRIP),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_TRIANGLES),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_TRIANGLE_STRIP),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_TRIANGLE_FAN),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_QUADS),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_QUAD_STRIP),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_POLYGON),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_LINES_ADJACENCY),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_LINE_STRIP_ADJACENCY),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_TRIANGLES_ADJACENCY),
-      DEBUG_NAMED_VALUE(PIPE_PRIM_TRIANGLE_STRIP_ADJACENCY),
-      DEBUG_NAMED_VALUE_END
-   };
-   return debug_dump_enum(names, prim);
-}
 
 
 
