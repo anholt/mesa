@@ -248,6 +248,8 @@ files_libgallium = files(
   'util/u_cpu_detect.h',
   'util/u_debug.c',
   'util/u_debug.h',
+  'util/u_debug_gallium.h',
+  'util/u_debug_gallium.c',
   'util/u_debug_describe.c',
   'util/u_debug_describe.h',
   'util/u_debug_flush.c',

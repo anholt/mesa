@@ -35,7 +35,6 @@
 #include "pipe/p_format.h"
 #include "pipe/p_state.h"
 #include "util/u_inlines.h"
-#include "util/u_format.h"
 #include "util/u_memory.h"
 #include "util/u_string.h"
 #include "util/u_math.h"
@@ -401,15 +400,6 @@ debug_dump_flags(const struct debug_named_value *names, unsigned long value)
 
    return output;
 }
-
-
-#ifdef DEBUG
-void
-debug_print_format(const char *msg, unsigned fmt )
-{
-   debug_printf("%s: %s\n", msg, util_format_name(fmt));
-}
-#endif
 
 
 
