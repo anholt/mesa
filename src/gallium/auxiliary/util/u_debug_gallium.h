@@ -44,6 +44,9 @@ void debug_print_format(const char *msg, unsigned fmt);
 #ifdef DEBUG
 
 void
+debug_print_transfer_flags(const char *msg, unsigned usage);
+
+void
 debug_print_bind_flags(const char *msg, unsigned usage);
 
 void

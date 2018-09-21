@@ -31,7 +31,6 @@
 
 #include "pipe/p_compiler.h"
 #include "util/u_debug.h"
-#include "util/u_dump.h"
 #include "pipe/p_format.h"
 #include "pipe/p_state.h"
 #include "util/u_inlines.h"
@@ -441,21 +440,4 @@ debug_funclog_enter_exit(const char* f, UNUSED const int line,
       debug_printf("  ");
    debug_printf("%s\n", f);
 }
-#endif
-
-
-
-#ifdef DEBUG
-/**
- * Print PIPE_TRANSFER_x flags with a message.
- */
-void
-debug_print_transfer_flags(const char *msg, unsigned usage)
-{
-   debug_printf("%s: ", msg);
-   util_dump_transfer_usage(stdout, usage);
-   printf("\n");
-}
-
-
 #endif
