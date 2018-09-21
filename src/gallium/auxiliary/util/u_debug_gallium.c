@@ -39,4 +39,23 @@ debug_print_format(const char *msg, unsigned fmt)
    debug_printf("%s: %s\n", msg, util_format_name(fmt));
 }
 
+
+/**
+ * Print PIPE_USAGE_x enum values with a message.
+ */
+void
+debug_print_usage_enum(const char *msg, enum pipe_resource_usage usage)
+{
+   static const struct debug_named_value names[] = {
+      DEBUG_NAMED_VALUE(PIPE_USAGE_DEFAULT),
+      DEBUG_NAMED_VALUE(PIPE_USAGE_IMMUTABLE),
+      DEBUG_NAMED_VALUE(PIPE_USAGE_DYNAMIC),
+      DEBUG_NAMED_VALUE(PIPE_USAGE_STREAM),
+      DEBUG_NAMED_VALUE(PIPE_USAGE_STAGING),
+      DEBUG_NAMED_VALUE_END
+   };
+
+   debug_printf("%s: %s\n", msg, debug_dump_enum(names, usage));
+}
+
 #endif

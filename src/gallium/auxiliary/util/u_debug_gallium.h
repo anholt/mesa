@@ -29,6 +29,8 @@
 #ifndef _U_DEBUG_GALLIUM_H_
 #define _U_DEBUG_GALLIUM_H_
 
+#include "pipe/p_defines.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,6 +39,13 @@ extern "C" {
 void debug_print_format(const char *msg, unsigned fmt);
 #else
 #define debug_print_format(_msg, _fmt) ((void)0)
+#endif
+
+#ifdef DEBUG
+
+void
+debug_print_usage_enum(const char *msg, enum pipe_resource_usage usage);
+
 #endif
 
 #ifdef __cplusplus
