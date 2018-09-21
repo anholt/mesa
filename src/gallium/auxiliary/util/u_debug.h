@@ -454,13 +454,6 @@ debug_get_option_ ## sufix (void) \
 }
 
 
-unsigned long
-debug_memory_begin(void);
-
-void 
-debug_memory_end(unsigned long beginning);
-
-
 #ifdef	__cplusplus
 }
 #endif
