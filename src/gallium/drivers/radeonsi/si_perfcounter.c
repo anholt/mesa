@@ -580,12 +580,12 @@ static void si_pc_emit_stop(struct si_context *sctx,
 {
 	struct radeon_cmdbuf *cs = sctx->gfx_cs;
 
-	si_gfx_write_event_eop(sctx, V_028A90_BOTTOM_OF_PIPE_TS, 0,
-			       EOP_DST_SEL_MEM,
-			       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
-			       EOP_DATA_SEL_VALUE_32BIT,
-			       buffer, va, 0, SI_NOT_QUERY);
-	si_gfx_wait_fence(sctx, va, 0, 0xffffffff);
+	si_cp_release_mem(sctx, V_028A90_BOTTOM_OF_PIPE_TS, 0,
+			  EOP_DST_SEL_MEM,
+			  EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
+			  EOP_DATA_SEL_VALUE_32BIT,
+			  buffer, va, 0, SI_NOT_QUERY);
+	si_cp_wait_mem(sctx, va, 0, 0xffffffff, 0);
 
 	radeon_emit(cs, PKT3(PKT3_EVENT_WRITE, 0, 0));
 	radeon_emit(cs, EVENT_TYPE(V_028A90_PERFCOUNTER_SAMPLE) | EVENT_INDEX(0));
@@ -684,7 +684,7 @@ void si_init_perfcounters(struct si_screen *screen)
 	if (!pc)
 		return;
 
-	pc->num_stop_cs_dwords = 14 + si_gfx_write_fence_dwords(screen);
+	pc->num_stop_cs_dwords = 14 + si_cp_write_fence_dwords(screen);
 	pc->num_instance_cs_dwords = 3;
 
 	pc->num_shader_types = ARRAY_SIZE(si_pc_shader_type_bits);

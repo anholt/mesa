@@ -66,11 +66,11 @@ struct si_multi_fence {
  * \param old_value	Previous fence value (for a bug workaround)
  * \param new_value	Fence value to write for this event.
  */
-void si_gfx_write_event_eop(struct si_context *ctx,
-			    unsigned event, unsigned event_flags,
-			    unsigned dst_sel, unsigned int_sel, unsigned data_sel,
-			    struct r600_resource *buf, uint64_t va,
-			    uint32_t new_fence, unsigned query_type)
+void si_cp_release_mem(struct si_context *ctx,
+		       unsigned event, unsigned event_flags,
+		       unsigned dst_sel, unsigned int_sel, unsigned data_sel,
+		       struct r600_resource *buf, uint64_t va,
+		       uint32_t new_fence, unsigned query_type)
 {
 	struct radeon_cmdbuf *cs = ctx->gfx_cs;
 	unsigned op = EVENT_TYPE(event) |
@@ -149,7 +149,7 @@ void si_gfx_write_event_eop(struct si_context *ctx,
 	}
 }
 
-unsigned si_gfx_write_fence_dwords(struct si_screen *screen)
+unsigned si_cp_write_fence_dwords(struct si_screen *screen)
 {
 	unsigned dwords = 6;
 
@@ -160,13 +160,13 @@ unsigned si_gfx_write_fence_dwords(struct si_screen *screen)
 	return dwords;
 }
 
-void si_gfx_wait_fence(struct si_context *ctx,
-		       uint64_t va, uint32_t ref, uint32_t mask)
+void si_cp_wait_mem(struct si_context *ctx,
+		    uint64_t va, uint32_t ref, uint32_t mask, unsigned flags)
 {
 	struct radeon_cmdbuf *cs = ctx->gfx_cs;
 
 	radeon_emit(cs, PKT3(PKT3_WAIT_REG_MEM, 5, 0));
-	radeon_emit(cs, WAIT_REG_MEM_EQUAL | WAIT_REG_MEM_MEM_SPACE(1));
+	radeon_emit(cs, WAIT_REG_MEM_EQUAL | WAIT_REG_MEM_MEM_SPACE(1) | flags);
 	radeon_emit(cs, va);
 	radeon_emit(cs, va >> 32);
 	radeon_emit(cs, ref); /* reference value */
@@ -275,13 +275,13 @@ static void si_fine_fence_set(struct si_context *ctx,
 		radeon_emit(cs, fence_va >> 32);
 		radeon_emit(cs, 0x80000000);
 	} else if (flags & PIPE_FLUSH_BOTTOM_OF_PIPE) {
-		si_gfx_write_event_eop(ctx,
-				       V_028A90_BOTTOM_OF_PIPE_TS, 0,
-				       EOP_DST_SEL_MEM,
-				       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
-				       EOP_DATA_SEL_VALUE_32BIT,
-				       NULL, fence_va, 0x80000000,
-				       PIPE_QUERY_GPU_FINISHED);
+		si_cp_release_mem(ctx,
+				  V_028A90_BOTTOM_OF_PIPE_TS, 0,
+				  EOP_DST_SEL_MEM,
+				  EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
+				  EOP_DATA_SEL_VALUE_32BIT,
+				  NULL, fence_va, 0x80000000,
+				  PIPE_QUERY_GPU_FINISHED);
 	} else {
 		assert(false);
 	}

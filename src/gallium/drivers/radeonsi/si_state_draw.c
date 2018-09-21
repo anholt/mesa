@@ -918,11 +918,11 @@ void si_emit_cache_flush(struct si_context *sctx)
 
 			/* Necessary for DCC */
 			if (sctx->chip_class == VI)
-				si_gfx_write_event_eop(sctx,
-						       V_028A90_FLUSH_AND_INV_CB_DATA_TS,
-						       0, EOP_DST_SEL_MEM, EOP_INT_SEL_NONE,
-						       EOP_DATA_SEL_DISCARD, NULL,
-						       0, 0, SI_NOT_QUERY);
+				si_cp_release_mem(sctx,
+						  V_028A90_FLUSH_AND_INV_CB_DATA_TS,
+						  0, EOP_DST_SEL_MEM, EOP_INT_SEL_NONE,
+						  EOP_DATA_SEL_DISCARD, NULL,
+						  0, 0, SI_NOT_QUERY);
 		}
 		if (flags & SI_CONTEXT_FLUSH_AND_INV_DB)
 			cp_coher_cntl |= S_0085F0_DB_ACTION_ENA(1) |
@@ -1035,13 +1035,13 @@ void si_emit_cache_flush(struct si_context *sctx)
 		va = sctx->wait_mem_scratch->gpu_address;
 		sctx->wait_mem_number++;
 
-		si_gfx_write_event_eop(sctx, cb_db_event, tc_flags,
-				       EOP_DST_SEL_MEM,
-				       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
-				       EOP_DATA_SEL_VALUE_32BIT,
-				       sctx->wait_mem_scratch, va,
-				       sctx->wait_mem_number, SI_NOT_QUERY);
-		si_gfx_wait_fence(sctx, va, sctx->wait_mem_number, 0xffffffff);
+		si_cp_release_mem(sctx, cb_db_event, tc_flags,
+				  EOP_DST_SEL_MEM,
+				  EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
+				  EOP_DATA_SEL_VALUE_32BIT,
+				  sctx->wait_mem_scratch, va,
+				  sctx->wait_mem_number, SI_NOT_QUERY);
+		si_cp_wait_mem(sctx, va, sctx->wait_mem_number, 0xffffffff, 0);
 	}
 
 	/* Make sure ME is idle (it executes most packets) before continuing.

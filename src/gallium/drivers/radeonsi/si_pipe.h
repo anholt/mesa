@@ -1170,14 +1170,14 @@ void si_screen_clear_buffer(struct si_screen *sscreen, struct pipe_resource *dst
 			    uint64_t offset, uint64_t size, unsigned value);
 
 /* si_fence.c */
-void si_gfx_write_event_eop(struct si_context *ctx,
-			    unsigned event, unsigned event_flags,
-			    unsigned dst_sel, unsigned int_sel, unsigned data_sel,
-			    struct r600_resource *buf, uint64_t va,
-			    uint32_t new_fence, unsigned query_type);
-unsigned si_gfx_write_fence_dwords(struct si_screen *screen);
-void si_gfx_wait_fence(struct si_context *ctx,
-		       uint64_t va, uint32_t ref, uint32_t mask);
+void si_cp_release_mem(struct si_context *ctx,
+		       unsigned event, unsigned event_flags,
+		       unsigned dst_sel, unsigned int_sel, unsigned data_sel,
+		       struct r600_resource *buf, uint64_t va,
+		       uint32_t new_fence, unsigned query_type);
+unsigned si_cp_write_fence_dwords(struct si_screen *screen);
+void si_cp_wait_mem(struct si_context *ctx,
+		      uint64_t va, uint32_t ref, uint32_t mask, unsigned flags);
 void si_init_fence_functions(struct si_context *ctx);
 void si_init_screen_fence_functions(struct si_screen *screen);
 struct pipe_fence_handle *si_create_fence(struct pipe_context *ctx,
