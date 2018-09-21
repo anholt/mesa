@@ -891,7 +891,9 @@ static void si_query_hw_do_emit_stop(struct si_context *sctx,
 		/* fall through */
 	case PIPE_QUERY_TIMESTAMP:
 		si_gfx_write_event_eop(sctx, V_028A90_BOTTOM_OF_PIPE_TS,
-				       0, EOP_DATA_SEL_TIMESTAMP, NULL, va,
+				       0, EOP_DST_SEL_MEM,
+				       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
+				       EOP_DATA_SEL_TIMESTAMP, NULL, va,
 				       0, query->b.type);
 		fence_va = va + 8;
 		break;
@@ -913,11 +915,14 @@ static void si_query_hw_do_emit_stop(struct si_context *sctx,
 	radeon_add_to_buffer_list(sctx, sctx->gfx_cs, query->buffer.buf, RADEON_USAGE_WRITE,
 				  RADEON_PRIO_QUERY);
 
-	if (fence_va)
+	if (fence_va) {
 		si_gfx_write_event_eop(sctx, V_028A90_BOTTOM_OF_PIPE_TS, 0,
+				       EOP_DST_SEL_MEM,
+				       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
 				       EOP_DATA_SEL_VALUE_32BIT,
 				       query->buffer.buf, fence_va, 0x80000000,
 				       query->b.type);
+	}
 }
 
 static void si_query_hw_emit_stop(struct si_context *sctx,

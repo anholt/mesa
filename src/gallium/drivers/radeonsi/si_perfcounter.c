@@ -581,6 +581,8 @@ static void si_pc_emit_stop(struct si_context *sctx,
 	struct radeon_cmdbuf *cs = sctx->gfx_cs;
 
 	si_gfx_write_event_eop(sctx, V_028A90_BOTTOM_OF_PIPE_TS, 0,
+			       EOP_DST_SEL_MEM,
+			       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
 			       EOP_DATA_SEL_VALUE_32BIT,
 			       buffer, va, 0, SI_NOT_QUERY);
 	si_gfx_wait_fence(sctx, va, 0, 0xffffffff);

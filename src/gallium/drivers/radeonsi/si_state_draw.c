@@ -918,8 +918,10 @@ void si_emit_cache_flush(struct si_context *sctx)
 
 			/* Necessary for DCC */
 			if (sctx->chip_class == VI)
-				si_gfx_write_event_eop(sctx, V_028A90_FLUSH_AND_INV_CB_DATA_TS,
-						       0, EOP_DATA_SEL_DISCARD, NULL,
+				si_gfx_write_event_eop(sctx,
+						       V_028A90_FLUSH_AND_INV_CB_DATA_TS,
+						       0, EOP_DST_SEL_MEM, EOP_INT_SEL_NONE,
+						       EOP_DATA_SEL_DISCARD, NULL,
 						       0, 0, SI_NOT_QUERY);
 		}
 		if (flags & SI_CONTEXT_FLUSH_AND_INV_DB)
@@ -1034,6 +1036,8 @@ void si_emit_cache_flush(struct si_context *sctx)
 		sctx->wait_mem_number++;
 
 		si_gfx_write_event_eop(sctx, cb_db_event, tc_flags,
+				       EOP_DST_SEL_MEM,
+				       EOP_INT_SEL_SEND_DATA_AFTER_WR_CONFIRM,
 				       EOP_DATA_SEL_VALUE_32BIT,
 				       sctx->wait_mem_scratch, va,
 				       sctx->wait_mem_number, SI_NOT_QUERY);
