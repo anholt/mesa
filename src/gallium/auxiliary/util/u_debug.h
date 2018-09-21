@@ -464,10 +464,6 @@ debug_memory_end(unsigned long beginning);
 void
 debug_print_transfer_flags(const char *msg, unsigned usage);
 
-void
-debug_print_bind_flags(const char *msg, unsigned usage);
-
-
 #ifdef	__cplusplus
 }
 #endif
