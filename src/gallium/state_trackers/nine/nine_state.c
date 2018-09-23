@@ -2059,6 +2059,12 @@ nine_context_apply_stateblock(struct NineDevice9 *device,
             for (s = i * 32; s < (i * 32 + 32); ++s) {
                 if (!(src->ff.changed.transform[i] & (1 << (s % 32))))
                     continue;
+                /* MaxVertexBlendMatrixIndex is 8, which means
+                 * we don't read past index D3DTS_WORLDMATRIX(8).
+                 * swvp is supposed to allow all 256, but we don't
+                 * implement it for now. */
+                if (s > D3DTS_WORLDMATRIX(8))
+                    break;
                 nine_context_set_transform(device, s,
                                            nine_state_access_transform(
                                                (struct nine_ff_state *)&src->ff,
