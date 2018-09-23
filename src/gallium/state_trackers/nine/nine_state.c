@@ -3398,14 +3398,31 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1] =
 
 /* Misc */
 
+static D3DMATRIX nine_state_identity = { .m[0] = { 1, 0, 0, 0 },
+                                         .m[1] = { 0, 1, 0, 0 },
+                                         .m[2] = { 0, 0, 1, 0 },
+                                         .m[3] = { 0, 0, 0, 1 } };
+
+void
+nine_state_resize_transform(struct nine_ff_state *ff_state, unsigned N)
+{
+    unsigned n = ff_state->num_transforms;
+
+    if (N <= n)
+        return;
+
+    ff_state->transform = REALLOC(ff_state->transform,
+                                  n * sizeof(D3DMATRIX),
+                                  N * sizeof(D3DMATRIX));
+    for (; n < N; ++n)
+        ff_state->transform[n] = nine_state_identity;
+    ff_state->num_transforms = N;
+}
+
 D3DMATRIX *
 nine_state_access_transform(struct nine_ff_state *ff_state, D3DTRANSFORMSTATETYPE t,
                             boolean alloc)
 {
-    static D3DMATRIX Identity = { .m[0] = { 1, 0, 0, 0 },
-                                  .m[1] = { 0, 1, 0, 0 },
-                                  .m[2] = { 0, 0, 1, 0 },
-                                  .m[3] = { 0, 0, 0, 1 } };
     unsigned index;
 
     switch (t) {
@@ -3427,17 +3444,9 @@ nine_state_access_transform(struct nine_ff_state *ff_state, D3DTRANSFORMSTATETYP
     }
 
     if (index >= ff_state->num_transforms) {
-        unsigned N = index + 1;
-        unsigned n = ff_state->num_transforms;
-
         if (!alloc)
-            return &Identity;
-        ff_state->transform = REALLOC(ff_state->transform,
-                                      n * sizeof(D3DMATRIX),
-                                      N * sizeof(D3DMATRIX));
-        for (; n < N; ++n)
-            ff_state->transform[n] = Identity;
-        ff_state->num_transforms = N;
+            return &nine_state_identity;
+        nine_state_resize_transform(ff_state, index + 1);
     }
     return &ff_state->transform[index];
 }

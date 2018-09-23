@@ -609,6 +609,9 @@ void nine_state_prepare_draw_sw(struct NineDevice9 *device,
 void nine_state_after_draw_sw(struct NineDevice9 *device);
 void nine_state_destroy_sw(struct NineDevice9 *device);
 
+void
+nine_state_resize_transform(struct nine_ff_state *ff_state, unsigned N);
+
 /* If @alloc is FALSE, the return value may be a const identity matrix.
  * Therefore, do not modify if you set alloc to FALSE !
  */

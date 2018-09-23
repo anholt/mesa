@@ -357,8 +357,7 @@ nine_state_copy_common(struct NineDevice9 *device,
                 if (!(mask->ff.changed.transform[i] & (1 << (s % 32))))
                     continue;
                 *nine_state_access_transform(&dst->ff, s, TRUE) =
-                    *nine_state_access_transform( /* const because !alloc */
-                        (struct nine_ff_state *)&src->ff, s, FALSE);
+                    *nine_state_access_transform(&src->ff, s, FALSE);
             }
             if (apply)
                 dst->ff.changed.transform[i] |= mask->ff.changed.transform[i];
@@ -369,7 +368,7 @@ nine_state_copy_common(struct NineDevice9 *device,
 static void
 nine_state_copy_common_all(struct NineDevice9 *device,
                            struct nine_state *dst,
-                           const struct nine_state *src,
+                           struct nine_state *src,
                            struct nine_state *help,
                            const boolean apply,
                            struct nine_range_pool *pool,
@@ -488,15 +487,21 @@ nine_state_copy_common_all(struct NineDevice9 *device,
 
     /* Transforms. */
     if (1) {
-        if (dst->ff.num_transforms < src->ff.num_transforms) {
-            dst->ff.transform = REALLOC(dst->ff.transform,
-                dst->ff.num_transforms * sizeof(dst->ff.transform[0]),
-                src->ff.num_transforms * sizeof(src->ff.transform[0]));
-            dst->ff.num_transforms = src->ff.num_transforms;
+        /* Increase dst size if required (to copy the new states).
+         * Increase src size if required (to initialize missing transforms).
+         */
+        if (dst->ff.num_transforms != src->ff.num_transforms) {
+            int num_transforms = MAX2(src->ff.num_transforms, dst->ff.num_transforms);
+            nine_state_resize_transform(&src->ff, num_transforms);
+            nine_state_resize_transform(&dst->ff, num_transforms);
         }
         memcpy(dst->ff.transform,
-               src->ff.transform, src->ff.num_transforms * sizeof(D3DMATRIX));
-        if (apply) /* TODO: memset */
+               src->ff.transform, dst->ff.num_transforms * sizeof(D3DMATRIX));
+        /* Apply is always used on device state.
+         * src is then the D3DSBT_ALL stateblock which
+         * ff.changed.transform indicates all matrices are dirty.
+         */
+        if (apply)
             memcpy(dst->ff.changed.transform,
                    src->ff.changed.transform, sizeof(dst->ff.changed.transform));
     }
