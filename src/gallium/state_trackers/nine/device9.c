@@ -2376,13 +2376,24 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
           NINE_STATE_IDXBUF |
           NINE_STATE_FF_MATERIAL |
           NINE_STATE_BLEND_COLOR |
-          NINE_STATE_SAMPLE_MASK;
+          NINE_STATE_SAMPLE_MASK |
+          NINE_STATE_FF_VSTRANSF;
        memset(dst->changed.rs, ~0, (D3DRS_COUNT / 32) * sizeof(uint32_t));
        dst->changed.rs[D3DRS_LAST / 32] |= (1 << (D3DRS_COUNT % 32)) - 1;
        dst->changed.vtxbuf = (1ULL << This->caps.MaxStreams) - 1;
        dst->changed.stream_freq = dst->changed.vtxbuf;
        dst->changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
        dst->changed.texture = (1 << NINE_MAX_SAMPLERS) - 1;
+       /* The doc says the projection, world, view and texture matrices
+        * are saved, which would translate to:
+        * dst->ff.changed.transform[0] = 0x00FF000C;
+        * dst->ff.changed.transform[D3DTS_WORLD / 32] |= 1 << (D3DTS_WORLD % 32);
+        * However we assume they meant save everything (which is basically just the
+        * above plus the other world matrices).
+        */
+       dst->ff.changed.transform[0] = 0x00FF000C;
+       for (s = 0; s < 8; s++)
+           dst->ff.changed.transform[8+s] = ~0;
     }
     NineStateBlock9_Capture(NineStateBlock9(*ppSB));
 
