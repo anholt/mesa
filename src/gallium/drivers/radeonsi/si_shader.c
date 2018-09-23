@@ -428,20 +428,6 @@ static LLVMValueRef get_tcs_in_vertex_dw_stride(struct si_shader_context *ctx)
 	}
 }
 
-static LLVMValueRef get_instance_index_for_fetch(
-	struct si_shader_context *ctx,
-	unsigned param_start_instance, LLVMValueRef divisor)
-{
-	LLVMValueRef result = ctx->abi.instance_id;
-
-	/* The division must be done before START_INSTANCE is added. */
-	if (divisor != ctx->i32_1)
-		result = LLVMBuildUDiv(ctx->ac.builder, result, divisor, "");
-
-	return LLVMBuildAdd(ctx->ac.builder, result,
-			    LLVMGetParam(ctx->main_fn, param_start_instance), "");
-}
-
 /* Bitcast <4 x float> to <2 x double>, extract the component, and convert
  * to float. */
 static LLVMValueRef extract_double_to_float(struct si_shader_context *ctx,
@@ -7302,22 +7288,32 @@ static void si_build_vs_prolog_function(struct si_shader_context *ctx,
 			key->vs_prolog.states.instance_divisor_is_one & (1u << i);
 		bool divisor_is_fetched =
 			key->vs_prolog.states.instance_divisor_is_fetched & (1u << i);
-		LLVMValueRef index;
+		LLVMValueRef index = NULL;
+
+		if (divisor_is_one) {
+			index = ctx->abi.instance_id;
+		} else if (divisor_is_fetched) {
+			LLVMValueRef udiv_factors[4];
+
+			for (unsigned j = 0; j < 4; j++) {
+				udiv_factors[j] =
+					buffer_load_const(ctx, instance_divisor_constbuf,
+							  LLVMConstInt(ctx->i32, i*16 + j*4, 0));
+				udiv_factors[j] = ac_to_integer(&ctx->ac, udiv_factors[j]);
+			}
+			/* The faster NUW version doesn't work when InstanceID == UINT_MAX.
+			 * Such InstanceID might not be achievable in a reasonable time though.
+			 */
+			index = ac_build_fast_udiv_nuw(&ctx->ac, ctx->abi.instance_id,
+						       udiv_factors[0], udiv_factors[1],
+						       udiv_factors[2], udiv_factors[3]);
+		}
 
 		if (divisor_is_one || divisor_is_fetched) {
-			LLVMValueRef divisor = ctx->i32_1;
-
-			if (divisor_is_fetched) {
-				divisor = buffer_load_const(ctx, instance_divisor_constbuf,
-							    LLVMConstInt(ctx->i32, i * 4, 0));
-				divisor = ac_to_integer(&ctx->ac, divisor);
-			}
-
-			/* InstanceID / Divisor + StartInstance */
-			index = get_instance_index_for_fetch(ctx,
-							     user_sgpr_base +
-							     SI_SGPR_START_INSTANCE,
-							     divisor);
+			/* Add StartInstance. */
+			index = LLVMBuildAdd(ctx->ac.builder, index,
+					     LLVMGetParam(ctx->main_fn, user_sgpr_base +
+							  SI_SGPR_START_INSTANCE), "");
 		} else {
 			/* VertexID + BaseVertex */
 			index = LLVMBuildAdd(ctx->ac.builder,

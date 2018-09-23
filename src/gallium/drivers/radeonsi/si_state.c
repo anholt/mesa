@@ -32,6 +32,7 @@
 #include "util/u_memory.h"
 #include "util/u_resource.h"
 #include "util/u_upload_mgr.h"
+#include "util/fast_idiv_by_const.h"
 
 static unsigned si_map_swizzle(unsigned swizzle)
 {
@@ -4372,6 +4373,29 @@ static void si_delete_sampler_state(struct pipe_context *ctx, void *state)
  * Vertex elements & buffers
  */
 
+struct util_fast_udiv_info32 {
+   unsigned multiplier; /* the "magic number" multiplier */
+   unsigned pre_shift; /* shift for the dividend before multiplying */
+   unsigned post_shift; /* shift for the dividend after multiplying */
+   int increment; /* 0 or 1; if set then increment the numerator, using one of
+                     the two strategies */
+};
+
+static struct util_fast_udiv_info32
+util_compute_fast_udiv_info32(uint32_t D, unsigned num_bits)
+{
+	struct util_fast_udiv_info info =
+		util_compute_fast_udiv_info(D, num_bits, 32);
+
+	struct util_fast_udiv_info32 result = {
+		info.multiplier,
+		info.pre_shift,
+		info.post_shift,
+		info.increment,
+	};
+	return result;
+}
+
 static void *si_create_vertex_elements(struct pipe_context *ctx,
 				       unsigned count,
 				       const struct pipe_vertex_element *elements)
@@ -4379,6 +4403,12 @@ static void *si_create_vertex_elements(struct pipe_context *ctx,
 	struct si_screen *sscreen = (struct si_screen*)ctx->screen;
 	struct si_vertex_elements *v = CALLOC_STRUCT(si_vertex_elements);
 	bool used[SI_NUM_VERTEX_BUFFERS] = {};
+	struct util_fast_udiv_info32 divisor_factors[SI_MAX_ATTRIBS] = {};
+	STATIC_ASSERT(sizeof(struct util_fast_udiv_info32) == 16);
+	STATIC_ASSERT(sizeof(divisor_factors[0].multiplier) == 4);
+	STATIC_ASSERT(sizeof(divisor_factors[0].pre_shift) == 4);
+	STATIC_ASSERT(sizeof(divisor_factors[0].post_shift) == 4);
+	STATIC_ASSERT(sizeof(divisor_factors[0].increment) == 4);
 	int i;
 
 	assert(count <= SI_MAX_ATTRIBS);
@@ -4401,14 +4431,17 @@ static void *si_create_vertex_elements(struct pipe_context *ctx,
 			return NULL;
 		}
 
-		if (elements[i].instance_divisor) {
+		unsigned instance_divisor = elements[i].instance_divisor;
+		if (instance_divisor) {
 			v->uses_instance_divisors = true;
-			v->instance_divisors[i] = elements[i].instance_divisor;
 
-			if (v->instance_divisors[i] == 1)
+			if (instance_divisor == 1) {
 				v->instance_divisor_is_one |= 1u << i;
-			else
+			} else {
 				v->instance_divisor_is_fetched |= 1u << i;
+				divisor_factors[i] =
+					util_compute_fast_udiv_info32(instance_divisor, 32);
+			}
 		}
 
 		if (!used[vbo_index]) {
@@ -4518,6 +4551,22 @@ static void *si_create_vertex_elements(struct pipe_context *ctx,
 				   S_008F0C_NUM_FORMAT(num_format) |
 				   S_008F0C_DATA_FORMAT(data_format);
 	}
+
+	if (v->instance_divisor_is_fetched) {
+		unsigned num_divisors = util_last_bit(v->instance_divisor_is_fetched);
+
+		v->instance_divisor_factor_buffer =
+			(struct r600_resource*)
+			pipe_buffer_create(&sscreen->b, 0, PIPE_USAGE_DEFAULT,
+					   num_divisors * sizeof(divisor_factors[0]));
+		if (!v->instance_divisor_factor_buffer) {
+			FREE(v);
+			return NULL;
+		}
+		void *map = sscreen->ws->buffer_map(v->instance_divisor_factor_buffer->buf,
+						    NULL, PIPE_TRANSFER_WRITE);
+		memcpy(map , divisor_factors, num_divisors * sizeof(divisor_factors[0]));
+	}
 	return v;
 }
 
@@ -4541,10 +4590,10 @@ static void si_bind_vertex_elements(struct pipe_context *ctx, void *state)
 	if (v && v->instance_divisor_is_fetched) {
 		struct pipe_constant_buffer cb;
 
-		cb.buffer = NULL;
-		cb.user_buffer = v->instance_divisors;
+		cb.buffer = &v->instance_divisor_factor_buffer->b.b;
+		cb.user_buffer = NULL;
 		cb.buffer_offset = 0;
-		cb.buffer_size = sizeof(uint32_t) * v->count;
+		cb.buffer_size = 0xffffffff;
 		si_set_rw_buffer(sctx, SI_VS_CONST_INSTANCE_DIVISORS, &cb);
 	}
 }
@@ -4552,9 +4601,11 @@ static void si_bind_vertex_elements(struct pipe_context *ctx, void *state)
 static void si_delete_vertex_element(struct pipe_context *ctx, void *state)
 {
 	struct si_context *sctx = (struct si_context *)ctx;
+	struct si_vertex_elements *v = (struct si_vertex_elements*)state;
 
 	if (sctx->vertex_elements == state)
 		sctx->vertex_elements = NULL;
+	r600_resource_reference(&v->instance_divisor_factor_buffer, NULL);
 	FREE(state);
 }
 

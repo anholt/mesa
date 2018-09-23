@@ -132,7 +132,7 @@ struct si_stencil_ref {
 
 struct si_vertex_elements
 {
-	uint32_t			instance_divisors[SI_MAX_ATTRIBS];
+	struct r600_resource		*instance_divisor_factor_buffer;
 	uint32_t			rsrc_word3[SI_MAX_ATTRIBS];
 	uint16_t			src_offset[SI_MAX_ATTRIBS];
 	uint8_t				fix_fetch[SI_MAX_ATTRIBS];
