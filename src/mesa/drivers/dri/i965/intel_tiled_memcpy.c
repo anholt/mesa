@@ -566,6 +566,31 @@ ytiled_to_linear(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
    }
 }
 
+#if defined(INLINE_SSE41)
+static ALWAYS_INLINE void *
+_memcpy_streaming_load(void *dest, const void *src, size_t count)
+{
+   if (count == 16) {
+      __m128i val = _mm_stream_load_si128((__m128i *)src);
+      _mm_storeu_si128((__m128i *)dest, val);
+      return dest;
+   } else if (count == 64) {
+      __m128i val0 = _mm_stream_load_si128(((__m128i *)src) + 0);
+      __m128i val1 = _mm_stream_load_si128(((__m128i *)src) + 1);
+      __m128i val2 = _mm_stream_load_si128(((__m128i *)src) + 2);
+      __m128i val3 = _mm_stream_load_si128(((__m128i *)src) + 3);
+      _mm_storeu_si128(((__m128i *)dest) + 0, val0);
+      _mm_storeu_si128(((__m128i *)dest) + 1, val1);
+      _mm_storeu_si128(((__m128i *)dest) + 2, val2);
+      _mm_storeu_si128(((__m128i *)dest) + 3, val3);
+      return dest;
+   } else {
+      assert(count < 64); /* and (count < 16) for ytiled */
+      return memcpy(dest, src, count);
+   }
+}
+#endif
+
 static mem_copy_fn
 choose_copy_function(mem_copy_fn_type copy_type)
 {
@@ -574,6 +599,10 @@ choose_copy_function(mem_copy_fn_type copy_type)
       return memcpy;
    case INTEL_COPY_RGBA8:
       return rgba8_copy;
+#if defined(INLINE_SSE41)
+   case INTEL_COPY_STREAMING_LOAD:
+      return _memcpy_streaming_load;
+#endif
    default:
       assert(!"unreachable");
    }
@@ -696,6 +725,12 @@ xtiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
          return xtiled_to_linear(0, 0, xtile_width, xtile_width, 0, xtile_height,
                                  dst, src, dst_pitch, swizzle_bit,
                                  rgba8_copy, rgba8_copy_aligned_src);
+#if defined(INLINE_SSE41)
+      else if (mem_copy == _memcpy_streaming_load)
+         return xtiled_to_linear(0, 0, xtile_width, xtile_width, 0, xtile_height,
+                                 dst, src, dst_pitch, swizzle_bit,
+                                 memcpy, _memcpy_streaming_load);
+#endif
       else
          unreachable("not reached");
    } else {
@@ -706,6 +741,12 @@ xtiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
          return xtiled_to_linear(x0, x1, x2, x3, y0, y1,
                                  dst, src, dst_pitch, swizzle_bit,
                                  rgba8_copy, rgba8_copy_aligned_src);
+#if defined(INLINE_SSE41)
+      else if (mem_copy == _memcpy_streaming_load)
+         return xtiled_to_linear(x0, x1, x2, x3, y0, y1,
+                                 dst, src, dst_pitch, swizzle_bit,
+                                 memcpy, _memcpy_streaming_load);
+#endif
       else
          unreachable("not reached");
    }
@@ -740,6 +781,12 @@ ytiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
          return ytiled_to_linear(0, 0, ytile_width, ytile_width, 0, ytile_height,
                                  dst, src, dst_pitch, swizzle_bit,
                                  rgba8_copy, rgba8_copy_aligned_src);
+#if defined(INLINE_SSE41)
+      else if (copy_type == INTEL_COPY_STREAMING_LOAD)
+         return ytiled_to_linear(0, 0, ytile_width, ytile_width, 0, ytile_height,
+                                 dst, src, dst_pitch, swizzle_bit,
+                                 memcpy, _memcpy_streaming_load);
+#endif
       else
          unreachable("not reached");
    } else {
@@ -750,6 +797,12 @@ ytiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
          return ytiled_to_linear(x0, x1, x2, x3, y0, y1,
                                  dst, src, dst_pitch, swizzle_bit,
                                  rgba8_copy, rgba8_copy_aligned_src);
+#if defined(INLINE_SSE41)
+      else if (copy_type == INTEL_COPY_STREAMING_LOAD)
+         return ytiled_to_linear(x0, x1, x2, x3, y0, y1,
+                                 dst, src, dst_pitch, swizzle_bit,
+                                 memcpy, _memcpy_streaming_load);
+#endif
       else
          unreachable("not reached");
    }
@@ -768,14 +821,14 @@ ytiled_to_linear_faster(uint32_t x0, uint32_t x1, uint32_t x2, uint32_t x3,
  * 'dst' is the address of (0, 0) in the destination tiled texture.
  * 'src' is the address of (xt1, yt1) in the source linear texture.
  */
-void
-linear_to_tiled(uint32_t xt1, uint32_t xt2,
-                uint32_t yt1, uint32_t yt2,
-                char *dst, const char *src,
-                uint32_t dst_pitch, int32_t src_pitch,
-                bool has_swizzling,
-                enum isl_tiling tiling,
-                mem_copy_fn_type copy_type)
+static void
+intel_linear_to_tiled(uint32_t xt1, uint32_t xt2,
+                      uint32_t yt1, uint32_t yt2,
+                      char *dst, const char *src,
+                      uint32_t dst_pitch, int32_t src_pitch,
+                      bool has_swizzling,
+                      enum isl_tiling tiling,
+                      mem_copy_fn_type copy_type)
 {
    tile_copy_fn tile_copy;
    uint32_t xt0, xt3;
@@ -859,14 +912,14 @@ linear_to_tiled(uint32_t xt1, uint32_t xt2,
  * 'dst' is the address of (xt1, yt1) in the destination linear texture.
  * 'src' is the address of (0, 0) in the source tiled texture.
  */
-void
-tiled_to_linear(uint32_t xt1, uint32_t xt2,
-                uint32_t yt1, uint32_t yt2,
-                char *dst, const char *src,
-                int32_t dst_pitch, uint32_t src_pitch,
-                bool has_swizzling,
-                enum isl_tiling tiling,
-                mem_copy_fn_type copy_type)
+static void
+intel_tiled_to_linear(uint32_t xt1, uint32_t xt2,
+                      uint32_t yt1, uint32_t yt2,
+                      char *dst, const char *src,
+                      int32_t dst_pitch, uint32_t src_pitch,
+                      bool has_swizzling,
+                      enum isl_tiling tiling,
+                      mem_copy_fn_type copy_type)
 {
    tile_copy_fn tile_copy;
    uint32_t xt0, xt3;
@@ -888,6 +941,15 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
    } else {
       unreachable("unsupported tiling");
    }
+
+#if defined(INLINE_SSE41)
+   if (copy_type == INTEL_COPY_STREAMING_LOAD) {
+      /* The hidden cacheline sized register used by movntdqa can apparently
+       * give you stale data, so do an mfence to invalidate it.
+       */
+      _mm_mfence();
+   }
+#endif
 
    /* Round out to tile boundaries. */
    xt0 = ALIGN_DOWN(xt1, tw);
@@ -937,70 +999,4 @@ tiled_to_linear(uint32_t xt1, uint32_t xt2,
                    copy_type);
       }
    }
-}
-
-
-/**
- * Determine which copy function to use for the given format combination
- *
- * The only two possible copy functions which are ever returned are a
- * direct memcpy and a RGBA <-> BGRA copy function.  Since RGBA -> BGRA and
- * BGRA -> RGBA are exactly the same operation (and memcpy is obviously
- * symmetric), it doesn't matter whether the copy is from the tiled image
- * to the untiled or vice versa.  The copy function required is the same in
- * either case so this function can be used.
- *
- * \param[in]  tiledFormat The format of the tiled image
- * \param[in]  format      The GL format of the client data
- * \param[in]  type        The GL type of the client data
- * \param[out] mem_copy    Will be set to one of either the standard
- *                         library's memcpy or a different copy function
- *                         that performs an RGBA to BGRA conversion
- * \param[out] cpp         Number of bytes per channel
- *
- * \return true if the format and type combination are valid
- */
-bool
-intel_get_memcpy_type(mesa_format tiledFormat, GLenum format, GLenum type,
-                      mem_copy_fn_type *copy_type, uint32_t *cpp)
-{
-   *copy_type = INTEL_COPY_INVALID;
-
-   if (type == GL_UNSIGNED_INT_8_8_8_8_REV &&
-       !(format == GL_RGBA || format == GL_BGRA))
-      return false; /* Invalid type/format combination */
-
-   if ((tiledFormat == MESA_FORMAT_L_UNORM8 && format == GL_LUMINANCE) ||
-       (tiledFormat == MESA_FORMAT_A_UNORM8 && format == GL_ALPHA)) {
-      *cpp = 1;
-      *copy_type = INTEL_COPY_MEMCPY;
-   } else if ((tiledFormat == MESA_FORMAT_B8G8R8A8_UNORM) ||
-              (tiledFormat == MESA_FORMAT_B8G8R8X8_UNORM) ||
-              (tiledFormat == MESA_FORMAT_B8G8R8A8_SRGB) ||
-              (tiledFormat == MESA_FORMAT_B8G8R8X8_SRGB)) {
-      *cpp = 4;
-      if (format == GL_BGRA) {
-         *copy_type = INTEL_COPY_MEMCPY;
-      } else if (format == GL_RGBA) {
-         *copy_type = INTEL_COPY_RGBA8;
-      }
-   } else if ((tiledFormat == MESA_FORMAT_R8G8B8A8_UNORM) ||
-              (tiledFormat == MESA_FORMAT_R8G8B8X8_UNORM) ||
-              (tiledFormat == MESA_FORMAT_R8G8B8A8_SRGB) ||
-              (tiledFormat == MESA_FORMAT_R8G8B8X8_SRGB)) {
-      *cpp = 4;
-      if (format == GL_BGRA) {
-         /* Copying from RGBA to BGRA is the same as BGRA to RGBA so we can
-          * use the same function.
-          */
-         *copy_type = INTEL_COPY_RGBA8;
-      } else if (format == GL_RGBA) {
-         *copy_type = INTEL_COPY_MEMCPY;
-      }
-   }
-
-   if (*copy_type == INTEL_COPY_INVALID)
-      return false;
-
-   return true;
 }
