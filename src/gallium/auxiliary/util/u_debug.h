@@ -46,7 +46,6 @@
 #include <OS.h>
 #endif
 
-#include "pipe/p_format.h"
 #include "pipe/p_defines.h"
 
 
