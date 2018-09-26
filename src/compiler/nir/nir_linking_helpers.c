@@ -126,6 +126,9 @@ remove_unused_io_vars(nir_shader *shader, struct exec_list *var_list,
       }
    }
 
+   if (progress)
+      nir_fixup_deref_modes(shader);
+
    return progress;
 }
 
