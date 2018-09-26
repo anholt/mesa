@@ -212,7 +212,7 @@ v3d_shader_state_create(struct pipe_context *pctx,
 
         nir_variable_mode lower_mode = nir_var_all & ~nir_var_uniform;
         if (s->info.stage == MESA_SHADER_VERTEX)
-                lower_mode &= ~nir_var_shader_in;
+                lower_mode &= ~(nir_var_shader_in | nir_var_shader_out);
         NIR_PASS_V(s, nir_lower_io, lower_mode,
                    type_size,
                    (nir_lower_io_options)0);
