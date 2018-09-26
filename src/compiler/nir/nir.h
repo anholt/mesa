@@ -2778,6 +2778,9 @@ void nir_assign_var_locations(struct exec_list *var_list, unsigned *size,
 
 /* Some helpers to do very simple linking */
 bool nir_remove_unused_varyings(nir_shader *producer, nir_shader *consumer);
+bool nir_remove_unused_io_vars(nir_shader *shader, struct exec_list *var_list,
+                               uint64_t *used_by_other_stage,
+                               uint64_t *used_by_other_stage_patches);
 void nir_compact_varyings(nir_shader *producer, nir_shader *consumer,
                           bool default_to_smooth_interp);
 
