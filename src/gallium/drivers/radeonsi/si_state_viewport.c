@@ -126,6 +126,18 @@ static void si_emit_one_scissor(struct si_context *ctx,
 	if (scissor)
 		si_clip_scissor(&final, scissor);
 
+	/* Workaround for a hw bug on SI that occurs when PA_SU_HARDWARE_-
+	 * SCREEN_OFFSET != 0 and any_scissor.BR_X/Y <= 0.
+	 */
+	if (ctx->chip_class == SI && (final.maxx == 0 || final.maxy == 0)) {
+		radeon_emit(cs, S_028250_TL_X(1) |
+				S_028250_TL_Y(1) |
+				S_028250_WINDOW_OFFSET_DISABLE(1));
+		radeon_emit(cs, S_028254_BR_X(1) |
+				S_028254_BR_Y(1));
+		return;
+	}
+
 	radeon_emit(cs, S_028250_TL_X(final.minx) |
 			S_028250_TL_Y(final.miny) |
 			S_028250_WINDOW_OFFSET_DISABLE(1));
@@ -138,8 +150,7 @@ static void si_emit_one_scissor(struct si_context *ctx,
 
 static void si_emit_guardband(struct si_context *ctx)
 {
-	const struct si_signed_scissor *vp_as_scissor;
-	struct si_signed_scissor max_vp_scissor;
+	struct si_signed_scissor vp_as_scissor;
 	struct pipe_viewport_state vp;
 	float left, top, right, bottom, max_range, guardband_x, guardband_y;
 	float discard_x, discard_y;
@@ -147,26 +158,49 @@ static void si_emit_guardband(struct si_context *ctx)
 	if (ctx->vs_writes_viewport_index) {
 		/* Shaders can draw to any viewport. Make a union of all
 		 * viewports. */
-		max_vp_scissor = ctx->viewports.as_scissor[0];
+		vp_as_scissor = ctx->viewports.as_scissor[0];
 		for (unsigned i = 1; i < SI_MAX_VIEWPORTS; i++) {
-			si_scissor_make_union(&max_vp_scissor,
+			si_scissor_make_union(&vp_as_scissor,
 					      &ctx->viewports.as_scissor[i]);
 		}
-		vp_as_scissor = &max_vp_scissor;
 	} else {
-		vp_as_scissor = &ctx->viewports.as_scissor[0];
+		vp_as_scissor = ctx->viewports.as_scissor[0];
 	}
 
+	/* Determine the optimal hardware screen offset to center the viewport
+	 * within the viewport range in order to maximize the guardband size.
+	 */
+	int hw_screen_offset_x = (vp_as_scissor.maxx - vp_as_scissor.minx) / 2;
+	int hw_screen_offset_y = (vp_as_scissor.maxy - vp_as_scissor.miny) / 2;
+
+	const unsigned hw_screen_offset_max = 8176;
+	/* SI-CI need to align the offset to an ubertile consisting of all SEs. */
+	const unsigned hw_screen_offset_alignment =
+		ctx->chip_class >= VI ? 16 : MAX2(ctx->screen->se_tile_repeat, 16);
+
+	hw_screen_offset_x = MIN2(hw_screen_offset_x, hw_screen_offset_max);
+	hw_screen_offset_y = MIN2(hw_screen_offset_y, hw_screen_offset_max);
+
+	/* Align the screen offset by dropping the low 4 bits. */
+	hw_screen_offset_x &= ~(hw_screen_offset_alignment - 1);
+	hw_screen_offset_y &= ~(hw_screen_offset_alignment - 1);
+
+	/* Apply the offset to center the viewport and maximize the guardband. */
+	vp_as_scissor.minx -= hw_screen_offset_x;
+	vp_as_scissor.maxx -= hw_screen_offset_x;
+	vp_as_scissor.miny -= hw_screen_offset_y;
+	vp_as_scissor.maxy -= hw_screen_offset_y;
+
 	/* Reconstruct the viewport transformation from the scissor. */
-	vp.translate[0] = (vp_as_scissor->minx + vp_as_scissor->maxx) / 2.0;
-	vp.translate[1] = (vp_as_scissor->miny + vp_as_scissor->maxy) / 2.0;
-	vp.scale[0] = vp_as_scissor->maxx - vp.translate[0];
-	vp.scale[1] = vp_as_scissor->maxy - vp.translate[1];
+	vp.translate[0] = (vp_as_scissor.minx + vp_as_scissor.maxx) / 2.0;
+	vp.translate[1] = (vp_as_scissor.miny + vp_as_scissor.maxy) / 2.0;
+	vp.scale[0] = vp_as_scissor.maxx - vp.translate[0];
+	vp.scale[1] = vp_as_scissor.maxy - vp.translate[1];
 
 	/* Treat a 0x0 viewport as 1x1 to prevent division by zero. */
-	if (vp_as_scissor->minx == vp_as_scissor->maxx)
+	if (vp_as_scissor.minx == vp_as_scissor.maxx)
 		vp.scale[0] = 0.5;
-	if (vp_as_scissor->miny == vp_as_scissor->maxy)
+	if (vp_as_scissor.miny == vp_as_scissor.maxy)
 		vp.scale[1] = 0.5;
 
 	/* Find the biggest guard band that is inside the supported viewport
@@ -221,6 +255,10 @@ static void si_emit_guardband(struct si_context *ctx)
 				    SI_TRACKED_PA_CL_GB_VERT_CLIP_ADJ,
 				    fui(guardband_y), fui(discard_y),
 				    fui(guardband_x), fui(discard_x));
+	radeon_opt_set_context_reg(ctx, R_028234_PA_SU_HARDWARE_SCREEN_OFFSET,
+				   SI_TRACKED_PA_SU_HARDWARE_SCREEN_OFFSET,
+				   S_028234_HW_SCREEN_OFFSET_X(hw_screen_offset_x >> 4) |
+				   S_028234_HW_SCREEN_OFFSET_Y(hw_screen_offset_y >> 4));
 }
 
 static void si_emit_scissors(struct si_context *ctx)

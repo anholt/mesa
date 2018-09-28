@@ -2730,6 +2730,15 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 	bool unbound = false;
 	int i;
 
+	/* Reject zero-sized framebuffers due to a hw bug on SI that occurs
+	 * when PA_SU_HARDWARE_SCREEN_OFFSET != 0 and any_scissor.BR_X/Y <= 0.
+	 * We could implement the full workaround here, but it's a useless case.
+	 */
+	if ((!state->width || !state->height) && (state->nr_cbufs || state->zsbuf)) {
+		unreachable("the framebuffer shouldn't have zero area");
+		return;
+	}
+
 	si_update_fb_dirtiness_after_rendering(sctx);
 
 	for (i = 0; i < sctx->framebuffer.state.nr_cbufs; i++) {
@@ -4879,8 +4888,6 @@ static void si_init_config(struct si_context *sctx)
 			       S_028230_ER_LINE_RL(0x26) |
 			       S_028230_ER_LINE_TB(0xA) |
 			       S_028230_ER_LINE_BT(0xA));
-		/* PA_SU_HARDWARE_SCREEN_OFFSET must be 0 due to hw bug on SI */
-		si_pm4_set_reg(pm4, R_028234_PA_SU_HARDWARE_SCREEN_OFFSET, 0);
 		si_pm4_set_reg(pm4, R_028820_PA_CL_NANINF_CNTL, 0);
 		si_pm4_set_reg(pm4, R_028AC0_DB_SRESULTS_COMPARE_STATE0, 0x0);
 		si_pm4_set_reg(pm4, R_028AC4_DB_SRESULTS_COMPARE_STATE1, 0x0);
