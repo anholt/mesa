@@ -1396,7 +1396,7 @@ ntq_setup_outputs(struct v3d_compile *c)
                 assert(array_len == 1);
                 (void)array_len;
 
-                for (int i = 0; i < 4; i++) {
+                for (int i = 0; i < 4 - var->data.location_frac; i++) {
                         add_output(c, loc + var->data.location_frac + i,
                                    var->data.location,
                                    var->data.location_frac + i);
