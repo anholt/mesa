@@ -852,6 +852,7 @@ static void *si_create_rs_state(struct pipe_context *ctx,
 	rs->multisample_enable = state->multisample;
 	rs->force_persample_interp = state->force_persample_interp;
 	rs->clip_plane_enable = state->clip_plane_enable;
+	rs->half_pixel_center = state->half_pixel_center;
 	rs->line_stipple_enable = state->line_stipple_enable;
 	rs->poly_stipple_enable = state->poly_stipple_enable;
 	rs->line_smooth = state->line_smooth;
@@ -911,10 +912,6 @@ static void *si_create_rs_state(struct pipe_context *ctx,
 					    state->line_smooth) |
 		       S_028A48_VPORT_SCISSOR_ENABLE(1) |
 		       S_028A48_ALTERNATE_RBS_PER_TILE(sscreen->info.chip_class >= GFX9));
-
-	si_pm4_set_reg(pm4, R_028BE4_PA_SU_VTX_CNTL,
-		       S_028BE4_PIX_CENTER(state->half_pixel_center) |
-		       S_028BE4_QUANT_MODE(V_028BE4_X_16_8_FIXED_POINT_1_256TH));
 
 	si_pm4_set_reg(pm4, R_028B7C_PA_SU_POLY_OFFSET_CLAMP, fui(state->offset_clamp));
 	si_pm4_set_reg(pm4, R_028814_PA_SU_SC_MODE_CNTL,
@@ -1014,7 +1011,8 @@ static void si_bind_rs_state(struct pipe_context *ctx, void *state)
 
 	if (!old_rs ||
 	    old_rs->line_width != rs->line_width ||
-	    old_rs->max_point_size != rs->max_point_size)
+	    old_rs->max_point_size != rs->max_point_size ||
+	    old_rs->half_pixel_center != rs->half_pixel_center)
 		si_mark_atom_dirty(sctx, &sctx->atoms.s.guardband);
 
 	if (!old_rs ||

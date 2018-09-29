@@ -150,6 +150,7 @@ static void si_emit_one_scissor(struct si_context *ctx,
 
 static void si_emit_guardband(struct si_context *ctx)
 {
+	const struct si_state_rasterizer *rs = ctx->queued.named.rasterizer;
 	struct si_signed_scissor vp_as_scissor;
 	struct pipe_viewport_state vp;
 	float left, top, right, bottom, max_range, guardband_x, guardband_y;
@@ -229,7 +230,6 @@ static void si_emit_guardband(struct si_context *ctx)
 	if (unlikely(util_prim_is_points_or_lines(ctx->current_rast_prim))) {
 		/* When rendering wide points or lines, we need to be more
 		 * conservative about when to discard them entirely. */
-		const struct si_state_rasterizer *rs = ctx->queued.named.rasterizer;
 		float pixels;
 
 		if (ctx->current_rast_prim == PIPE_PRIM_POINTS)
@@ -259,6 +259,10 @@ static void si_emit_guardband(struct si_context *ctx)
 				   SI_TRACKED_PA_SU_HARDWARE_SCREEN_OFFSET,
 				   S_028234_HW_SCREEN_OFFSET_X(hw_screen_offset_x >> 4) |
 				   S_028234_HW_SCREEN_OFFSET_Y(hw_screen_offset_y >> 4));
+	radeon_opt_set_context_reg(ctx, R_028BE4_PA_SU_VTX_CNTL,
+				   SI_TRACKED_PA_SU_VTX_CNTL,
+				   S_028BE4_PIX_CENTER(rs->half_pixel_center) |
+				   S_028BE4_QUANT_MODE(V_028BE4_X_16_8_FIXED_POINT_1_256TH));
 }
 
 static void si_emit_scissors(struct si_context *ctx)

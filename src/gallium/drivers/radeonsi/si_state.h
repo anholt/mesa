@@ -71,6 +71,7 @@ struct si_state_rasterizer {
 	float			max_point_size;
 	unsigned		sprite_coord_enable:8;
 	unsigned		clip_plane_enable:8;
+	unsigned		half_pixel_center:1;
 	unsigned		flatshade:1;
 	unsigned		two_side:1;
 	unsigned		multisample_enable:1;
@@ -277,6 +278,7 @@ enum si_tracked_reg {
 	SI_TRACKED_PA_CL_GB_HORZ_DISC_ADJ,
 
 	SI_TRACKED_PA_SU_HARDWARE_SCREEN_OFFSET,
+	SI_TRACKED_PA_SU_VTX_CNTL,
 
 	SI_TRACKED_PA_SC_CLIPRECT_RULE,
 
