@@ -339,6 +339,7 @@ void si_begin_new_gfx_cs(struct si_context *ctx)
 		ctx->tracked_regs.reg_value[SI_TRACKED_PA_SC_AA_CONFIG]	= 0x00000000;
 		ctx->tracked_regs.reg_value[SI_TRACKED_DB_EQAA]	= 0x00000000;
 		ctx->tracked_regs.reg_value[SI_TRACKED_PA_SC_MODE_CNTL_1] = 0x00000000;
+		ctx->tracked_regs.reg_value[SI_TRACKED_PA_SU_PRIM_FILTER_CNTL] = 0;
 		ctx->tracked_regs.reg_value[SI_TRACKED_PA_SU_SMALL_PRIM_FILTER_CNTL] = 0x00000000;
 		ctx->tracked_regs.reg_value[SI_TRACKED_PA_CL_VS_OUT_CNTL] = 0x00000000;
 		ctx->tracked_regs.reg_value[SI_TRACKED_PA_CL_CLIP_CNTL]	= 0x00090000;

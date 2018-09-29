@@ -3242,6 +3242,7 @@ static void si_emit_framebuffer_state(struct si_context *sctx)
 static void si_emit_msaa_sample_locs(struct si_context *sctx)
 {
 	struct radeon_cmdbuf *cs = sctx->gfx_cs;
+	struct si_state_rasterizer *rs = sctx->queued.named.rasterizer;
 	unsigned nr_samples = sctx->framebuffer.nr_samples;
 	bool has_msaa_sample_loc_bug = sctx->screen->has_msaa_sample_loc_bug;
 
@@ -3263,7 +3264,6 @@ static void si_emit_msaa_sample_locs(struct si_context *sctx)
 	}
 
 	if (sctx->family >= CHIP_POLARIS10) {
-		struct si_state_rasterizer *rs = sctx->queued.named.rasterizer;
 		unsigned small_prim_filter_cntl =
 			S_028830_SMALL_PRIM_FILTER_ENABLE(1) |
 			/* line bug */
@@ -3283,6 +3283,16 @@ static void si_emit_msaa_sample_locs(struct si_context *sctx)
 					   SI_TRACKED_PA_SU_SMALL_PRIM_FILTER_CNTL,
 					   small_prim_filter_cntl);
 	}
+
+	/* The exclusion bits can be set to improve rasterization efficiency
+	 * if no sample lies on the pixel boundary (-8 sample offset).
+	 */
+	bool exclusion = sctx->chip_class >= CIK &&
+			 (!rs->multisample_enable || nr_samples != 16);
+	radeon_opt_set_context_reg(sctx, R_02882C_PA_SU_PRIM_FILTER_CNTL,
+				   SI_TRACKED_PA_SU_PRIM_FILTER_CNTL,
+				   S_02882C_XMAX_RIGHT_EXCLUSION(exclusion) |
+				   S_02882C_YMAX_BOTTOM_EXCLUSION(exclusion));
 }
 
 static bool si_out_of_order_rasterization(struct si_context *sctx)
@@ -4860,9 +4870,6 @@ static void si_init_config(struct si_context *sctx)
 	if (sctx->chip_class < CIK)
 		si_pm4_set_reg(pm4, R_008A14_PA_CL_ENHANCE, S_008A14_NUM_CLIP_SEQ(3) |
 			       S_008A14_CLIP_VTX_REORDER_ENA(1));
-
-	if (!has_clear_state)
-		si_pm4_set_reg(pm4, R_02882C_PA_SU_PRIM_FILTER_CNTL, 0);
 
 	/* CLEAR_STATE doesn't clear these correctly on certain generations.
 	 * I don't know why. Deduced by trial and error.
