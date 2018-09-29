@@ -405,6 +405,9 @@ struct si_screen {
 	uint64_t			debug_flags;
 	char				renderer_string[183];
 
+	unsigned			pa_sc_raster_config;
+	unsigned			pa_sc_raster_config_1;
+	unsigned			se_tile_repeat;
 	unsigned			gs_table_depth;
 	unsigned			tess_offchip_block_dw_size;
 	unsigned			tess_offchip_ring_size;

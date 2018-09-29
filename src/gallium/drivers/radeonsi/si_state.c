@@ -4782,13 +4782,11 @@ si_write_harvested_raster_configs(struct si_context *sctx,
 
 static void si_set_raster_config(struct si_context *sctx, struct si_pm4_state *pm4)
 {
-	unsigned num_rb = MIN2(sctx->screen->info.num_render_backends, 16);
-	unsigned rb_mask = sctx->screen->info.enabled_rb_mask;
-	unsigned raster_config, raster_config_1;
-
-	ac_get_raster_config(&sctx->screen->info,
-			     &raster_config,
-			     &raster_config_1);
+	struct si_screen *sscreen = sctx->screen;
+	unsigned num_rb = MIN2(sscreen->info.num_render_backends, 16);
+	unsigned rb_mask = sscreen->info.enabled_rb_mask;
+	unsigned raster_config = sscreen->pa_sc_raster_config;
+	unsigned raster_config_1 = sscreen->pa_sc_raster_config_1;
 
 	if (!rb_mask || util_bitcount(rb_mask) >= num_rb) {
 		/* Always use the default config when all backends are enabled

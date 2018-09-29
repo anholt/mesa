@@ -819,6 +819,15 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 	ws->query_info(ws, &sscreen->info);
 	si_handle_env_var_force_family(sscreen);
 
+	if (sscreen->info.chip_class >= GFX9) {
+		sscreen->se_tile_repeat = 32 * sscreen->info.max_se;
+	} else {
+		ac_get_raster_config(&sscreen->info,
+				     &sscreen->pa_sc_raster_config,
+				     &sscreen->pa_sc_raster_config_1,
+				     &sscreen->se_tile_repeat);
+	}
+
 	sscreen->debug_flags = debug_get_flags_option("R600_DEBUG",
 							debug_options, 0);
 
