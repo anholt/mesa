@@ -107,6 +107,7 @@ static void si_scissor_make_union(struct si_signed_scissor *out,
 	out->miny = MIN2(out->miny, in->miny);
 	out->maxx = MAX2(out->maxx, in->maxx);
 	out->maxy = MAX2(out->maxy, in->maxy);
+	out->quant_mode = MIN2(out->quant_mode, in->quant_mode);
 }
 
 static void si_emit_one_scissor(struct si_context *ctx,
@@ -145,9 +146,6 @@ static void si_emit_one_scissor(struct si_context *ctx,
 			S_028254_BR_Y(final.maxy));
 }
 
-/* the range is [-MAX, MAX] */
-#define SI_MAX_VIEWPORT_RANGE 32768
-
 static void si_emit_guardband(struct si_context *ctx)
 {
 	const struct si_state_rasterizer *rs = ctx->queued.named.rasterizer;
@@ -167,6 +165,13 @@ static void si_emit_guardband(struct si_context *ctx)
 	} else {
 		vp_as_scissor = ctx->viewports.as_scissor[0];
 	}
+
+	/* Blits don't set the viewport state. The vertex shader determines
+	 * the viewport size by scaling the coordinates, so we don't know
+	 * how large the viewport is. Assume the worst case.
+	 */
+	if (ctx->vs_disables_clipping_viewport)
+		vp_as_scissor.quant_mode = SI_QUANT_MODE_16_8_FIXED_POINT_1_256TH;
 
 	/* Determine the optimal hardware screen offset to center the viewport
 	 * within the viewport range in order to maximize the guardband size.
@@ -211,9 +216,11 @@ static void si_emit_guardband(struct si_context *ctx)
 	 * This is done by applying the inverse viewport transformation
 	 * on the viewport limits to get those limits in clip space.
 	 *
-	 * Use a limit one pixel smaller to allow for some precision error.
+	 * The viewport range is [-max_viewport_size/2, max_viewport_size/2].
 	 */
-	max_range = SI_MAX_VIEWPORT_RANGE - 1;
+	static unsigned max_viewport_size[] = {65535, 16383, 4095};
+	assert(vp_as_scissor.quant_mode < ARRAY_SIZE(max_viewport_size));
+	max_range = max_viewport_size[vp_as_scissor.quant_mode] / 2;
 	left   = (-max_range - vp.translate[0]) / vp.scale[0];
 	right  = ( max_range - vp.translate[0]) / vp.scale[0];
 	top    = (-max_range - vp.translate[1]) / vp.scale[1];
@@ -262,7 +269,8 @@ static void si_emit_guardband(struct si_context *ctx)
 	radeon_opt_set_context_reg(ctx, R_028BE4_PA_SU_VTX_CNTL,
 				   SI_TRACKED_PA_SU_VTX_CNTL,
 				   S_028BE4_PIX_CENTER(rs->half_pixel_center) |
-				   S_028BE4_QUANT_MODE(V_028BE4_X_16_8_FIXED_POINT_1_256TH));
+				   S_028BE4_QUANT_MODE(V_028BE4_X_16_8_FIXED_POINT_1_256TH +
+						       vp_as_scissor.quant_mode));
 }
 
 static void si_emit_scissors(struct si_context *ctx)
@@ -311,10 +319,33 @@ static void si_set_viewport_states(struct pipe_context *pctx,
 
 	for (i = 0; i < num_viewports; i++) {
 		unsigned index = start_slot + i;
+		struct si_signed_scissor *scissor = &ctx->viewports.as_scissor[index];
 
 		ctx->viewports.states[index] = state[i];
-		si_get_scissor_from_viewport(ctx, &state[i],
-					     &ctx->viewports.as_scissor[index]);
+
+		si_get_scissor_from_viewport(ctx, &state[i], scissor);
+
+		unsigned w = scissor->maxx - scissor->minx;
+		unsigned h = scissor->maxy - scissor->miny;
+		unsigned max_extent = MAX2(w, h);
+
+		/* Determine the best quantization mode (subpixel precision),
+		 * but also leave enough space for the guardband.
+		 *
+		 * Note that primitive binning requires QUANT_MODE == 16_8 on Vega10
+		 * and Raven1. What we do depends on the chip:
+		 * - Vega10: Never use primitive binning.
+		 * - Raven1: Always use QUANT_MODE == 16_8.
+		 */
+		if (ctx->family == CHIP_RAVEN)
+			max_extent = 16384; /* Use QUANT_MODE == 16_8. */
+
+		if (max_extent <= 1024) /* 4K scanline area for guardband */
+			scissor->quant_mode = SI_QUANT_MODE_12_12_FIXED_POINT_1_4096TH;
+		else if (max_extent <= 4096) /* 16K scanline area for guardband */
+			scissor->quant_mode = SI_QUANT_MODE_14_10_FIXED_POINT_1_1024TH;
+		else /* 64K scanline area for guardband */
+			scissor->quant_mode = SI_QUANT_MODE_16_8_FIXED_POINT_1_256TH;
 	}
 
 	mask = ((1 << num_viewports) - 1) << start_slot;
@@ -565,4 +596,7 @@ void si_init_viewport_functions(struct si_context *ctx)
 	ctx->b.set_scissor_states = si_set_scissor_states;
 	ctx->b.set_viewport_states = si_set_viewport_states;
 	ctx->b.set_window_rectangles = si_set_window_rectangles;
+
+	for (unsigned i = 0; i < 16; i++)
+		ctx->viewports.as_scissor[i].quant_mode = SI_QUANT_MODE_16_8_FIXED_POINT_1_256TH;
 }

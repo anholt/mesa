@@ -335,7 +335,9 @@ static float si_get_paramf(struct pipe_screen* pscreen, enum pipe_capf param)
 	case PIPE_CAPF_MAX_LINE_WIDTH_AA:
 	case PIPE_CAPF_MAX_POINT_WIDTH:
 	case PIPE_CAPF_MAX_POINT_WIDTH_AA:
-		return 8192.0f;
+		/* This depends on the quant mode, though the precise interactions
+		 * are unknown. */
+		return 2048;
 	case PIPE_CAPF_MAX_TEXTURE_ANISOTROPY:
 		return 16.0f;
 	case PIPE_CAPF_MAX_TEXTURE_LOD_BIAS:
