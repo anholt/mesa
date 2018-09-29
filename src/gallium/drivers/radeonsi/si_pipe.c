@@ -160,6 +160,7 @@ static void si_destroy_context(struct pipe_context *context)
 	pipe_resource_reference(&sctx->gsvs_ring, NULL);
 	pipe_resource_reference(&sctx->tess_rings, NULL);
 	pipe_resource_reference(&sctx->null_const_buf.buffer, NULL);
+	pipe_resource_reference(&sctx->sample_pos_buffer, NULL);
 	r600_resource_reference(&sctx->border_color_buffer, NULL);
 	free(sctx->border_color_table);
 	r600_resource_reference(&sctx->scratch_buffer, NULL);
@@ -598,6 +599,12 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 	util_dynarray_init(&sctx->resident_tex_needs_color_decompress, NULL);
 	util_dynarray_init(&sctx->resident_img_needs_color_decompress, NULL);
 	util_dynarray_init(&sctx->resident_tex_needs_depth_decompress, NULL);
+
+	sctx->sample_pos_buffer =
+		pipe_buffer_create(sctx->b.screen, 0, PIPE_USAGE_DEFAULT,
+				   sizeof(sctx->sample_positions));
+	pipe_buffer_write(&sctx->b, sctx->sample_pos_buffer, 0,
+			  sizeof(sctx->sample_positions), &sctx->sample_positions);
 
 	/* this must be last */
 	si_begin_new_gfx_cs(sctx);

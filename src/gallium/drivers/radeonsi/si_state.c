@@ -2717,7 +2717,6 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 				     const struct pipe_framebuffer_state *state)
 {
 	struct si_context *sctx = (struct si_context *)ctx;
-	struct pipe_constant_buffer constbuf = {0};
 	struct si_surface *surf = NULL;
 	struct si_texture *tex;
 	bool old_any_dst_linear = sctx->framebuffer.any_dst_linear;
@@ -2941,25 +2940,33 @@ static void si_set_framebuffer_state(struct pipe_context *ctx,
 		si_mark_atom_dirty(sctx, &sctx->atoms.s.msaa_config);
 
 	if (sctx->framebuffer.nr_samples != old_nr_samples) {
+		struct pipe_constant_buffer constbuf = {0};
+
 		si_mark_atom_dirty(sctx, &sctx->atoms.s.msaa_config);
 		si_mark_atom_dirty(sctx, &sctx->atoms.s.db_render_state);
+
+		constbuf.buffer = sctx->sample_pos_buffer;
 
 		/* Set sample locations as fragment shader constants. */
 		switch (sctx->framebuffer.nr_samples) {
 		case 1:
-			constbuf.user_buffer = sctx->sample_locations_1x;
+			constbuf.buffer_offset = 0;
 			break;
 		case 2:
-			constbuf.user_buffer = sctx->sample_locations_2x;
+			constbuf.buffer_offset = (ubyte*)sctx->sample_positions.x2 -
+						 (ubyte*)sctx->sample_positions.x1;
 			break;
 		case 4:
-			constbuf.user_buffer = sctx->sample_locations_4x;
+			constbuf.buffer_offset = (ubyte*)sctx->sample_positions.x4 -
+						 (ubyte*)sctx->sample_positions.x1;
 			break;
 		case 8:
-			constbuf.user_buffer = sctx->sample_locations_8x;
+			constbuf.buffer_offset = (ubyte*)sctx->sample_positions.x8 -
+						 (ubyte*)sctx->sample_positions.x1;
 			break;
 		case 16:
-			constbuf.user_buffer = sctx->sample_locations_16x;
+			constbuf.buffer_offset = (ubyte*)sctx->sample_positions.x16 -
+						 (ubyte*)sctx->sample_positions.x1;
 			break;
 		default:
 			PRINT_ERR("Requested an invalid number of samples %i.\n",
