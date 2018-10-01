@@ -242,8 +242,6 @@ files_libgallium = files(
   'util/u_box.h',
   'util/u_cache.c',
   'util/u_cache.h',
-  'util/u_cpu_detect.c',
-  'util/u_cpu_detect.h',
   'util/u_debug_gallium.h',
   'util/u_debug_gallium.c',
   'util/u_debug_describe.c',
