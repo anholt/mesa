@@ -134,26 +134,35 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 
 	mtx_lock(&ctx->screen->lock);
 
-	if (fd_depth_enabled(ctx)) {
-		if (fd_resource(pfb->zsbuf->texture)->valid) {
-			restore_buffers |= FD_BUFFER_DEPTH;
-		} else {
-			batch->invalidated |= FD_BUFFER_DEPTH;
+	if (ctx->dirty & FD_DIRTY_FRAMEBUFFER) {
+		if (fd_depth_enabled(ctx)) {
+			if (fd_resource(pfb->zsbuf->texture)->valid) {
+				restore_buffers |= FD_BUFFER_DEPTH;
+			} else {
+				batch->invalidated |= FD_BUFFER_DEPTH;
+			}
+			buffers |= FD_BUFFER_DEPTH;
+			resource_written(batch, pfb->zsbuf->texture);
+			batch->gmem_reason |= FD_GMEM_DEPTH_ENABLED;
 		}
-		buffers |= FD_BUFFER_DEPTH;
-		resource_written(batch, pfb->zsbuf->texture);
-		batch->gmem_reason |= FD_GMEM_DEPTH_ENABLED;
-	}
 
-	if (fd_stencil_enabled(ctx)) {
-		if (fd_resource(pfb->zsbuf->texture)->valid) {
-			restore_buffers |= FD_BUFFER_STENCIL;
-		} else {
-			batch->invalidated |= FD_BUFFER_STENCIL;
+		if (fd_stencil_enabled(ctx)) {
+			if (fd_resource(pfb->zsbuf->texture)->valid) {
+				restore_buffers |= FD_BUFFER_STENCIL;
+			} else {
+				batch->invalidated |= FD_BUFFER_STENCIL;
+			}
+			buffers |= FD_BUFFER_STENCIL;
+			resource_written(batch, pfb->zsbuf->texture);
+			batch->gmem_reason |= FD_GMEM_STENCIL_ENABLED;
 		}
-		buffers |= FD_BUFFER_STENCIL;
-		resource_written(batch, pfb->zsbuf->texture);
-		batch->gmem_reason |= FD_GMEM_STENCIL_ENABLED;
+
+		for (i = 0; i < pfb->nr_cbufs; i++) {
+			if (!pfb->cbufs[i])
+				continue;
+
+			resource_written(batch, pfb->cbufs[i]->texture);
+		}
 	}
 
 	if (fd_logicop_enabled(ctx))
@@ -173,8 +182,6 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 			batch->invalidated |= PIPE_CLEAR_COLOR0 << i;
 		}
 
-		resource_written(batch, surf);
-
 		buffers |= PIPE_CLEAR_COLOR0 << i;
 
 		if (fd_blend_enabled(ctx, i))
@@ -184,27 +191,38 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 	/* Mark SSBOs as being written.. we don't actually know which ones are
 	 * read vs written, so just assume the worst
 	 */
-	foreach_bit(i, ctx->shaderbuf[PIPE_SHADER_FRAGMENT].enabled_mask)
-		resource_written(batch, ctx->shaderbuf[PIPE_SHADER_FRAGMENT].sb[i].buffer);
-
-	foreach_bit(i, ctx->shaderimg[PIPE_SHADER_FRAGMENT].enabled_mask) {
-		struct pipe_image_view *img =
-			&ctx->shaderimg[PIPE_SHADER_FRAGMENT].si[i];
-		if (img->access & PIPE_IMAGE_ACCESS_WRITE)
-			resource_written(batch, img->resource);
-		else
-			resource_read(batch, img->resource);
+	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_SSBO) {
+		foreach_bit(i, ctx->shaderbuf[PIPE_SHADER_FRAGMENT].enabled_mask)
+				resource_written(batch, ctx->shaderbuf[PIPE_SHADER_FRAGMENT].sb[i].buffer);
 	}
 
-	foreach_bit(i, ctx->constbuf[PIPE_SHADER_VERTEX].enabled_mask)
-		resource_read(batch, ctx->constbuf[PIPE_SHADER_VERTEX].cb[i].buffer);
-	foreach_bit(i, ctx->constbuf[PIPE_SHADER_FRAGMENT].enabled_mask)
-		resource_read(batch, ctx->constbuf[PIPE_SHADER_FRAGMENT].cb[i].buffer);
+	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_IMAGE) {
+		foreach_bit(i, ctx->shaderimg[PIPE_SHADER_FRAGMENT].enabled_mask) {
+			struct pipe_image_view *img =
+					&ctx->shaderimg[PIPE_SHADER_FRAGMENT].si[i];
+			if (img->access & PIPE_IMAGE_ACCESS_WRITE)
+				resource_written(batch, img->resource);
+			else
+				resource_read(batch, img->resource);
+		}
+	}
+
+	if (ctx->dirty_shader[PIPE_SHADER_VERTEX] & FD_DIRTY_SHADER_CONST) {
+		foreach_bit(i, ctx->constbuf[PIPE_SHADER_VERTEX].enabled_mask)
+			resource_read(batch, ctx->constbuf[PIPE_SHADER_VERTEX].cb[i].buffer);
+	}
+
+	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_CONST) {
+		foreach_bit(i, ctx->constbuf[PIPE_SHADER_FRAGMENT].enabled_mask)
+			resource_read(batch, ctx->constbuf[PIPE_SHADER_FRAGMENT].cb[i].buffer);
+	}
 
 	/* Mark VBOs as being read */
-	foreach_bit(i, ctx->vtx.vertexbuf.enabled_mask) {
-		assert(!ctx->vtx.vertexbuf.vb[i].is_user_buffer);
-		resource_read(batch, ctx->vtx.vertexbuf.vb[i].buffer.resource);
+	if (ctx->dirty & FD_DIRTY_VTXBUF) {
+		foreach_bit(i, ctx->vtx.vertexbuf.enabled_mask) {
+			assert(!ctx->vtx.vertexbuf.vb[i].is_user_buffer);
+			resource_read(batch, ctx->vtx.vertexbuf.vb[i].buffer.resource);
+		}
 	}
 
 	/* Mark index buffer as being read */
@@ -215,15 +233,22 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 		resource_read(batch, info->indirect->buffer);
 
 	/* Mark textures as being read */
-	foreach_bit(i, ctx->tex[PIPE_SHADER_VERTEX].valid_textures)
-		resource_read(batch, ctx->tex[PIPE_SHADER_VERTEX].textures[i]->texture);
-	foreach_bit(i, ctx->tex[PIPE_SHADER_FRAGMENT].valid_textures)
-		resource_read(batch, ctx->tex[PIPE_SHADER_FRAGMENT].textures[i]->texture);
+	if (ctx->dirty_shader[PIPE_SHADER_VERTEX] & FD_DIRTY_SHADER_TEX) {
+		foreach_bit(i, ctx->tex[PIPE_SHADER_VERTEX].valid_textures)
+			resource_read(batch, ctx->tex[PIPE_SHADER_VERTEX].textures[i]->texture);
+	}
+
+	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_TEX) {
+		foreach_bit(i, ctx->tex[PIPE_SHADER_FRAGMENT].valid_textures)
+			resource_read(batch, ctx->tex[PIPE_SHADER_FRAGMENT].textures[i]->texture);
+	}
 
 	/* Mark streamout buffers as being written.. */
-	for (i = 0; i < ctx->streamout.num_targets; i++)
-		if (ctx->streamout.targets[i])
-			resource_written(batch, ctx->streamout.targets[i]->buffer);
+	if (ctx->dirty & FD_DIRTY_STREAMOUT) {
+		for (i = 0; i < ctx->streamout.num_targets; i++)
+			if (ctx->streamout.targets[i])
+				resource_written(batch, ctx->streamout.targets[i]->buffer);
+	}
 
 	resource_written(batch, batch->query_buf);
 
