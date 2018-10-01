@@ -92,6 +92,8 @@ files_mesa_util = files(
   'u_vector.h',
   'u_math.c',
   'u_math.h',
+  'u_debug.c',
+  'u_debug.h',
   'vma.c',
   'vma.h',
 )
