@@ -176,7 +176,7 @@ endif
 
 libanv_common = static_library(
   'anv_common',
-  [libanv_files, anv_entrypoints, anv_extensions_c, anv_extensions_h],
+  [libanv_files, anv_entrypoints, anv_extensions_c, anv_extensions_h, sha1_h],
   include_directories : [
     inc_common, inc_intel, inc_compiler, inc_drm_uapi, inc_vulkan_util,
     inc_vulkan_wsi,
