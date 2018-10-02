@@ -146,7 +146,7 @@ assemble_variant(struct ir3_shader_variant *v)
 	if (fd_mesa_debug & FD_DBG_DISASM) {
 		struct ir3_shader_key key = v->key;
 		printf("disassemble: type=%d, k={bp=%u,cts=%u,hp=%u}", v->type,
-			key.binning_pass, key.color_two_side, key.half_precision);
+			v->binning_pass, key.color_two_side, key.half_precision);
 		ir3_shader_disasm(v, bin, stdout);
 	}
 
@@ -194,7 +194,8 @@ dump_shader_info(struct ir3_shader_variant *v, struct pipe_debug_callback *debug
 }
 
 static struct ir3_shader_variant *
-create_variant(struct ir3_shader *shader, struct ir3_shader_key key)
+create_variant(struct ir3_shader *shader, struct ir3_shader_key key,
+		bool binning_pass)
 {
 	struct ir3_shader_variant *v = CALLOC_STRUCT(ir3_shader_variant);
 	int ret;
@@ -204,6 +205,7 @@ create_variant(struct ir3_shader *shader, struct ir3_shader_key key)
 
 	v->id = ++shader->variant_count;
 	v->shader = shader;
+	v->binning_pass = binning_pass;
 	v->key = key;
 	v->type = shader->type;
 
@@ -226,8 +228,8 @@ fail:
 	return NULL;
 }
 
-struct ir3_shader_variant *
-ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
+static inline struct ir3_shader_variant *
+shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
 		struct pipe_debug_callback *debug)
 {
 	struct ir3_shader_variant *v;
@@ -238,7 +240,6 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
 	 */
 	switch (shader->type) {
 	case SHADER_FRAGMENT:
-		key.binning_pass = false;
 		if (key.has_per_samp) {
 			key.vsaturate_s = 0;
 			key.vsaturate_t = 0;
@@ -269,7 +270,7 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
 			return v;
 
 	/* compile new variant if it doesn't exist already: */
-	v = create_variant(shader, key);
+	v = create_variant(shader, key, false);
 	if (v) {
 		v->next = shader->variants;
 		shader->variants = v;
@@ -279,6 +280,22 @@ ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
 	return v;
 }
 
+
+struct ir3_shader_variant *
+ir3_shader_variant(struct ir3_shader *shader, struct ir3_shader_key key,
+		bool binning_pass, struct pipe_debug_callback *debug)
+{
+	struct ir3_shader_variant *v =
+			shader_variant(shader, key, debug);
+
+	if (binning_pass) {
+		if (!v->binning)
+			v->binning = create_variant(shader, key, true);
+		return v->binning;
+	}
+
+	return v;
+}
 
 void
 ir3_shader_destroy(struct ir3_shader *shader)
@@ -332,7 +349,7 @@ ir3_shader_create(struct ir3_compiler *compiler,
 		 */
 		static struct ir3_shader_key key;
 		memset(&key, 0, sizeof(key));
-		ir3_shader_variant(shader, key, debug);
+		ir3_shader_variant(shader, key, false, debug);
 	}
 	return shader;
 }
@@ -755,7 +772,7 @@ max_tf_vtx(struct fd_context *ctx, const struct ir3_shader_variant *v)
 
 	if (ctx->screen->gpu_id >= 500)
 		return 0;
-	if (v->key.binning_pass)
+	if (v->binning_pass)
 		return 0;
 	if (v->shader->stream_output.num_outputs == 0)
 		return 0;

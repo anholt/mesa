@@ -207,7 +207,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 
 	debug_assert(nr <= ARRAY_SIZE(color_regid));
 
-	if (emit->key.binning_pass)
+	if (emit->binning_pass)
 		nr = 0;
 
 	setup_stages(emit, s);
@@ -299,7 +299,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 
 	OUT_PKT0(ring, REG_A4XX_SP_SP_CTRL_REG, 1);
 	OUT_RING(ring, 0x140010 | /* XXX */
-			COND(emit->key.binning_pass, A4XX_SP_SP_CTRL_REG_BINNING_PASS));
+			COND(emit->binning_pass, A4XX_SP_SP_CTRL_REG_BINNING_PASS));
 
 	OUT_PKT0(ring, REG_A4XX_SP_INSTR_CACHE_CTRL, 1);
 	OUT_RING(ring, 0x7f | /* XXX */
@@ -362,7 +362,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 			A4XX_SP_VS_OBJ_OFFSET_REG_SHADEROBJOFFSET(s[VS].instroff));
 	OUT_RELOC(ring, s[VS].v->bo, 0, 0, 0);  /* SP_VS_OBJ_START_REG */
 
-	if (emit->key.binning_pass) {
+	if (emit->binning_pass) {
 		OUT_PKT0(ring, REG_A4XX_SP_FS_LENGTH_REG, 1);
 		OUT_RING(ring, 0x00000000);         /* SP_FS_LENGTH_REG */
 
@@ -452,7 +452,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 					A4XX_SP_FS_MRT_REG_HALF_PRECISION));
 	}
 
-	if (emit->key.binning_pass) {
+	if (emit->binning_pass) {
 		OUT_PKT0(ring, REG_A4XX_VPC_ATTR, 2);
 		OUT_RING(ring, A4XX_VPC_ATTR_THRDASSIGN(1) |
 				0x40000000 |      /* XXX */
@@ -561,7 +561,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 	if (s[VS].instrlen)
 		emit_shader(ring, s[VS].v);
 
-	if (!emit->key.binning_pass)
+	if (!emit->binning_pass)
 		if (s[FS].instrlen)
 			emit_shader(ring, s[FS].v);
 }

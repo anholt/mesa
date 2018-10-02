@@ -510,7 +510,7 @@ fd4_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	emit_marker(ring, 5);
 
-	if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->key.binning_pass) {
+	if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->binning_pass) {
 		struct pipe_framebuffer_state *pfb = &ctx->batch->framebuffer;
 		unsigned char mrt_comp[A4XX_MAX_RENDER_TARGETS] = {0};
 
@@ -686,7 +686,7 @@ fd4_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (emit->prog == &ctx->prog) { /* evil hack to deal sanely with clear path */
 		ir3_emit_vs_consts(vp, ring, ctx, emit->info);
-		if (!emit->key.binning_pass)
+		if (!emit->binning_pass)
 			ir3_emit_fs_consts(fp, ring, ctx);
 	}
 

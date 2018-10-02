@@ -182,10 +182,9 @@ compile_init(struct ir3_compiler *compiler,
 	NIR_PASS_V(ctx->s, nir_convert_from_ssa, true);
 
 	if (fd_mesa_debug & FD_DBG_DISASM) {
-		DBG("dump nir%dv%d: type=%d, k={bp=%u,cts=%u,hp=%u}",
+		DBG("dump nir%dv%d: type=%d, k={cts=%u,hp=%u}",
 			so->shader->id, so->id, so->type,
-			so->key.binning_pass, so->key.color_two_side,
-			so->key.half_precision);
+			so->key.color_two_side, so->key.half_precision);
 		nir_print_shader(ctx->s, stdout);
 	}
 
@@ -3197,7 +3196,7 @@ emit_function(struct ir3_context *ctx, nir_function_impl *impl)
 	 */
 	if ((ctx->compiler->gpu_id < 500) &&
 			(ctx->so->shader->stream_output.num_outputs > 0) &&
-			!ctx->so->key.binning_pass) {
+			!ctx->so->binning_pass) {
 		debug_assert(ctx->so->type == SHADER_VERTEX);
 		emit_stream_out(ctx);
 	}
@@ -3600,7 +3599,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 		fixup_frag_inputs(ctx);
 
 	/* at this point, for binning pass, throw away unneeded outputs: */
-	if (so->key.binning_pass) {
+	if (so->binning_pass) {
 		for (i = 0, j = 0; i < so->outputs_count; i++) {
 			unsigned slot = so->outputs[i].slot;
 

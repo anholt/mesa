@@ -393,7 +393,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	ir3_link_shaders(&l, s[VS].v, s[FS].v);
 
 	if ((s[VS].v->shader->stream_output.num_outputs > 0) &&
-			!emit->key.binning_pass)
+			!emit->binning_pass)
 		link_stream_out(&l, s[VS].v);
 
 	BITSET_DECLARE(varbs, 128) = {0};
@@ -419,7 +419,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 
 	if ((s[VS].v->shader->stream_output.num_outputs > 0) &&
-			!emit->key.binning_pass) {
+			!emit->binning_pass) {
 		setup_stream_out(ctx, s[VS].v, &l);
 	}
 
@@ -478,7 +478,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	OUT_RING(ring, A6XX_PC_PRIMITIVE_CNTL_1_STRIDE_IN_VPC(l.max_loc) |
 			 COND(psize_regid != regid(63,0), 0x100));
 
-	if (emit->key.binning_pass) {
+	if (emit->binning_pass) {
 		OUT_PKT4(ring, REG_A6XX_SP_FS_OBJ_START_LO, 2);
 		OUT_RING(ring, 0x00000000);    /* SP_FS_OBJ_START_LO */
 		OUT_RING(ring, 0x00000000);    /* SP_FS_OBJ_START_HI */
@@ -559,7 +559,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			 A6XX_VPC_PACK_PSIZELOC(psize_loc) |
 			 A6XX_VPC_PACK_STRIDE_IN_VPC(l.max_loc));
 
-	if (!emit->key.binning_pass) {
+	if (!emit->binning_pass) {
 		uint32_t vinterp[8], vpsrepl[8];
 
 		memset(vinterp, 0, sizeof(vinterp));
@@ -650,7 +650,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			OUT_RING(ring, vpsrepl[i]);   /* VPC_VARYING_PS_REPL[i] */
 	}
 
-	if (!emit->key.binning_pass)
+	if (!emit->binning_pass)
 		if (s[FS].instrlen)
 			fd6_emit_shader(ring, s[FS].v);
 

@@ -114,7 +114,6 @@ struct ir3_shader_key {
 			/*
 			 * Vertex shader variant parameters:
 			 */
-			unsigned binning_pass : 1;
 			unsigned vclamp_color : 1;
 
 			/*
@@ -217,6 +216,12 @@ struct ir3_shader_variant {
 	uint32_t id;
 
 	struct ir3_shader_key key;
+
+	/* vertex shaders can have an extra version for hwbinning pass,
+	 * which is pointed to by so->binning:
+	 */
+	bool binning_pass;
+	struct ir3_shader_variant *binning;
 
 	struct ir3_driver_const_layout const_layout;
 	struct ir3_info info;
@@ -373,7 +378,8 @@ ir3_shader_create_compute(struct ir3_compiler *compiler,
 		struct pipe_debug_callback *debug);
 void ir3_shader_destroy(struct ir3_shader *shader);
 struct ir3_shader_variant * ir3_shader_variant(struct ir3_shader *shader,
-		struct ir3_shader_key key, struct pipe_debug_callback *debug);
+		struct ir3_shader_key key, bool binning_pass,
+		struct pipe_debug_callback *debug);
 void ir3_shader_disasm(struct ir3_shader_variant *so, uint32_t *bin, FILE *out);
 uint64_t ir3_shader_outputs(const struct ir3_shader *so);
 

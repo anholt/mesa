@@ -595,7 +595,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	emit_marker6(ring, 5);
 
-	if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->key.binning_pass) {
+	if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->binning_pass) {
 		unsigned char mrt_comp[A6XX_MAX_RENDER_TARGETS] = {0};
 
 		for (unsigned i = 0; i < pfb->nr_cbufs; i++) {
@@ -649,7 +649,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			if (emit->no_lrz_write || !rsc->lrz || !rsc->lrz_valid) {
 				gras_lrz_cntl = 0;
 				rb_lrz_cntl = 0;
-			} else if (emit->key.binning_pass && zsa->lrz_write) {
+			} else if (emit->binning_pass && zsa->lrz_write) {
 				gras_lrz_cntl |= A6XX_GRAS_LRZ_CNTL_LRZ_WRITE;
 			}
 
@@ -783,7 +783,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		uint32_t posz_regid = ir3_find_output_regid(fp, FRAG_RESULT_DEPTH);
 		unsigned nr = pfb->nr_cbufs;
 
-		if (emit->key.binning_pass)
+		if (emit->binning_pass)
 			nr = 0;
 		else if (ctx->rasterizer->rasterizer_discard)
 			nr = 0;
@@ -812,7 +812,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 
 	if ((ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & DIRTY_CONST) &&
-			!emit->key.binning_pass) {
+			!emit->binning_pass) {
 		struct fd_ringbuffer *fsconstobj =
 			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
 					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);

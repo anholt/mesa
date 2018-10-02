@@ -509,7 +509,7 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 
 	if ((dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG | FD_DIRTY_BLEND_DUAL)) &&
-		!emit->key.binning_pass) {
+		!emit->binning_pass) {
 		uint32_t val = fd3_zsa_stateobj(ctx->zsa)->rb_render_control |
 			fd3_blend_stateobj(ctx->blend)->rb_render_control;
 
@@ -622,7 +622,7 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		uint32_t val = fd3_rasterizer_stateobj(ctx->rasterizer)
 				->pc_prim_vtx_cntl;
 
-		if (!emit->key.binning_pass) {
+		if (!emit->binning_pass) {
 			uint32_t stride_in_vpc = align(fp->total_in, 4) / 4;
 			if (stride_in_vpc > 0)
 				stride_in_vpc = MAX2(stride_in_vpc, 2);
@@ -721,7 +721,7 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (emit->prog == &ctx->prog) { /* evil hack to deal sanely with clear path */
 		ir3_emit_vs_consts(vp, ring, ctx, emit->info);
-		if (!emit->key.binning_pass)
+		if (!emit->binning_pass)
 			ir3_emit_fs_consts(fp, ring, ctx);
 	}
 

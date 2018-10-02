@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 
 		if (!strcmp(argv[n], "--binning-pass")) {
 			debug_printf(" %s", argv[n]);
-			key.binning_pass = true;
+			v.binning_pass = true;
 			n++;
 			continue;
 		}

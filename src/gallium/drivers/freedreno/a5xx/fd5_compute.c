@@ -188,7 +188,7 @@ fd5_launch_grid(struct fd_context *ctx, const struct pipe_grid_info *info)
 
 	emit_setup(ctx);
 
-	v = ir3_shader_variant(so->shader, key, &ctx->debug);
+	v = ir3_shader_variant(so->shader, key, false, &ctx->debug);
 	if (!v)
 		return;
 
