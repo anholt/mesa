@@ -1705,7 +1705,8 @@ anv_buffer_get_range(struct anv_buffer *buffer, uint64_t offset, uint64_t range)
    if (range == VK_WHOLE_SIZE) {
       return buffer->size - offset;
    } else {
-      assert(range <= buffer->size);
+      assert(range + offset >= range);
+      assert(range + offset <= buffer->size);
       return range;
    }
 }
