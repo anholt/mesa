@@ -1005,7 +1005,7 @@ int ir3_ra(struct ir3 *ir3, enum shader_t type,
 		bool frag_coord, bool frag_face);
 
 /* legalize: */
-void ir3_legalize(struct ir3 *ir, bool *has_samp, bool *has_ssbo, int *max_bary);
+void ir3_legalize(struct ir3 *ir, int *num_samp, bool *has_ssbo, int *max_bary);
 
 /* ************************************************************************* */
 /* instruction helpers */

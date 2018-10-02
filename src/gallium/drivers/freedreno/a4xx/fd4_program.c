@@ -318,7 +318,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 			A4XX_SP_VS_CTRL_REG0_INOUTREGOVERLAP(0) |
 			A4XX_SP_VS_CTRL_REG0_THREADSIZE(TWO_QUADS) |
 			A4XX_SP_VS_CTRL_REG0_SUPERTHREADMODE |
-			COND(s[VS].v->has_samp, A4XX_SP_VS_CTRL_REG0_PIXLODENABLE));
+			COND(s[VS].v->num_samp > 0, A4XX_SP_VS_CTRL_REG0_PIXLODENABLE));
 	OUT_RING(ring, A4XX_SP_VS_CTRL_REG1_CONSTLENGTH(s[VS].constlen) |
 			A4XX_SP_VS_CTRL_REG1_INITIALOUTSTANDING(s[VS].v->total_in));
 	OUT_RING(ring, A4XX_SP_VS_PARAM_REG_POSREGID(pos_regid) |
@@ -393,7 +393,7 @@ fd4_program_emit(struct fd_ringbuffer *ring, struct fd4_emit *emit,
 				A4XX_SP_FS_CTRL_REG0_INOUTREGOVERLAP(1) |
 				A4XX_SP_FS_CTRL_REG0_THREADSIZE(fssz) |
 				A4XX_SP_FS_CTRL_REG0_SUPERTHREADMODE |
-				COND(s[FS].v->has_samp, A4XX_SP_FS_CTRL_REG0_PIXLODENABLE));
+				COND(s[FS].v->num_samp > 0, A4XX_SP_FS_CTRL_REG0_PIXLODENABLE));
 		OUT_RING(ring, A4XX_SP_FS_CTRL_REG1_CONSTLENGTH(s[FS].constlen) |
 				0x80000000 |      /* XXX */
 				COND(s[FS].v->frag_face, A4XX_SP_FS_CTRL_REG1_FACENESS) |

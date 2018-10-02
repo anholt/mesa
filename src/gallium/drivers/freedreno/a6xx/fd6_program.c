@@ -334,14 +334,10 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	 * emitted if frag-prog is dirty vs if vert-prog is dirty..
 	 */
 
-	OUT_PKT4(ring, REG_A6XX_SP_VS_TEX_COUNT, 1);
-	OUT_RING(ring, 0);
-
-	struct fd_texture_stateobj *tex = &ctx->tex[PIPE_SHADER_VERTEX];
 	OUT_PKT4(ring, REG_A6XX_SP_VS_CONFIG, 2);
 	OUT_RING(ring, COND(s[VS].v, A6XX_SP_VS_CONFIG_ENABLED) |
-			 A6XX_SP_VS_CONFIG_NTEX(tex->num_textures) |
-			 A6XX_SP_VS_CONFIG_NSAMP(tex->num_samplers));     /* SP_VS_CONFIG */
+			 A6XX_SP_VS_CONFIG_NTEX(s[VS].v->num_samp) |
+			 A6XX_SP_VS_CONFIG_NSAMP(s[VS].v->num_samp));     /* SP_VS_CONFIG */
 	OUT_RING(ring, s[VS].instrlen);							  /* SP_VS_INSTRLEN */
 
 	OUT_PKT4(ring, REG_A6XX_SP_HS_UNKNOWN_A831, 1);
@@ -371,12 +367,10 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	OUT_PKT4(ring, REG_A6XX_SP_UNKNOWN_AB00, 1);
 	OUT_RING(ring, 0x5);
 
-	tex = &ctx->tex[PIPE_SHADER_FRAGMENT];
 	OUT_PKT4(ring, REG_A6XX_SP_FS_CONFIG, 2);
 	OUT_RING(ring, COND(s[FS].v, A6XX_SP_FS_CONFIG_ENABLED) |
-			 A6XX_SP_FS_CONFIG_NTEX(tex->num_textures) |
-			 A6XX_SP_FS_CONFIG_NSAMP(tex->num_samplers));
-															/* SP_FS_CONFIG */
+			 A6XX_SP_FS_CONFIG_NTEX(s[FS].v->num_samp) |
+			 A6XX_SP_FS_CONFIG_NSAMP(s[FS].v->num_samp));     /* SP_FS_CONFIG */
 	OUT_RING(ring, s[FS].instrlen);							  /* SP_FS_INSTRLEN */
 
 	OUT_PKT4(ring, REG_A6XX_HLSQ_VS_CNTL, 4);
@@ -393,7 +387,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			A6XX_SP_VS_CTRL_REG0_FULLREGFOOTPRINT(s[VS].i->max_reg + 1) |
 			A6XX_SP_VS_CTRL_REG0_MERGEDREGS |
 			A6XX_SP_VS_CTRL_REG0_BRANCHSTACK(0x3) |  // XXX need to figure this out somehow..
-			COND(s[VS].v->has_samp, A6XX_SP_VS_CTRL_REG0_PIXLODENABLE));
+			COND(s[VS].v->num_samp > 0, A6XX_SP_VS_CTRL_REG0_PIXLODENABLE));
 
 	struct ir3_shader_linkage l = {0};
 	ir3_link_shaders(&l, s[VS].v, s[FS].v);
@@ -517,7 +511,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			A6XX_SP_FS_CTRL_REG0_FULLREGFOOTPRINT(s[FS].i->max_reg + 1) |
 			A6XX_SP_FS_CTRL_REG0_MERGEDREGS |
 			A6XX_SP_FS_CTRL_REG0_BRANCHSTACK(0x3) |  // XXX need to figure this out somehow..
-			COND(s[FS].v->has_samp, A6XX_SP_FS_CTRL_REG0_PIXLODENABLE));
+			COND(s[FS].v->num_samp > 0, A6XX_SP_FS_CTRL_REG0_PIXLODENABLE));
 
 	OUT_PKT4(ring, REG_A6XX_SP_UNKNOWN_A982, 1);
 	OUT_RING(ring, 0);        /* XXX */

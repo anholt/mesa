@@ -298,8 +298,8 @@ struct ir3_shader_variant {
 	 */
 	unsigned varying_in;
 
-	/* do we have one or more texture sample instructions: */
-	bool has_samp;
+	/* number of samplers/textures (which are currently 1:1): */
+	int num_samp;
 
 	/* do we have one or more SSBO instructions: */
 	bool has_ssbo;
