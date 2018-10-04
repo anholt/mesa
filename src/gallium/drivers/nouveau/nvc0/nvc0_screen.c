@@ -928,6 +928,13 @@ nvc0_screen_create(struct nouveau_device *dev)
    push->user_priv = screen;
    push->rsvd_kick = 5;
 
+   /* TODO: could this be higher on Kepler+? how does reclocking vs no
+    * reclocking affect performance?
+    * TODO: could this be higher on Fermi?
+    */
+   if (dev->chipset >= 0xe0)
+      screen->base.transfer_pushbuf_threshold = 1024;
+
    screen->base.vidmem_bindings |= PIPE_BIND_CONSTANT_BUFFER |
       PIPE_BIND_SHADER_BUFFER |
       PIPE_BIND_VERTEX_BUFFER | PIPE_BIND_INDEX_BUFFER |
