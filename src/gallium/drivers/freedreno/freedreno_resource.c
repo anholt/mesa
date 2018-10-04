@@ -35,6 +35,7 @@
 
 #include "freedreno_resource.h"
 #include "freedreno_batch_cache.h"
+#include "freedreno_fence.h"
 #include "freedreno_screen.h"
 #include "freedreno_surface.h"
 #include "freedreno_context.h"
@@ -1070,6 +1071,8 @@ void
 fd_blitter_pipe_begin(struct fd_context *ctx, bool render_cond, bool discard,
 		enum fd_render_stage stage)
 {
+	fd_fence_ref(ctx->base.screen, &ctx->last_fence, NULL);
+
 	util_blitter_save_fragment_constant_buffer_slot(ctx->blitter,
 			ctx->constbuf[PIPE_SHADER_FRAGMENT].cb);
 	util_blitter_save_vertex_buffer_slot(ctx->blitter, ctx->vtx.vertexbuf.vb);

@@ -28,6 +28,7 @@
 #include "util/u_dump.h"
 
 #include "freedreno_blitter.h"
+#include "freedreno_fence.h"
 #include "freedreno_resource.h"
 
 #include "fd6_blitter.h"
@@ -485,6 +486,8 @@ fd6_blit(struct pipe_context *pctx, const struct pipe_blit_info *info)
 		fd_blitter_pipe_end(ctx);
 		return;
 	}
+
+	fd_fence_ref(pctx->screen, &ctx->last_fence, NULL);
 
 	batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx, true);
 

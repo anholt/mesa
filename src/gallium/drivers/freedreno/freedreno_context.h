@@ -230,6 +230,12 @@ struct fd_context {
 	 */
 	struct fd_batch *batch;
 
+	/* NULL if there has been rendering since last flush.  Otherwise
+	 * keeps a reference to the last fence so we can re-use it rather
+	 * than having to flush no-op batch.
+	 */
+	struct pipe_fence_handle *last_fence;
+
 	/* Are we in process of shadowing a resource? Used to detect recursion
 	 * in transfer_map, and skip unneeded synchronization.
 	 */

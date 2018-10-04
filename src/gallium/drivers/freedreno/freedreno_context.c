@@ -49,14 +49,24 @@ fd_context_flush(struct pipe_context *pctx, struct pipe_fence_handle **fencep,
 
 	DBG("%p: flush: flags=%x\n", ctx->batch, flags);
 
+	/* if no rendering since last flush, ie. app just decided it needed
+	 * a fence, re-use the last one:
+	 */
+	if (ctx->last_fence) {
+		fd_fence_ref(pctx->screen, &fence, ctx->last_fence);
+		goto out;
+	}
+
 	if (!batch)
 		return;
 
 	/* Take a ref to the batch's fence (batch can be unref'd when flushed: */
 	fd_fence_ref(pctx->screen, &fence, batch->fence);
 
-	if (flags & PIPE_FLUSH_FENCE_FD)
-		batch->needs_out_fence_fd = true;
+	/* TODO is it worth trying to figure out if app is using fence-fd's, to
+	 * avoid requesting one every batch?
+	 */
+	batch->needs_out_fence_fd = true;
 
 	if (!ctx->screen->reorder) {
 		fd_batch_flush(batch, true, false);
@@ -66,8 +76,11 @@ fd_context_flush(struct pipe_context *pctx, struct pipe_fence_handle **fencep,
 		fd_bc_flush(&ctx->screen->batch_cache, ctx);
 	}
 
+out:
 	if (fencep)
 		fd_fence_ref(pctx->screen, fencep, fence);
+
+	fd_fence_ref(pctx->screen, &ctx->last_fence, fence);
 
 	fd_fence_ref(pctx->screen, &fence, NULL);
 }
@@ -136,6 +149,8 @@ fd_context_destroy(struct pipe_context *pctx)
 	unsigned i;
 
 	DBG("");
+
+	fd_fence_ref(pctx->screen, &ctx->last_fence, NULL);
 
 	if (ctx->screen->reorder && util_queue_is_initialized(&ctx->flush_queue))
 		util_queue_destroy(&ctx->flush_queue);

@@ -34,6 +34,7 @@
 
 #include "freedreno_draw.h"
 #include "freedreno_context.h"
+#include "freedreno_fence.h"
 #include "freedreno_state.h"
 #include "freedreno_resource.h"
 #include "freedreno_query_acc.h"
@@ -97,6 +98,8 @@ fd_draw_vbo(struct pipe_context *pctx, const struct pipe_draw_info *info)
 		util_primconvert_draw_vbo(ctx->primconvert, info);
 		return;
 	}
+
+	fd_fence_ref(pctx->screen, &ctx->last_fence, NULL);
 
 	/* Upload a user index buffer. */
 	struct pipe_resource *indexbuf = NULL;
@@ -381,6 +384,8 @@ fd_clear(struct pipe_context *pctx, unsigned buffers,
 	/* TODO: push down the region versions into the tiles */
 	if (!fd_render_condition_check(pctx))
 		return;
+
+	fd_fence_ref(pctx->screen, &ctx->last_fence, NULL);
 
 	if (ctx->in_blit) {
 		fd_batch_reset(batch);
