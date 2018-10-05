@@ -2723,8 +2723,11 @@ handle_vs_outputs_post(struct radv_shader_context *ctx,
 		viewport_index_value = radv_load_output(ctx, VARYING_SLOT_VIEWPORT, 0);
 	}
 
-	if (ctx->shader_info->info.so.num_outputs)
+	if (ctx->shader_info->info.so.num_outputs &&
+	    !ctx->is_gs_copy_shader) {
+		/* The GS copy shader emission already emits streamout. */
 		radv_emit_streamout(ctx, 0);
+	}
 
 	if (outinfo->writes_pointsize ||
 	    outinfo->writes_layer ||
@@ -3829,45 +3832,92 @@ ac_gs_copy_shader_emit(struct radv_shader_context *ctx)
 	LLVMValueRef vtx_offset =
 		LLVMBuildMul(ctx->ac.builder, ctx->abi.vertex_id,
 			     LLVMConstInt(ctx->ac.i32, 4, false), "");
-	unsigned offset = 0;
+	LLVMValueRef stream_id;
 
-	for (unsigned i = 0; i < AC_LLVM_MAX_OUTPUTS; ++i) {
-		unsigned output_usage_mask =
-			ctx->shader_info->info.gs.output_usage_mask[i];
-		int length = util_last_bit(output_usage_mask);
+	/* Fetch the vertex stream ID. */
+	if (ctx->shader_info->info.so.num_outputs) {
+		stream_id =
+			ac_unpack_param(&ctx->ac, ctx->streamout_config, 24, 2);
+	} else {
+		stream_id = ctx->ac.i32_0;
+	}
 
-		if (!(ctx->output_mask & (1ull << i)))
+	LLVMBasicBlockRef end_bb;
+	LLVMValueRef switch_inst;
+
+	end_bb = LLVMAppendBasicBlockInContext(ctx->ac.context,
+					       ctx->main_function, "end");
+	switch_inst = LLVMBuildSwitch(ctx->ac.builder, stream_id, end_bb, 4);
+
+	for (unsigned stream = 0; stream < 4; stream++) {
+		unsigned num_components =
+			ctx->shader_info->info.gs.num_stream_output_components[stream];
+		LLVMBasicBlockRef bb;
+		unsigned offset;
+
+		if (!num_components)
 			continue;
 
-		for (unsigned j = 0; j < length; j++) {
-			LLVMValueRef value, soffset;
+		if (stream > 0 && !ctx->shader_info->info.so.num_outputs)
+			continue;
 
-			if (!(output_usage_mask & (1 << j)))
+		bb = LLVMInsertBasicBlockInContext(ctx->ac.context, end_bb, "out");
+		LLVMAddCase(switch_inst, LLVMConstInt(ctx->ac.i32, stream, 0), bb);
+		LLVMPositionBuilderAtEnd(ctx->ac.builder, bb);
+
+		offset = 0;
+		for (unsigned i = 0; i < AC_LLVM_MAX_OUTPUTS; ++i) {
+			unsigned output_usage_mask =
+				ctx->shader_info->info.gs.output_usage_mask[i];
+			unsigned output_stream =
+				ctx->shader_info->info.gs.output_streams[i];
+			int length = util_last_bit(output_usage_mask);
+
+			if (!(ctx->output_mask & (1ull << i)) ||
+			    output_stream != stream)
 				continue;
 
-			soffset = LLVMConstInt(ctx->ac.i32,
-					       offset *
-					       ctx->gs_max_out_vertices * 16 * 4, false);
+			for (unsigned j = 0; j < length; j++) {
+				LLVMValueRef value, soffset;
 
-			offset++;
+				if (!(output_usage_mask & (1 << j)))
+					continue;
 
-			value = ac_build_buffer_load(&ctx->ac,
-						     ctx->gsvs_ring[0],
-						     1, ctx->ac.i32_0,
-						     vtx_offset, soffset,
-						     0, 1, 1, true, false);
+				soffset = LLVMConstInt(ctx->ac.i32,
+						       offset *
+						       ctx->gs_max_out_vertices * 16 * 4, false);
 
-			LLVMTypeRef type = LLVMGetAllocatedType(ctx->abi.outputs[ac_llvm_reg_index_soa(i, j)]);
-			if (ac_get_type_size(type) == 2) {
-				value = LLVMBuildBitCast(ctx->ac.builder, value, ctx->ac.i32, "");
-				value = LLVMBuildTrunc(ctx->ac.builder, value, ctx->ac.i16, "");
+				offset++;
+
+				value = ac_build_buffer_load(&ctx->ac,
+							     ctx->gsvs_ring[0],
+							     1, ctx->ac.i32_0,
+							     vtx_offset, soffset,
+							     0, 1, 1, true, false);
+
+				LLVMTypeRef type = LLVMGetAllocatedType(ctx->abi.outputs[ac_llvm_reg_index_soa(i, j)]);
+				if (ac_get_type_size(type) == 2) {
+					value = LLVMBuildBitCast(ctx->ac.builder, value, ctx->ac.i32, "");
+					value = LLVMBuildTrunc(ctx->ac.builder, value, ctx->ac.i16, "");
+				}
+
+				LLVMBuildStore(ctx->ac.builder,
+					       ac_to_float(&ctx->ac, value), ctx->abi.outputs[ac_llvm_reg_index_soa(i, j)]);
 			}
-
-			LLVMBuildStore(ctx->ac.builder,
-				       ac_to_float(&ctx->ac, value), ctx->abi.outputs[ac_llvm_reg_index_soa(i, j)]);
 		}
+
+		if (ctx->shader_info->info.so.num_outputs)
+			radv_emit_streamout(ctx, stream);
+
+		if (stream == 0) {
+			handle_vs_outputs_post(ctx, false, false,
+					       &ctx->shader_info->vs.outinfo);
+		}
+
+		LLVMBuildBr(ctx->ac.builder, end_bb);
 	}
-	handle_vs_outputs_post(ctx, false, false, &ctx->shader_info->vs.outinfo);
+
+	LLVMPositionBuilderAtEnd(ctx->ac.builder, end_bb);
 }
 
 void
