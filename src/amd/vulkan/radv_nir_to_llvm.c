@@ -2493,6 +2493,140 @@ radv_load_output(struct radv_shader_context *ctx, unsigned index, unsigned chan)
 }
 
 static void
+radv_emit_stream_output(struct radv_shader_context *ctx,
+			 LLVMValueRef const *so_buffers,
+			 LLVMValueRef const *so_write_offsets,
+			 const struct radv_stream_output *output)
+{
+	unsigned num_comps = util_bitcount(output->component_mask);
+	unsigned loc = output->location;
+	unsigned buf = output->buffer;
+	unsigned offset = output->offset;
+	unsigned start;
+	LLVMValueRef out[4];
+
+	assert(num_comps && num_comps <= 4);
+	if (!num_comps || num_comps > 4)
+		return;
+
+	/* Get the first component. */
+	start = ffs(output->component_mask) - 1;
+
+	/* Adjust the destination offset. */
+	offset += start * 4;
+
+	/* Load the output as int. */
+	for (int i = 0; i < num_comps; i++) {
+		out[i] = ac_to_integer(&ctx->ac,
+				       radv_load_output(ctx, loc, start + i));
+	}
+
+	/* Pack the output. */
+	LLVMValueRef vdata = NULL;
+
+	switch (num_comps) {
+	case 1: /* as i32 */
+		vdata = out[0];
+		break;
+	case 2: /* as v2i32 */
+	case 3: /* as v4i32 (aligned to 4) */
+		out[3] = LLVMGetUndef(ctx->ac.i32);
+		/* fall through */
+	case 4: /* as v4i32 */
+		vdata = ac_build_gather_values(&ctx->ac, out,
+					       util_next_power_of_two(num_comps));
+		break;
+	}
+
+	ac_build_buffer_store_dword(&ctx->ac, so_buffers[buf],
+				    vdata, num_comps, so_write_offsets[buf],
+				    ctx->ac.i32_0, offset,
+				    1, 1, true, false);
+}
+
+static void
+radv_emit_streamout(struct radv_shader_context *ctx, unsigned stream)
+{
+	struct ac_build_if_state if_ctx;
+	int i;
+
+	/* Get bits [22:16], i.e. (so_param >> 16) & 127; */
+	assert(ctx->streamout_config);
+	LLVMValueRef so_vtx_count =
+		ac_build_bfe(&ctx->ac, ctx->streamout_config,
+			     LLVMConstInt(ctx->ac.i32, 16, false),
+			     LLVMConstInt(ctx->ac.i32, 7, false), false);
+
+	LLVMValueRef tid = ac_get_thread_id(&ctx->ac);
+
+	/* can_emit = tid < so_vtx_count; */
+	LLVMValueRef can_emit = LLVMBuildICmp(ctx->ac.builder, LLVMIntULT,
+					      tid, so_vtx_count, "");
+
+	/* Emit the streamout code conditionally. This actually avoids
+	 * out-of-bounds buffer access. The hw tells us via the SGPR
+	 * (so_vtx_count) which threads are allowed to emit streamout data.
+	 */
+	ac_nir_build_if(&if_ctx, ctx, can_emit);
+	{
+		/* The buffer offset is computed as follows:
+		 *   ByteOffset = streamout_offset[buffer_id]*4 +
+		 *                (streamout_write_index + thread_id)*stride[buffer_id] +
+		 *                attrib_offset
+		 */
+		LLVMValueRef so_write_index = ctx->streamout_write_idx;
+
+		/* Compute (streamout_write_index + thread_id). */
+		so_write_index =
+			LLVMBuildAdd(ctx->ac.builder, so_write_index, tid, "");
+
+		/* Load the descriptor and compute the write offset for each
+		 * enabled buffer.
+		 */
+		LLVMValueRef so_write_offset[4] = {};
+		LLVMValueRef so_buffers[4] = {};
+		LLVMValueRef buf_ptr = ctx->streamout_buffers;
+
+		for (i = 0; i < 4; i++) {
+			uint16_t stride = ctx->shader_info->info.so.strides[i];
+
+			if (!stride)
+				continue;
+
+			LLVMValueRef offset =
+				LLVMConstInt(ctx->ac.i32, i, false);
+
+			so_buffers[i] = ac_build_load_to_sgpr(&ctx->ac,
+							      buf_ptr, offset);
+
+			LLVMValueRef so_offset = ctx->streamout_offset[i];
+
+			so_offset = LLVMBuildMul(ctx->ac.builder, so_offset,
+						 LLVMConstInt(ctx->ac.i32, 4, false), "");
+
+			so_write_offset[i] =
+				ac_build_imad(&ctx->ac, so_write_index,
+					      LLVMConstInt(ctx->ac.i32,
+							   stride * 4, false),
+					      so_offset);
+		}
+
+		/* Write streamout data. */
+		for (i = 0; i < ctx->shader_info->info.so.num_outputs; i++) {
+			struct radv_stream_output *output =
+				&ctx->shader_info->info.so.outputs[i];
+
+			if (stream != output->stream)
+				continue;
+
+			radv_emit_stream_output(ctx, so_buffers,
+						so_write_offset, output);
+		}
+	}
+	ac_nir_build_endif(&if_ctx);
+}
+
+static void
 handle_vs_outputs_post(struct radv_shader_context *ctx,
 		       bool export_prim_id, bool export_layer_id,
 		       struct radv_vs_output_info *outinfo)
@@ -2588,6 +2722,9 @@ handle_vs_outputs_post(struct radv_shader_context *ctx,
 		outinfo->writes_viewport_index = true;
 		viewport_index_value = radv_load_output(ctx, VARYING_SLOT_VIEWPORT, 0);
 	}
+
+	if (ctx->shader_info->info.so.num_outputs)
+		radv_emit_streamout(ctx, 0);
 
 	if (outinfo->writes_pointsize ||
 	    outinfo->writes_layer ||
