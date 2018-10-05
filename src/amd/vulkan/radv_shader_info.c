@@ -24,6 +24,7 @@
 #include "radv_shader.h"
 #include "nir/nir.h"
 #include "nir/nir_deref.h"
+#include "nir/nir_xfb_info.h"
 
 static void mark_sampler_desc(const nir_variable *var,
 			      struct radv_shader_info *info)
@@ -470,6 +471,39 @@ gather_info_output_decl(const nir_shader *nir, const nir_variable *var,
 	}
 }
 
+static void
+gather_xfb_info(const nir_shader *nir, struct radv_shader_info *info)
+{
+	nir_xfb_info *xfb = nir_gather_xfb_info(nir, NULL);
+	struct radv_streamout_info *so = &info->so;
+
+	if (!xfb)
+		return;
+
+	assert(xfb->output_count < MAX_SO_OUTPUTS);
+	so->num_outputs = xfb->output_count;
+
+	for (unsigned i = 0; i < xfb->output_count; i++) {
+		struct radv_stream_output *output = &so->outputs[i];
+
+		output->buffer = xfb->outputs[i].buffer;
+		output->stream = xfb->buffer_to_stream[xfb->outputs[i].buffer];
+		output->offset = xfb->outputs[i].offset;
+		output->location = xfb->outputs[i].location;
+		output->component_mask = xfb->outputs[i].component_mask;
+
+		so->enabled_stream_buffers_mask |=
+			(1 << output->buffer) << (output->stream * 4);
+
+	}
+
+	for (unsigned i = 0; i < NIR_MAX_XFB_BUFFERS; i++) {
+		so->strides[i] = xfb->strides[i] / 4;
+	}
+
+	ralloc_free(xfb);
+}
+
 void
 radv_nir_shader_info_pass(const struct nir_shader *nir,
 			  const struct radv_nir_compiler_options *options,
@@ -490,4 +524,9 @@ radv_nir_shader_info_pass(const struct nir_shader *nir,
 
 	nir_foreach_variable(variable, &nir->outputs)
 		gather_info_output_decl(nir, variable, info, options);
+
+	if (nir->info.stage == MESA_SHADER_VERTEX ||
+	    nir->info.stage == MESA_SHADER_TESS_EVAL ||
+	    nir->info.stage == MESA_SHADER_GEOMETRY)
+		gather_xfb_info(nir, info);
 }

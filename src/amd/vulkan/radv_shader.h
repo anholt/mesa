@@ -143,6 +143,22 @@ enum radv_ud_index {
 	AC_UD_TES_MAX_UD,
 	AC_UD_MAX_UD = AC_UD_TCS_MAX_UD,
 };
+
+struct radv_stream_output {
+	uint8_t location;
+	uint8_t buffer;
+	uint16_t offset;
+	uint8_t component_mask;
+	uint8_t stream;
+};
+
+struct radv_streamout_info {
+	uint16_t num_outputs;
+	struct radv_stream_output outputs[MAX_SO_OUTPUTS];
+	uint16_t strides[MAX_SO_BUFFERS];
+	uint32_t enabled_stream_buffers_mask;
+};
+
 struct radv_shader_info {
 	bool loads_push_constants;
 	uint32_t desc_set_used_mask;
@@ -189,6 +205,8 @@ struct radv_shader_info {
 		uint64_t outputs_written;
 		uint64_t patch_outputs_written;
 	} tcs;
+
+	struct radv_streamout_info so;
 };
 
 struct radv_userdata_info {
