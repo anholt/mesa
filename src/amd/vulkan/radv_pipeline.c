@@ -3482,6 +3482,22 @@ radv_compute_vertex_input_state(struct radv_pipeline *pipeline,
 	}
 }
 
+static struct radv_shader_variant *
+radv_pipeline_get_streamout_shader(struct radv_pipeline *pipeline)
+{
+	int i;
+
+	for (i = MESA_SHADER_GEOMETRY; i >= MESA_SHADER_VERTEX; i--) {
+		struct radv_shader_variant *shader =
+			radv_get_shader(pipeline, i);
+
+		if (shader && shader->info.info.so.num_outputs > 0)
+			return shader;
+	}
+
+	return NULL;
+}
+
 static VkResult
 radv_pipeline_init(struct radv_pipeline *pipeline,
 		   struct radv_device *device,
@@ -3596,6 +3612,9 @@ radv_pipeline_init(struct radv_pipeline *pipeline,
 		else
 			pipeline->graphics.vtx_emit_num = 2;
 	}
+
+	/* Find the last vertex shader stage that eventually uses streamout. */
+	pipeline->streamout_shader = radv_pipeline_get_streamout_shader(pipeline);
 
 	result = radv_pipeline_scratch_init(device, pipeline);
 	radv_pipeline_generate_pm4(pipeline, pCreateInfo, extra, &blend, &tess, &gs, prim, gs_out);

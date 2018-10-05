@@ -119,6 +119,7 @@
 #define			STRMOUT_OFFSET_FROM_VGT_FILLED_SIZE	1
 #define			STRMOUT_OFFSET_FROM_MEM			2
 #define			STRMOUT_OFFSET_NONE			3
+#define		STRMOUT_DATA_TYPE(x)		(((unsigned)(x) & 0x1) << 7)
 #define		STRMOUT_SELECT_BUFFER(x)	(((unsigned)(x) & 0x3) << 8)
 #define PKT3_DRAW_INDEX_OFFSET_2               0x35
 #define PKT3_WRITE_DATA                        0x37

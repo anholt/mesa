@@ -840,6 +840,13 @@ void radv_GetPhysicalDeviceFeatures2(
 			features->vertexAttributeInstanceRateZeroDivisor = VK_TRUE;
 			break;
 		}
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT: {
+			VkPhysicalDeviceTransformFeedbackFeaturesEXT *features =
+				(VkPhysicalDeviceTransformFeedbackFeaturesEXT*)ext;
+			features->transformFeedback = true;
+			features->geometryStreams = true;
+			break;
+		}
 		default:
 			break;
 		}
@@ -1211,6 +1218,21 @@ void radv_GetPhysicalDeviceProperties2(
 				.subminor = 2,
 				.patch = 0,
 			};
+			break;
+		}
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT: {
+			VkPhysicalDeviceTransformFeedbackPropertiesEXT *properties =
+				(VkPhysicalDeviceTransformFeedbackPropertiesEXT *)ext;
+			properties->maxTransformFeedbackStreams = MAX_SO_STREAMS;
+			properties->maxTransformFeedbackBuffers = MAX_SO_BUFFERS;
+			properties->maxTransformFeedbackBufferSize = UINT32_MAX;
+			properties->maxTransformFeedbackStreamDataSize = 512;
+			properties->maxTransformFeedbackBufferDataSize = UINT32_MAX;
+			properties->maxTransformFeedbackBufferDataStride = 512;
+			properties->transformFeedbackQueries = true;
+			properties->transformFeedbackStreamsLinesTriangles = false;
+			properties->transformFeedbackRasterizationStreamSelect = false;
+			properties->transformFeedbackDraw = true;
 			break;
 		}
 		default:
