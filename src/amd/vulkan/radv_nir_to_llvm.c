@@ -85,6 +85,12 @@ struct radv_shader_context {
 	LLVMValueRef persp_sample, persp_center, persp_centroid;
 	LLVMValueRef linear_sample, linear_center, linear_centroid;
 
+	/* Streamout */
+	LLVMValueRef streamout_buffers;
+	LLVMValueRef streamout_write_idx;
+	LLVMValueRef streamout_config;
+	LLVMValueRef streamout_offset[4];
+
 	gl_shader_stage stage;
 
 	LLVMValueRef inputs[RADEON_LLVM_MAX_INPUTS * 4];
@@ -733,6 +739,12 @@ declare_global_input_sgprs(struct radv_shader_context *ctx,
 		/* 1 for push constants and dynamic descriptors */
 		add_array_arg(args, type, &ctx->abi.push_constants);
 	}
+
+	if (ctx->shader_info->info.so.num_outputs) {
+		add_arg(args, ARG_SGPR,
+			ac_array_in_const32_addr_space(ctx->ac.v4i32),
+			&ctx->streamout_buffers);
+	}
 }
 
 static void
@@ -771,6 +783,36 @@ declare_vs_input_vgprs(struct radv_shader_context *ctx, struct arg_info *args)
 			add_arg(args, ARG_VGPR, ctx->ac.i32, &ctx->vs_prim_id);
 		}
 		add_arg(args, ARG_VGPR, ctx->ac.i32, NULL); /* unused */
+	}
+}
+
+static void
+declare_streamout_sgprs(struct radv_shader_context *ctx, gl_shader_stage stage,
+			struct arg_info *args)
+{
+	int i;
+
+	/* Streamout SGPRs. */
+	if (ctx->shader_info->info.so.num_outputs) {
+		assert(stage == MESA_SHADER_VERTEX ||
+		       stage == MESA_SHADER_TESS_EVAL);
+
+		if (stage != MESA_SHADER_TESS_EVAL) {
+			add_arg(args, ARG_SGPR, ctx->ac.i32, &ctx->streamout_config);
+		} else {
+			args->assign[args->count - 1] = &ctx->streamout_config;
+			args->types[args->count - 1] = ctx->ac.i32;
+		}
+
+		add_arg(args, ARG_SGPR, ctx->ac.i32, &ctx->streamout_write_idx);
+	}
+
+	/* A streamout buffer offset is loaded if the stride is non-zero. */
+	for (i = 0; i < 4; i++) {
+		if (!ctx->shader_info->info.so.strides[i])
+			continue;
+
+		add_arg(args, ARG_SGPR, ctx->ac.i32, &ctx->streamout_offset[i]);
 	}
 }
 
@@ -824,6 +866,11 @@ set_global_input_locs(struct radv_shader_context *ctx, gl_shader_stage stage,
 
 	if (ctx->shader_info->info.loads_push_constants) {
 		set_loc_shader_ptr(ctx, AC_UD_PUSH_CONSTANTS, user_sgpr_idx);
+	}
+
+	if (ctx->streamout_buffers) {
+		set_loc_shader_ptr(ctx, AC_UD_STREAMOUT_BUFFERS,
+			       user_sgpr_idx);
 	}
 }
 
@@ -931,9 +978,14 @@ static void create_function(struct radv_shader_context *ctx,
 		if (needs_view_index)
 			add_arg(&args, ARG_SGPR, ctx->ac.i32,
 				&ctx->abi.view_index);
-		if (ctx->options->key.vs.as_es)
+		if (ctx->options->key.vs.as_es) {
 			add_arg(&args, ARG_SGPR, ctx->ac.i32,
 				&ctx->es2gs_offset);
+		} else if (ctx->options->key.vs.as_ls) {
+			/* no extra parameters */
+		} else {
+			declare_streamout_sgprs(ctx, stage, &args);
+		}
 
 		declare_vs_input_vgprs(ctx, &args);
 		break;
@@ -1005,6 +1057,7 @@ static void create_function(struct radv_shader_context *ctx,
 				&ctx->es2gs_offset);
 		} else {
 			add_arg(&args, ARG_SGPR, ctx->ac.i32, NULL);
+			declare_streamout_sgprs(ctx, stage, &args);
 			add_arg(&args, ARG_SGPR, ctx->ac.i32, &ctx->oc_lds);
 		}
 		declare_tes_input_vgprs(ctx, &args);
