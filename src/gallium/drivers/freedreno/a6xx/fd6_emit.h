@@ -38,6 +38,20 @@
 
 struct fd_ringbuffer;
 
+/* To collect all the state objects to emit in a single CP_SET_DRAW_STATE
+ * packet, the emit tracks a collection of however many state_group's that
+ * need to be emit'd.
+ */
+enum fd6_state_id {
+	FD6_GROUP_CONST,
+};
+
+struct fd6_state_group {
+	struct fd_ringbuffer *stateobj;
+	enum fd6_state_id group_id;
+	uint8_t enable_mask;
+};
+
 /* grouped together emit-state for prog/vertex/state emit: */
 struct fd6_emit {
 	struct pipe_debug_callback *debug;
@@ -63,6 +77,9 @@ struct fd6_emit {
 	/* TODO: other shader stages.. */
 
 	unsigned streamout_mask;
+
+	struct fd6_state_group groups[32];
+	unsigned num_groups;
 };
 
 static inline const struct ir3_shader_variant *
@@ -89,6 +106,19 @@ fd6_emit_get_fp(struct fd6_emit *emit)
 		}
 	}
 	return emit->fp;
+}
+
+static inline void
+fd6_emit_add_group(struct fd6_emit *emit, struct fd_ringbuffer *stateobj,
+		enum fd6_state_id group_id, unsigned enable_mask)
+{
+	debug_assert(emit->num_groups < ARRAY_SIZE(emit->groups));
+	if (fd_ringbuffer_size(stateobj) == 0)
+		return;
+	struct fd6_state_group *g = &emit->groups[emit->num_groups++];
+	g->stateobj = stateobj;
+	g->group_id = group_id;
+	g->enable_mask = enable_mask;
 }
 
 static inline void

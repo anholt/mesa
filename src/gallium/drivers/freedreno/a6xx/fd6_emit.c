@@ -940,6 +940,22 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_IMAGE)
 		fd6_emit_images(ctx, ring, PIPE_SHADER_FRAGMENT);
+
+	if (emit->num_groups > 0) {
+		OUT_PKT7(ring, CP_SET_DRAW_STATE, 3 * emit->num_groups);
+		for (unsigned i = 0; i < emit->num_groups; i++) {
+			struct fd6_state_group *g = &emit->groups[i];
+			unsigned n = fd_ringbuffer_size(g->stateobj) / 4;
+
+			OUT_RING(ring, CP_SET_DRAW_STATE__0_COUNT(n) |
+					CP_SET_DRAW_STATE__0_ENABLE_MASK(g->enable_mask) |
+					CP_SET_DRAW_STATE__0_GROUP_ID(g->group_id));
+			OUT_RB(ring, g->stateobj);
+
+			fd_ringbuffer_del(g->stateobj);
+		}
+		emit->num_groups = 0;
+	}
 }
 
 void
