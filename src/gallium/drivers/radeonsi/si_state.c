@@ -88,9 +88,6 @@ static void si_emit_cb_render_state(struct si_context *sctx)
 	    (sctx->ps_shader.cso->info.colors_written & 0x3) != 0x3)
 		cb_target_mask = 0;
 
-	radeon_opt_set_context_reg(sctx, R_028238_CB_TARGET_MASK,
-				   SI_TRACKED_CB_TARGET_MASK, cb_target_mask);
-
 	/* GFX9: Flush DFSM when CB_TARGET_MASK changes.
 	 * I think we don't have to do anything between IBs.
 	 */
@@ -101,6 +98,10 @@ static void si_emit_cb_render_state(struct si_context *sctx)
 		radeon_emit(cs, PKT3(PKT3_EVENT_WRITE, 0, 0));
 		radeon_emit(cs, EVENT_TYPE(V_028A90_FLUSH_DFSM) | EVENT_INDEX(0));
 	}
+
+	unsigned initial_cdw = cs->current.cdw;
+	radeon_opt_set_context_reg(sctx, R_028238_CB_TARGET_MASK,
+				   SI_TRACKED_CB_TARGET_MASK, cb_target_mask);
 
 	if (sctx->chip_class >= VI) {
 		/* DCC MSAA workaround for blending.
@@ -252,6 +253,8 @@ static void si_emit_cb_render_state(struct si_context *sctx)
 					    sx_ps_downconvert, sx_blend_opt_epsilon,
 					    sx_blend_opt_control);
 	}
+	if (initial_cdw != cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 /*
@@ -773,6 +776,7 @@ static void si_emit_clip_regs(struct si_context *sctx)
 	clipdist_mask &= rs->clip_plane_enable;
 	culldist_mask |= clipdist_mask;
 
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
 	radeon_opt_set_context_reg(sctx, R_02881C_PA_CL_VS_OUT_CNTL,
 		SI_TRACKED_PA_CL_VS_OUT_CNTL,
 		vs_sel->pa_cl_vs_out_cntl |
@@ -784,6 +788,9 @@ static void si_emit_clip_regs(struct si_context *sctx)
 		rs->pa_cl_clip_cntl |
 		ucp_mask |
 		S_028810_CLIP_DISABLE(window_space));
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 /*
@@ -1352,6 +1359,7 @@ static void si_emit_db_render_state(struct si_context *sctx)
 {
 	struct si_state_rasterizer *rs = sctx->queued.named.rasterizer;
 	unsigned db_shader_control, db_render_control, db_count_control;
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
 
 	/* DB_RENDER_CONTROL */
 	if (sctx->dbcb_depth_copy_enabled ||
@@ -1434,6 +1442,9 @@ static void si_emit_db_render_state(struct si_context *sctx)
 
 	radeon_opt_set_context_reg(sctx, R_02880C_DB_SHADER_CONTROL,
 				   SI_TRACKED_DB_SHADER_CONTROL, db_shader_control);
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 /*
@@ -3489,6 +3500,8 @@ static void si_emit_msaa_config(struct si_context *sctx)
 		}
 	}
 
+	unsigned initial_cdw = cs->current.cdw;
+
 	/* R_028BDC_PA_SC_LINE_CNTL, R_028BE0_PA_SC_AA_CONFIG */
 	radeon_opt_set_context_reg2(sctx, R_028BDC_PA_SC_LINE_CNTL,
 				    SI_TRACKED_PA_SC_LINE_CNTL, sc_line_cntl,
@@ -3500,10 +3513,14 @@ static void si_emit_msaa_config(struct si_context *sctx)
 	radeon_opt_set_context_reg(sctx, R_028A4C_PA_SC_MODE_CNTL_1,
 				   SI_TRACKED_PA_SC_MODE_CNTL_1, sc_mode_cntl_1);
 
-	/* GFX9: Flush DFSM when the AA mode changes. */
-	if (sctx->screen->dfsm_allowed) {
-		radeon_emit(cs, PKT3(PKT3_EVENT_WRITE, 0, 0));
-		radeon_emit(cs, EVENT_TYPE(V_028A90_FLUSH_DFSM) | EVENT_INDEX(0));
+	if (initial_cdw != cs->current.cdw) {
+		sctx->context_roll_counter++;
+
+		/* GFX9: Flush DFSM when the AA mode changes. */
+		if (sctx->screen->dfsm_allowed) {
+			radeon_emit(cs, PKT3(PKT3_EVENT_WRITE, 0, 0));
+			radeon_emit(cs, EVENT_TYPE(V_028A90_FLUSH_DFSM) | EVENT_INDEX(0));
+		}
 	}
 }
 

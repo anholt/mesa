@@ -1023,6 +1023,7 @@ struct si_context {
 	unsigned			num_resident_handles;
 	uint64_t			num_alloc_tex_transfer_bytes;
 	unsigned			last_tex_ps_draw_ratio; /* for query */
+	unsigned			context_roll_counter;
 
 	/* Queries. */
 	/* Maintain the list of active queries for pausing between IBs. */

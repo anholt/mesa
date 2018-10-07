@@ -258,6 +258,7 @@ static void si_emit_guardband(struct si_context *ctx)
 	 * R_028BE8_PA_CL_GB_VERT_CLIP_ADJ, R_028BEC_PA_CL_GB_VERT_DISC_ADJ
 	 * R_028BF0_PA_CL_GB_HORZ_CLIP_ADJ, R_028BF4_PA_CL_GB_HORZ_DISC_ADJ
 	 */
+	unsigned initial_cdw = ctx->gfx_cs->current.cdw;
 	radeon_opt_set_context_reg4(ctx, R_028BE8_PA_CL_GB_VERT_CLIP_ADJ,
 				    SI_TRACKED_PA_CL_GB_VERT_CLIP_ADJ,
 				    fui(guardband_y), fui(discard_y),
@@ -271,6 +272,8 @@ static void si_emit_guardband(struct si_context *ctx)
 				   S_028BE4_PIX_CENTER(rs->half_pixel_center) |
 				   S_028BE4_QUANT_MODE(V_028BE4_X_16_8_FIXED_POINT_1_256TH +
 						       vp_as_scissor.quant_mode));
+	if (initial_cdw != ctx->gfx_cs->current.cdw)
+		ctx->context_roll_counter++;
 }
 
 static void si_emit_scissors(struct si_context *ctx)

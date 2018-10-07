@@ -561,6 +561,7 @@ static void si_shader_hs(struct si_screen *sscreen, struct si_shader *shader)
 static void si_emit_shader_es(struct si_context *sctx)
 {
 	struct si_shader *shader = sctx->queued.named.es->shader;
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
 
 	if (!shader)
 		return;
@@ -578,6 +579,9 @@ static void si_emit_shader_es(struct si_context *sctx)
 		radeon_opt_set_context_reg(sctx, R_028C58_VGT_VERTEX_REUSE_BLOCK_CNTL,
 					   SI_TRACKED_VGT_VERTEX_REUSE_BLOCK_CNTL,
 					   shader->vgt_vertex_reuse_block_cntl);
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 static void si_shader_es(struct si_screen *sscreen, struct si_shader *shader)
@@ -762,6 +766,8 @@ static void gfx9_get_gs_info(struct si_shader_selector *es,
 static void si_emit_shader_gs(struct si_context *sctx)
 {
 	struct si_shader *shader = sctx->queued.named.gs->shader;
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
+
 	if (!shader)
 		return;
 
@@ -822,6 +828,9 @@ static void si_emit_shader_gs(struct si_context *sctx)
 						   SI_TRACKED_VGT_VERTEX_REUSE_BLOCK_CNTL,
 						   shader->vgt_vertex_reuse_block_cntl);
 	}
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 static void si_shader_gs(struct si_screen *sscreen, struct si_shader *shader)
@@ -957,6 +966,8 @@ static void si_shader_gs(struct si_screen *sscreen, struct si_shader *shader)
 static void si_emit_shader_vs(struct si_context *sctx)
 {
 	struct si_shader *shader = sctx->queued.named.vs->shader;
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
+
 	if (!shader)
 		return;
 
@@ -994,6 +1005,9 @@ static void si_emit_shader_vs(struct si_context *sctx)
 		radeon_opt_set_context_reg(sctx, R_028C58_VGT_VERTEX_REUSE_BLOCK_CNTL,
 					   SI_TRACKED_VGT_VERTEX_REUSE_BLOCK_CNTL,
 					   shader->vgt_vertex_reuse_block_cntl);
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 /**
@@ -1156,6 +1170,8 @@ static unsigned si_get_spi_shader_col_format(struct si_shader *shader)
 static void si_emit_shader_ps(struct si_context *sctx)
 {
 	struct si_shader *shader = sctx->queued.named.ps->shader;
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
+
 	if (!shader)
 		return;
 
@@ -1181,6 +1197,9 @@ static void si_emit_shader_ps(struct si_context *sctx)
 	radeon_opt_set_context_reg(sctx, R_02823C_CB_SHADER_MASK,
 				   SI_TRACKED_CB_SHADER_MASK,
 				   shader->ctx_reg.ps.cb_shader_mask);
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 static void si_shader_ps(struct si_shader *shader)
@@ -2849,9 +2868,13 @@ static void si_emit_spi_map(struct si_context *sctx)
 	/* R_028644_SPI_PS_INPUT_CNTL_0 */
 	/* Dota 2: Only ~16% of SPI map updates set different values. */
 	/* Talos: Only ~9% of SPI map updates set different values. */
+	unsigned initial_cdw = sctx->gfx_cs->current.cdw;
 	radeon_opt_set_context_regn(sctx, R_028644_SPI_PS_INPUT_CNTL_0,
 				    spi_ps_input_cntl,
 				    sctx->tracked_regs.spi_ps_input_cntl, num_interp);
+
+	if (initial_cdw != sctx->gfx_cs->current.cdw)
+		sctx->context_roll_counter++;
 }
 
 /**

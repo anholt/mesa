@@ -1189,26 +1189,26 @@ static void si_emit_all_states(struct si_context *sctx, const struct pipe_draw_i
 			       unsigned skip_atom_mask)
 {
 	unsigned num_patches = 0;
+	/* Vega10/Raven scissor bug workaround. When any context register is
+	 * written (i.e. the GPU rolls the context), PA_SC_VPORT_SCISSOR
+	 * registers must be written too.
+	 */
+	bool handle_scissor_bug = (sctx->family == CHIP_VEGA10 || sctx->family == CHIP_RAVEN) &&
+				  !si_is_atom_dirty(sctx, &sctx->atoms.s.scissors);
 	bool context_roll = false; /* set correctly for GFX9 only */
 
 	context_roll |= si_emit_rasterizer_prim_state(sctx);
 	if (sctx->tes_shader.cso)
 		context_roll |= si_emit_derived_tess_state(sctx, info, &num_patches);
-	if (info->count_from_stream_output)
+
+	if (handle_scissor_bug &&
+	    (info->count_from_stream_output ||
+	     sctx->dirty_atoms & si_atoms_that_always_roll_context() ||
+	     sctx->dirty_states & si_states_that_always_roll_context() ||
+	     si_prim_restart_index_changed(sctx, info)))
 		context_roll = true;
 
-	/* Vega10/Raven scissor bug workaround. When any context register is
-	 * written (i.e. the GPU rolls the context), PA_SC_VPORT_SCISSOR
-	 * registers must be written too.
-	 */
-	if ((sctx->family == CHIP_VEGA10 || sctx->family == CHIP_RAVEN) &&
-	    (context_roll ||
-	     sctx->dirty_atoms & si_atoms_that_roll_context() ||
-	     sctx->dirty_states & si_states_that_roll_context() ||
-	     si_prim_restart_index_changed(sctx, info))) {
-		sctx->scissors.dirty_mask = (1 << SI_MAX_VIEWPORTS) - 1;
-		si_mark_atom_dirty(sctx, &sctx->atoms.s.scissors);
-	}
+	sctx->context_roll_counter = 0;
 
 	/* Emit state atoms. */
 	unsigned mask = sctx->dirty_atoms & ~skip_atom_mask;
@@ -1230,6 +1230,12 @@ static void si_emit_all_states(struct si_context *sctx, const struct pipe_draw_i
 		sctx->emitted.array[i] = state;
 	}
 	sctx->dirty_states = 0;
+
+	if (handle_scissor_bug &&
+	    (context_roll || sctx->context_roll_counter)) {
+		sctx->scissors.dirty_mask = (1 << SI_MAX_VIEWPORTS) - 1;
+		sctx->atoms.s.scissors.emit(sctx);
+	}
 
 	/* Emit draw states. */
 	si_emit_vs_state(sctx, info);
