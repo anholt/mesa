@@ -359,7 +359,8 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (tex->num_samplers > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_object(ctx->pipe, tex->num_samplers * 4);
+			fd_ringbuffer_new_flags(ctx->pipe, tex->num_samplers * 4 * 4,
+					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
 		for (unsigned i = 0; i < tex->num_samplers; i++) {
 			static const struct fd6_sampler_stateobj dummy_sampler = {};
 			const struct fd6_sampler_stateobj *sampler = tex->samplers[i] ?
@@ -389,7 +390,8 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (tex->num_textures > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_object(ctx->pipe, tex->num_textures * 16);
+			fd_ringbuffer_new_flags(ctx->pipe, tex->num_textures * 16 * 4,
+					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
 		for (unsigned i = 0; i < tex->num_textures; i++) {
 			static const struct fd6_pipe_sampler_view dummy_view = {};
 			const struct fd6_pipe_sampler_view *view = tex->textures[i] ?
@@ -791,9 +793,29 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		OUT_RING(ring, A6XX_SP_FS_OUTPUT_CNTL1_MRT(nr));
 	}
 
-	ir3_emit_vs_consts(vp, ring, ctx, emit->info);
-	if (!emit->key.binning_pass)
-		ir3_emit_fs_consts(fp, ring, ctx);
+#define DIRTY_CONST (FD_DIRTY_SHADER_PROG | FD_DIRTY_SHADER_CONST | \
+					 FD_DIRTY_SHADER_SSBO | FD_DIRTY_SHADER_IMAGE)
+
+	if (ctx->dirty_shader[PIPE_SHADER_VERTEX] & DIRTY_CONST) {
+		struct fd_ringbuffer *vsconstobj =
+			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
+					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+
+		ir3_emit_vs_consts(vp, vsconstobj, ctx, emit->info);
+		fd6_emit_add_group(emit, vsconstobj, FD6_GROUP_VS_CONST, 0x7);
+		fd_ringbuffer_del(vsconstobj);
+	}
+
+	if ((ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & DIRTY_CONST) &&
+			!emit->key.binning_pass) {
+		struct fd_ringbuffer *fsconstobj =
+			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
+					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+
+		ir3_emit_fs_consts(fp, fsconstobj, ctx);
+		fd6_emit_add_group(emit, fsconstobj, FD6_GROUP_FS_CONST, 0x7);
+		fd_ringbuffer_del(fsconstobj);
+	}
 
 	struct pipe_stream_output_info *info = &vp->shader->stream_output;
 	if (info->num_outputs) {

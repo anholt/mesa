@@ -43,7 +43,8 @@ struct fd_ringbuffer;
  * need to be emit'd.
  */
 enum fd6_state_id {
-	FD6_GROUP_CONST,
+	FD6_GROUP_VS_CONST,
+	FD6_GROUP_FS_CONST,
 };
 
 struct fd6_state_group {
@@ -116,7 +117,7 @@ fd6_emit_add_group(struct fd6_emit *emit, struct fd_ringbuffer *stateobj,
 	if (fd_ringbuffer_size(stateobj) == 0)
 		return;
 	struct fd6_state_group *g = &emit->groups[emit->num_groups++];
-	g->stateobj = stateobj;
+	g->stateobj = fd_ringbuffer_ref(stateobj);
 	g->group_id = group_id;
 	g->enable_mask = enable_mask;
 }

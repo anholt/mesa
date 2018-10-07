@@ -552,6 +552,18 @@ ir3_shader_outputs(const struct ir3_shader *so)
 
 #include "freedreno_resource.h"
 
+static inline void
+ring_wfi(struct fd_batch *batch, struct fd_ringbuffer *ring)
+{
+	/* when we emit const state via ring (IB2) we need a WFI, but when
+	 * it is emit'd via stateobj, we don't
+	 */
+	if (ring->flags & FD_RINGBUFFER_OBJECT)
+		return;
+
+	fd_wfi(batch, ring);
+}
+
 static void
 emit_user_consts(struct fd_context *ctx, const struct ir3_shader_variant *v,
 		struct fd_ringbuffer *ring, struct fd_constbuf_stateobj *constbuf)
@@ -579,7 +591,7 @@ emit_user_consts(struct fd_context *ctx, const struct ir3_shader_variant *v,
 		size = MIN2(size, 4 * max_const);
 
 		if (size > 0) {
-			fd_wfi(ctx->batch, ring);
+			ring_wfi(ctx->batch, ring);
 			ctx->emit_const(ring, v->type, 0,
 					cb->buffer_offset, size,
 					cb->user_buffer, cb->buffer);
@@ -611,7 +623,7 @@ emit_ubos(struct fd_context *ctx, const struct ir3_shader_variant *v,
 			}
 		}
 
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 		ctx->emit_const_bo(ring, v->type, false, offset * 4, params, prscs, offsets);
 	}
 }
@@ -631,7 +643,7 @@ emit_ssbo_sizes(struct fd_context *ctx, const struct ir3_shader_variant *v,
 			sizes[off] = sb->sb[index].buffer_size;
 		}
 
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 		ctx->emit_const(ring, v->type, offset * 4,
 			0, ARRAY_SIZE(sizes), sizes, NULL);
 	}
@@ -673,7 +685,7 @@ emit_image_dims(struct fd_context *ctx, const struct ir3_shader_variant *v,
 			}
 		}
 
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 		ctx->emit_const(ring, v->type, offset * 4,
 			0, ARRAY_SIZE(dims), dims, NULL);
 	}
@@ -696,7 +708,7 @@ emit_immediates(struct fd_context *ctx, const struct ir3_shader_variant *v,
 	size *= 4;
 
 	if (size > 0) {
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 		ctx->emit_const(ring, v->type, base,
 			0, size, v->immediates[0].val, NULL);
 	}
@@ -729,7 +741,7 @@ emit_tfbos(struct fd_context *ctx, const struct ir3_shader_variant *v,
 			}
 		}
 
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 		ctx->emit_const_bo(ring, v->type, true, offset * 4, params, prscs, offsets);
 	}
 }
@@ -786,6 +798,19 @@ emit_common_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *rin
 		struct fd_context *ctx, enum pipe_shader_type t)
 {
 	enum fd_dirty_shader_state dirty = ctx->dirty_shader[t];
+
+	/* When we use CP_SET_DRAW_STATE objects to emit constant state,
+	 * if we emit any of it we need to emit all.  This is because
+	 * we are using the same state-group-id each time for uniform
+	 * state, and if previous update is never evaluated (due to no
+	 * visible primitives in the current tile) then the new stateobj
+	 * completely replaces the old one.
+	 *
+	 * Possibly if we split up different parts of the const state to
+	 * different state-objects we could avoid this.
+	 */
+	if (dirty && (ring->flags & FD_RINGBUFFER_OBJECT))
+		dirty = ~0;
 
 	if (dirty & (FD_DIRTY_SHADER_PROG | FD_DIRTY_SHADER_CONST)) {
 		struct fd_constbuf_stateobj *constbuf;
@@ -846,7 +871,7 @@ ir3_emit_vs_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *rin
 				vertex_params_size = ARRAY_SIZE(vertex_params);
 			}
 
-			fd_wfi(ctx->batch, ring);
+			ring_wfi(ctx->batch, ring);
 
 			bool needs_vtxid_base =
 				ir3_find_sysval_regid(v, SYSTEM_VALUE_VERTEX_ID_ZERO_BASE) != regid(63, 0);
@@ -918,7 +943,7 @@ ir3_emit_cs_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *rin
 	/* emit compute-shader driver-params: */
 	uint32_t offset = v->constbase.driver_param;
 	if (v->constlen > offset) {
-		fd_wfi(ctx->batch, ring);
+		ring_wfi(ctx->batch, ring);
 
 		if (info->indirect) {
 			struct pipe_resource *indirect = NULL;
