@@ -4238,6 +4238,29 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
 
    *is_redeclaration = true;
 
+   if (earlier->data.how_declared == ir_var_declared_implicitly) {
+      /* Verify that the redeclaration of a built-in does not change the
+       * storage qualifier.  There are a couple special cases.
+       *
+       * 1. Some built-in variables that are defined as 'in' in the
+       *    specification are implemented as system values.  Allow
+       *    ir_var_system_value -> ir_var_shader_in.
+       *
+       * 2. gl_LastFragData is implemented as a ir_var_shader_out, but the
+       *    specification requires that redeclarations omit any qualifier.
+       *    Allow ir_var_shader_out -> ir_var_auto for this one variable.
+       */
+      if (earlier->data.mode != var->data.mode &&
+          !(earlier->data.mode == ir_var_system_value &&
+            var->data.mode == ir_var_shader_in) &&
+          !(strcmp(var->name, "gl_LastFragData") == 0 &&
+            var->data.mode == ir_var_auto)) {
+         _mesa_glsl_error(&loc, state,
+                          "redeclaration cannot change qualification of `%s'",
+                          var->name);
+      }
+   }
+
    /* From page 24 (page 30 of the PDF) of the GLSL 1.50 spec,
     *
     * "It is legal to declare an array without a size and then
@@ -4246,11 +4269,6 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
     */
    if (earlier->type->is_unsized_array() && var->type->is_array()
        && (var->type->fields.array == earlier->type->fields.array)) {
-      /* FINISHME: This doesn't match the qualifiers on the two
-       * FINISHME: declarations.  It's not 100% clear whether this is
-       * FINISHME: required or not.
-       */
-
       const int size = var->type->array_size();
       check_builtin_array_max_size(var->name, size, loc, state);
       if ((size > 0) && (size <= earlier->data.max_array_access)) {
@@ -4342,28 +4360,13 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
       earlier->data.precision = var->data.precision;
       earlier->data.memory_coherent = var->data.memory_coherent;
 
-   } else if (earlier->data.how_declared == ir_var_declared_implicitly &&
-              state->allow_builtin_variable_redeclaration) {
+   } else if ((earlier->data.how_declared == ir_var_declared_implicitly &&
+               state->allow_builtin_variable_redeclaration) ||
+              allow_all_redeclarations) {
       /* Allow verbatim redeclarations of built-in variables. Not explicitly
        * valid, but some applications do it.
        */
-      if (earlier->data.mode != var->data.mode &&
-          !(earlier->data.mode == ir_var_system_value &&
-            var->data.mode == ir_var_shader_in)) {
-         _mesa_glsl_error(&loc, state,
-                          "redeclaration of `%s' with incorrect qualifiers",
-                          var->name);
-      } else if (earlier->type != var->type) {
-         _mesa_glsl_error(&loc, state,
-                          "redeclaration of `%s' has incorrect type",
-                          var->name);
-      }
-   } else if (allow_all_redeclarations) {
-      if (earlier->data.mode != var->data.mode) {
-         _mesa_glsl_error(&loc, state,
-                          "redeclaration of `%s' with incorrect qualifiers",
-                          var->name);
-      } else if (earlier->type != var->type) {
+      if (earlier->type != var->type) {
          _mesa_glsl_error(&loc, state,
                           "redeclaration of `%s' has incorrect type",
                           var->name);
