@@ -2205,7 +2205,6 @@ dri_kms_init_screen(__DRIscreen * sPriv)
    struct dri_screen *screen;
    struct pipe_screen *pscreen = NULL;
    uint64_t cap;
-   int fd;
 
    screen = CALLOC_STRUCT(dri_screen);
    if (!screen)
