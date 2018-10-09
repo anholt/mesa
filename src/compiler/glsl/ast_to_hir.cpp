@@ -4284,8 +4284,7 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
    } else if ((state->ARB_fragment_coord_conventions_enable ||
               state->is_version(150, 0))
               && strcmp(var->name, "gl_FragCoord") == 0
-              && earlier->type == var->type
-              && var->data.mode == ir_var_shader_in) {
+              && earlier->type == var->type) {
       /* Allow redeclaration of gl_FragCoord for ARB_fcc layout
        * qualifiers.
        */
@@ -4309,8 +4308,7 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
                   || strcmp(var->name, "gl_BackSecondaryColor") == 0
                   || strcmp(var->name, "gl_Color") == 0
                   || strcmp(var->name, "gl_SecondaryColor") == 0)
-              && earlier->type == var->type
-              && earlier->data.mode == var->data.mode) {
+              && earlier->type == var->type) {
       earlier->data.interpolation = var->data.interpolation;
 
       /* Layout qualifiers for gl_FragDepth. */
@@ -4318,8 +4316,7 @@ get_variable_being_redeclared(ir_variable **var_ptr, YYLTYPE loc,
                state->AMD_conservative_depth_enable ||
                state->ARB_conservative_depth_enable)
               && strcmp(var->name, "gl_FragDepth") == 0
-              && earlier->type == var->type
-              && earlier->data.mode == var->data.mode) {
+              && earlier->type == var->type) {
 
       /** From the AMD_conservative_depth spec:
        *     Within any shader, the first redeclarations of gl_FragDepth
