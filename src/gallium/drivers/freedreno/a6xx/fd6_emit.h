@@ -45,6 +45,8 @@ struct fd_ringbuffer;
 enum fd6_state_id {
 	FD6_GROUP_VS_CONST,
 	FD6_GROUP_FS_CONST,
+	FD6_GROUP_VS_TEX,
+	FD6_GROUP_FS_TEX,
 };
 
 struct fd6_state_group {
@@ -173,6 +175,10 @@ fd6_stage2shadersb(enum shader_t type)
 		return ~0;
 	}
 }
+
+bool fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
+		enum a6xx_state_block sb, struct fd_texture_stateobj *tex,
+		unsigned bcolor_offset);
 
 void fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit);
 

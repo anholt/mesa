@@ -325,32 +325,32 @@ emit_border_color(struct fd_context *ctx, struct fd_ringbuffer *ring)
 	u_upload_unmap(fd6_ctx->border_color_uploader);
 }
 
-static bool
-emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
-		enum a6xx_state_block sb, struct fd_texture_stateobj *tex)
+bool
+fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
+		enum a6xx_state_block sb, struct fd_texture_stateobj *tex,
+		unsigned bcolor_offset)
 {
 	bool needs_border = false;
-	unsigned bcolor_offset;
-	unsigned opcode, tex_samp_reg, tex_const_reg;
+	unsigned opcode, tex_samp_reg, tex_const_reg, tex_count_reg;
 
 	switch (sb) {
 	case SB6_VS_TEX:
 		opcode = CP_LOAD_STATE6_GEOM;
-		bcolor_offset = 0;
 		tex_samp_reg = REG_A6XX_SP_VS_TEX_SAMP_LO;
 		tex_const_reg = REG_A6XX_SP_VS_TEX_CONST_LO;
+		tex_count_reg = REG_A6XX_SP_VS_TEX_COUNT;
 		break;
 	case SB6_FS_TEX:
 		opcode = CP_LOAD_STATE6_FRAG;
-		bcolor_offset = ctx->tex[PIPE_SHADER_VERTEX].num_samplers;
 		tex_samp_reg = REG_A6XX_SP_FS_TEX_SAMP_LO;
 		tex_const_reg = REG_A6XX_SP_FS_TEX_CONST_LO;
+		tex_count_reg = REG_A6XX_SP_FS_TEX_COUNT;
 		break;
 	case SB6_CS_TEX:
 		opcode = CP_LOAD_STATE6_FRAG;
-		bcolor_offset = 0;
 		tex_samp_reg = REG_A6XX_SP_CS_TEX_SAMP_LO;
 		tex_const_reg = REG_A6XX_SP_CS_TEX_CONST_LO;
+		tex_count_reg = 0; //REG_A6XX_SP_CS_TEX_COUNT;
 		break;
 	default:
 		unreachable("bad state block");
@@ -359,8 +359,8 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (tex->num_samplers > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_flags(ctx->pipe, tex->num_samplers * 4 * 4,
-					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+			fd_ringbuffer_new_flags(pipe, tex->num_samplers * 4 * 4,
+					FD_RINGBUFFER_OBJECT);
 		for (unsigned i = 0; i < tex->num_samplers; i++) {
 			static const struct fd6_sampler_stateobj dummy_sampler = {};
 			const struct fd6_sampler_stateobj *sampler = tex->samplers[i] ?
@@ -390,8 +390,8 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (tex->num_textures > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_flags(ctx->pipe, tex->num_textures * 16 * 4,
-					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+			fd_ringbuffer_new_flags(pipe, tex->num_textures * 16 * 4,
+					FD_RINGBUFFER_OBJECT);
 		for (unsigned i = 0; i < tex->num_textures; i++) {
 			static const struct fd6_pipe_sampler_view dummy_view = {};
 			const struct fd6_pipe_sampler_view *view = tex->textures[i] ?
@@ -443,6 +443,11 @@ emit_textures(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		OUT_RB(ring, state); /* SRC_ADDR_LO/HI */
 
 		fd_ringbuffer_del(state);
+	}
+
+	if (tex_count_reg) {
+		OUT_PKT4(ring, tex_count_reg, 1);
+		OUT_RING(ring, tex->num_textures);
 	}
 
 	return needs_border;
@@ -931,28 +936,25 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		OUT_RING(ring, A6XX_RB_BLEND_ALPHA_F32(bcolor->color[3]));
 	}
 
-	if (ctx->dirty_shader[PIPE_SHADER_VERTEX] & FD_DIRTY_SHADER_TEX) {
-		needs_border |= emit_textures(ctx, ring, SB6_VS_TEX,
-				&ctx->tex[PIPE_SHADER_VERTEX]);
-		OUT_PKT4(ring, REG_A6XX_SP_VS_TEX_COUNT, 1);
-		OUT_RING(ring, ctx->tex[PIPE_SHADER_VERTEX].num_textures);
+	if ((ctx->dirty_shader[PIPE_SHADER_VERTEX] & FD_DIRTY_SHADER_TEX) &&
+			ctx->tex[PIPE_SHADER_VERTEX].num_textures > 0) {
+		struct fd6_texture_state *tex = fd6_texture_state(ctx,
+				SB6_VS_TEX, &ctx->tex[PIPE_SHADER_VERTEX]);
+
+		needs_border |= tex->needs_border;
+
+		fd6_emit_add_group(emit, tex->stateobj, FD6_GROUP_VS_TEX, 0x7);
 	}
 
-	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_TEX) {
-		needs_border |= emit_textures(ctx, ring, SB6_FS_TEX,
-				&ctx->tex[PIPE_SHADER_FRAGMENT]);
-		OUT_PKT4(ring, REG_A6XX_SP_FS_TEX_COUNT, 1);
-		OUT_RING(ring, ctx->tex[PIPE_SHADER_FRAGMENT].num_textures);
+	if ((ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & FD_DIRTY_SHADER_TEX) &&
+			ctx->tex[PIPE_SHADER_FRAGMENT].num_textures > 0) {
+		struct fd6_texture_state *tex = fd6_texture_state(ctx,
+				SB6_FS_TEX, &ctx->tex[PIPE_SHADER_FRAGMENT]);
+
+		needs_border |= tex->needs_border;
+
+		fd6_emit_add_group(emit, tex->stateobj, FD6_GROUP_FS_TEX, 0x7);
 	}
-
-#if 0
-	OUT_PKT4(ring, REG_A6XX_TPL1_FS_TEX_COUNT, 1);
-	OUT_RING(ring, ctx->shaderimg[PIPE_SHADER_FRAGMENT].enabled_mask ?
-			~0 : ctx->tex[PIPE_SHADER_FRAGMENT].num_textures);
-
-	OUT_PKT4(ring, REG_A6XX_TPL1_CS_TEX_COUNT, 1);
-	OUT_RING(ring, 0);
-#endif
 
 	if (needs_border)
 		emit_border_color(ctx, ring);
@@ -988,8 +990,8 @@ fd6_emit_cs_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (dirty & FD_DIRTY_SHADER_TEX) {
 		bool needs_border = false;
-		needs_border |= emit_textures(ctx, ring, SB6_CS_TEX,
-				&ctx->tex[PIPE_SHADER_COMPUTE]);
+		needs_border |= fd6_emit_textures(ctx->pipe, ring, SB6_CS_TEX,
+				&ctx->tex[PIPE_SHADER_COMPUTE], 0);
 
 		if (needs_border)
 			emit_border_color(ctx, ring);

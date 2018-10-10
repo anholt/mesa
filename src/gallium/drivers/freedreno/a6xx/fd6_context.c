@@ -56,6 +56,8 @@ fd6_context_destroy(struct pipe_context *pctx)
 
 	fd_context_cleanup_common_vbos(&fd6_ctx->base);
 
+	fd6_texture_fini(pctx);
+
 	free(fd6_ctx);
 }
 

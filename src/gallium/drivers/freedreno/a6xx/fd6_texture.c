@@ -30,9 +30,13 @@
 #include "util/u_memory.h"
 #include "util/u_inlines.h"
 #include "util/u_format.h"
+#include "util/hash_table.h"
 
 #include "fd6_texture.h"
 #include "fd6_format.h"
+#include "fd6_emit.h"
+
+static void fd6_texture_state_destroy(struct fd6_texture_state *state);
 
 static enum a6xx_tex_clamp
 tex_clamp(unsigned wrap, bool clamp_to_edge, bool *needs_border)
@@ -94,6 +98,7 @@ fd6_sampler_state_create(struct pipe_context *pctx,
 		return NULL;
 
 	so->base = *cso;
+	so->seqno = ++fd6_context(fd_context(pctx))->tex_seqno;
 
 	if (cso->min_mip_filter == PIPE_TEX_MIPFILTER_LINEAR)
 		miplinear = true;
@@ -138,6 +143,28 @@ fd6_sampler_state_create(struct pipe_context *pctx,
 		so->texsamp1 |= A6XX_TEX_SAMP_1_COMPARE_FUNC(cso->compare_func); /* maps 1:1 */
 
 	return so;
+}
+
+static void
+fd6_sampler_state_delete(struct pipe_context *pctx, void *hwcso)
+{
+	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
+	struct fd6_sampler_stateobj *samp = hwcso;
+
+	struct hash_entry *entry;
+	hash_table_foreach(fd6_ctx->tex_cache, entry) {
+		struct fd6_texture_state *state = entry->data;
+
+		for (unsigned i = 0; i < ARRAY_SIZE(state->key.samp); i++) {
+			if (samp->seqno == state->key.samp[i].seqno) {
+				fd6_texture_state_destroy(entry->data);
+				_mesa_hash_table_remove(fd6_ctx->tex_cache, entry);
+				break;
+			}
+		}
+	}
+
+	free(hwcso);
 }
 
 static void
@@ -215,6 +242,7 @@ fd6_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 	so->base.texture = prsc;
 	so->base.reference.count = 1;
 	so->base.context = pctx;
+	so->seqno = ++fd6_context(fd_context(pctx))->tex_seqno;
 
 	so->texconst0 =
 		A6XX_TEX_CONST_0_FMT(fd6_pipe2tex(format)) |
@@ -310,6 +338,31 @@ fd6_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 }
 
 static void
+fd6_sampler_view_destroy(struct pipe_context *pctx,
+		struct pipe_sampler_view *_view)
+{
+	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
+	struct fd6_pipe_sampler_view *view = fd6_pipe_sampler_view(_view);
+
+	struct hash_entry *entry;
+	hash_table_foreach(fd6_ctx->tex_cache, entry) {
+		struct fd6_texture_state *state = entry->data;
+
+		for (unsigned i = 0; i < ARRAY_SIZE(state->key.view); i++) {
+			if (view->seqno == state->key.view[i].seqno) {
+				fd6_texture_state_destroy(entry->data);
+				_mesa_hash_table_remove(fd6_ctx->tex_cache, entry);
+				break;
+			}
+		}
+	}
+
+	pipe_resource_reference(&view->base.texture, NULL);
+
+	free(view);
+}
+
+static void
 fd6_set_sampler_views(struct pipe_context *pctx, enum pipe_shader_type shader,
 		unsigned start, unsigned nr,
 		struct pipe_sampler_view **views)
@@ -337,11 +390,127 @@ fd6_set_sampler_views(struct pipe_context *pctx, enum pipe_shader_type shader,
 	}
 }
 
+
+static uint32_t
+key_hash(const void *_key)
+{
+	const struct fd6_texture_key *key = _key;
+	uint32_t hash = _mesa_fnv32_1a_offset_bias;
+	hash = _mesa_fnv32_1a_accumulate_block(hash, key, sizeof(*key));
+	return hash;
+}
+
+static bool
+key_equals(const void *_a, const void *_b)
+{
+	const struct fd6_texture_key *a = _a;
+	const struct fd6_texture_key *b = _b;
+	return memcmp(a, b, sizeof(struct fd6_texture_key)) == 0;
+}
+
+struct fd6_texture_state *
+fd6_texture_state(struct fd_context *ctx, enum a6xx_state_block sb,
+		struct fd_texture_stateobj *tex)
+{
+	struct fd6_context *fd6_ctx = fd6_context(ctx);
+	struct fd6_texture_key key;
+	bool needs_border = false;
+
+	memset(&key, 0, sizeof(key));
+
+	for (unsigned i = 0; i < tex->num_textures; i++) {
+		if (!tex->textures[i])
+			continue;
+
+		struct fd6_pipe_sampler_view *view =
+			fd6_pipe_sampler_view(tex->textures[i]);
+
+		key.view[i].rsc_seqno = fd_resource(view->base.texture)->seqno;
+		key.view[i].seqno = view->seqno;
+	}
+
+	for (unsigned i = 0; i < tex->num_samplers; i++) {
+		if (!tex->samplers[i])
+			continue;
+
+		struct fd6_sampler_stateobj *sampler =
+			fd6_sampler_stateobj(tex->samplers[i]);
+
+		key.samp[i].seqno = sampler->seqno;
+
+		needs_border |= sampler->needs_border;
+	}
+
+	/* This will need update for HS/DS/GS: */
+	if (unlikely(needs_border && (sb == SB6_FS_TEX))) {
+		/* TODO we could probably use fixed offsets for each shader
+		 * stage and avoid the need for # of VS samplers to be part
+		 * of the FS tex state.. but I don't think our handling of
+		 * BCOLOR_OFFSET is actually correct, and trying to use a
+		 * hard coded offset of 16 breaks things.
+		 *
+		 * Note that when this changes, then a corresponding change
+		 * in emit_border_color() is also needed.
+		 */
+		key.bcolor_offset = ctx->tex[PIPE_SHADER_VERTEX].num_samplers;
+	}
+
+	uint32_t hash = key_hash(&key);
+	struct hash_entry *entry =
+		_mesa_hash_table_search_pre_hashed(fd6_ctx->tex_cache, hash, &key);
+
+	if (entry) {
+		return entry->data;
+	}
+
+	struct fd6_texture_state *state = CALLOC_STRUCT(fd6_texture_state);
+
+	state->key = key;
+	state->stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
+	state->needs_border = needs_border;
+
+	fd6_emit_textures(ctx->pipe, state->stateobj, sb, tex, key.bcolor_offset);
+
+	/* NOTE: uses copy of key in state obj, because pointer passed by caller
+	 * is probably on the stack
+	 */
+	_mesa_hash_table_insert_pre_hashed(fd6_ctx->tex_cache, hash,
+			&state->key, state);
+
+	return state;
+}
+
+static void
+fd6_texture_state_destroy(struct fd6_texture_state *state)
+{
+	fd_ringbuffer_del(state->stateobj);
+	free(state);
+}
+
 void
 fd6_texture_init(struct pipe_context *pctx)
 {
+	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
+
 	pctx->create_sampler_state = fd6_sampler_state_create;
+	pctx->delete_sampler_state = fd6_sampler_state_delete;
 	pctx->bind_sampler_states = fd6_sampler_states_bind;
+
 	pctx->create_sampler_view = fd6_sampler_view_create;
+	pctx->sampler_view_destroy = fd6_sampler_view_destroy;
 	pctx->set_sampler_views = fd6_set_sampler_views;
+
+	fd6_ctx->tex_cache = _mesa_hash_table_create(NULL, key_hash, key_equals);
+}
+
+void
+fd6_texture_fini(struct pipe_context *pctx)
+{
+	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
+
+	struct hash_entry *entry;
+	hash_table_foreach(fd6_ctx->tex_cache, entry) {
+		fd6_texture_state_destroy(entry->data);
+	}
+	ralloc_free(fd6_ctx->tex_cache);
 }

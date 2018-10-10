@@ -105,6 +105,9 @@ struct fd6_context {
 	/*{*/
 	struct fd6_streamout_state tf;
 	/*}*/
+
+	uint16_t tex_seqno;
+	struct hash_table *tex_cache;
 };
 
 static inline struct fd6_context *
