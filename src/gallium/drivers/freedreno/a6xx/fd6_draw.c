@@ -199,41 +199,52 @@ fd6_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 {
 	struct fd6_context *fd6_ctx = fd6_context(ctx);
 	struct fd6_emit emit = {
-		.debug = &ctx->debug,
+		.ctx = ctx,
 		.vtx  = &ctx->vtx,
-		.prog = &ctx->prog,
 		.info = info,
 		.key = {
-			.color_two_side = ctx->rasterizer->light_twoside,
-			.vclamp_color = ctx->rasterizer->clamp_vertex_color,
-			.fclamp_color = ctx->rasterizer->clamp_fragment_color,
-			.rasterflat = ctx->rasterizer->flatshade,
-			.half_precision = ctx->in_blit &&
-					fd_half_precision(&ctx->batch->framebuffer),
-			.ucp_enables = ctx->rasterizer->clip_plane_enable,
-			.has_per_samp = (fd6_ctx->fsaturate || fd6_ctx->vsaturate ||
-					fd6_ctx->fastc_srgb || fd6_ctx->vastc_srgb),
-			.vsaturate_s = fd6_ctx->vsaturate_s,
-			.vsaturate_t = fd6_ctx->vsaturate_t,
-			.vsaturate_r = fd6_ctx->vsaturate_r,
-			.fsaturate_s = fd6_ctx->fsaturate_s,
-			.fsaturate_t = fd6_ctx->fsaturate_t,
-			.fsaturate_r = fd6_ctx->fsaturate_r,
-			.vastc_srgb = fd6_ctx->vastc_srgb,
-			.fastc_srgb = fd6_ctx->fastc_srgb,
-			.vsamples = ctx->tex[PIPE_SHADER_VERTEX].samples,
-			.fsamples = ctx->tex[PIPE_SHADER_FRAGMENT].samples,
+			.vs = ctx->prog.vp,
+			.fs = ctx->prog.fp,
+			.key = {
+				.color_two_side = ctx->rasterizer->light_twoside,
+				.vclamp_color = ctx->rasterizer->clamp_vertex_color,
+				.fclamp_color = ctx->rasterizer->clamp_fragment_color,
+				.rasterflat = ctx->rasterizer->flatshade,
+				.ucp_enables = ctx->rasterizer->clip_plane_enable,
+				.has_per_samp = (fd6_ctx->fsaturate || fd6_ctx->vsaturate ||
+						fd6_ctx->fastc_srgb || fd6_ctx->vastc_srgb),
+				.vsaturate_s = fd6_ctx->vsaturate_s,
+				.vsaturate_t = fd6_ctx->vsaturate_t,
+				.vsaturate_r = fd6_ctx->vsaturate_r,
+				.fsaturate_s = fd6_ctx->fsaturate_s,
+				.fsaturate_t = fd6_ctx->fsaturate_t,
+				.fsaturate_r = fd6_ctx->fsaturate_r,
+				.vastc_srgb = fd6_ctx->vastc_srgb,
+				.fastc_srgb = fd6_ctx->fastc_srgb,
+				.vsamples = ctx->tex[PIPE_SHADER_VERTEX].samples,
+				.fsamples = ctx->tex[PIPE_SHADER_FRAGMENT].samples,
+			}
 		},
 		.rasterflat = ctx->rasterizer->flatshade,
 		.sprite_coord_enable = ctx->rasterizer->sprite_coord_enable,
 		.sprite_coord_mode = ctx->rasterizer->sprite_coord_mode,
 	};
 
-	fixup_shader_state(ctx, &emit.key);
+	fixup_shader_state(ctx, &emit.key.key);
 
 	unsigned dirty = ctx->dirty;
-	const struct ir3_shader_variant *vp = fd6_emit_get_vp(&emit);
-	const struct ir3_shader_variant *fp = fd6_emit_get_fp(&emit);
+
+	if (!(dirty & FD_DIRTY_PROG)) {
+		emit.prog = fd6_ctx->prog;
+	} else {
+		fd6_ctx->prog = fd6_emit_get_prog(&emit);
+	}
+
+	emit.vs = fd6_emit_get_prog(&emit)->vs;
+	emit.fs = fd6_emit_get_prog(&emit)->fs;
+
+	const struct ir3_shader_variant *vp = emit.vs;
+	const struct ir3_shader_variant *fp = emit.fs;
 
 	/* do regular pass first, since that is more likely to fail compiling: */
 
@@ -256,8 +267,8 @@ fd6_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 	/* and now binning pass: */
 	emit.binning_pass = true;
 	emit.dirty = dirty & ~(FD_DIRTY_BLEND);
-	emit.vp = NULL;   /* we changed key so need to refetch vp */
-	emit.fp = NULL;
+	emit.vs = fd6_emit_get_prog(&emit)->bs;
+
 	draw_impl(ctx, ctx->batch->binning, &emit, index_offset);
 
 	if (emit.streamout_mask) {

@@ -59,6 +59,8 @@ static void
 fd6_fp_state_delete(struct pipe_context *pctx, void *hwcso)
 {
 	struct ir3_shader *so = hwcso;
+	struct fd_context *ctx = fd_context(pctx);
+	ir3_cache_invalidate(fd6_context(ctx)->shader_cache, hwcso);
 	ir3_shader_destroy(so);
 }
 
@@ -73,6 +75,8 @@ static void
 fd6_vp_state_delete(struct pipe_context *pctx, void *hwcso)
 {
 	struct ir3_shader *so = hwcso;
+	struct fd_context *ctx = fd_context(pctx);
+	ir3_cache_invalidate(fd6_context(ctx)->shader_cache, hwcso);
 	ir3_shader_destroy(so);
 }
 
@@ -178,11 +182,11 @@ link_stream_out(struct ir3_shader_linkage *l, const struct ir3_shader_variant *v
 }
 
 static void
-setup_stream_out(struct fd_context *ctx, const struct ir3_shader_variant *v,
+setup_stream_out(struct fd6_program_state *state, const struct ir3_shader_variant *v,
 		struct ir3_shader_linkage *l)
 {
 	const struct pipe_stream_output_info *strmout = &v->shader->stream_output;
-	struct fd6_streamout_state *tf = &fd6_context(ctx)->tf;
+	struct fd6_streamout_state *tf = &state->tf;
 
 	memset(tf, 0, sizeof(*tf));
 
@@ -251,12 +255,19 @@ enum {
 };
 
 static void
-setup_stages(struct fd6_emit *emit, struct stage *s)
+setup_stages(struct fd6_program_state *state, struct stage *s, bool binning_pass)
 {
 	unsigned i;
 
-	s[VS].v = fd6_emit_get_vp(emit);
-	s[FS].v = fd6_emit_get_fp(emit);
+	if (binning_pass) {
+		static const struct ir3_shader_variant dummy_fs = {0};
+
+		s[VS].v = state->bs;
+		s[FS].v = &dummy_fs;
+	} else {
+		s[VS].v = state->vs;
+		s[FS].v = state->fs;
+	}
 
 	s[HS].v = s[DS].v = s[GS].v = NULL;  /* for now */
 
@@ -287,9 +298,9 @@ setup_stages(struct fd6_emit *emit, struct stage *s)
 	s[HS].instroff = s[DS].instroff = s[GS].instroff = s[FS].instroff;
 }
 
-void
-fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
-				 struct fd6_emit *emit)
+static void
+setup_stateobj(struct fd_ringbuffer *ring,
+               struct fd6_program_state *state, bool binning_pass)
 {
 	struct stage s[MAX_STAGES];
 	uint32_t pos_regid, psize_regid, color_regid[8];
@@ -299,7 +310,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	uint8_t psize_loc = ~0;
 	int i, j;
 
-	setup_stages(emit, s);
+	setup_stages(state, s, binning_pass);
 
 	fssz = FOUR_QUADS;
 
@@ -392,8 +403,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	struct ir3_shader_linkage l = {0};
 	ir3_link_shaders(&l, s[VS].v, s[FS].v);
 
-	if ((s[VS].v->shader->stream_output.num_outputs > 0) &&
-			!emit->binning_pass)
+	if ((s[VS].v->shader->stream_output.num_outputs > 0) && !binning_pass)
 		link_stream_out(&l, s[VS].v);
 
 	BITSET_DECLARE(varbs, 128) = {0};
@@ -418,9 +428,8 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		ir3_link_add(&l, psize_regid, 0x1, l.max_loc);
 	}
 
-	if ((s[VS].v->shader->stream_output.num_outputs > 0) &&
-			!emit->binning_pass) {
-		setup_stream_out(ctx, s[VS].v, &l);
+	if ((s[VS].v->shader->stream_output.num_outputs > 0) && !binning_pass) {
+		setup_stream_out(state, s[VS].v, &l);
 	}
 
 	for (i = 0, j = 0; (i < 16) && (j < l.cnt); i++) {
@@ -478,7 +487,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	OUT_RING(ring, A6XX_PC_PRIMITIVE_CNTL_1_STRIDE_IN_VPC(l.max_loc) |
 			 COND(psize_regid != regid(63,0), 0x100));
 
-	if (emit->binning_pass) {
+	if (binning_pass) {
 		OUT_PKT4(ring, REG_A6XX_SP_FS_OBJ_START_LO, 2);
 		OUT_RING(ring, 0x00000000);    /* SP_FS_OBJ_START_LO */
 		OUT_RING(ring, 0x00000000);    /* SP_FS_OBJ_START_HI */
@@ -549,8 +558,10 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	OUT_PKT4(ring, REG_A6XX_SP_FS_OUTPUT_REG(0), 8);
 	for (i = 0; i < 8; i++) {
+		// TODO we could have a mix of half and full precision outputs,
+		// we really need to figure out half-precision from IR3_REG_HALF
 		OUT_RING(ring, A6XX_SP_FS_OUTPUT_REG_REGID(color_regid[i]) |
-				COND(emit->key.half_precision,
+				COND(false,
 					A6XX_SP_FS_OUTPUT_REG_HALF_PRECISION));
 	}
 
@@ -559,27 +570,7 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			 A6XX_VPC_PACK_PSIZELOC(psize_loc) |
 			 A6XX_VPC_PACK_STRIDE_IN_VPC(l.max_loc));
 
-	if (!emit->binning_pass) {
-		uint32_t vinterp[8], vpsrepl[8];
-
-		memset(vinterp, 0, sizeof(vinterp));
-		memset(vpsrepl, 0, sizeof(vpsrepl));
-
-		/* looks like we need to do int varyings in the frag
-		 * shader on a5xx (no flatshad reg?  or a420.0 bug?):
-		 *
-		 *    (sy)(ss)nop
-		 *    (sy)ldlv.u32 r0.x,l[r0.x], 1
-		 *    ldlv.u32 r0.y,l[r0.x+1], 1
-		 *    (ss)bary.f (ei)r63.x, 0, r0.x
-		 *    (ss)(rpt1)cov.s32f16 hr0.x, (r)r0.x
-		 *    (rpt5)nop
-		 *    sam (f16)(xyzw)hr0.x, hr0.x, s#0, t#0
-		 *
-		 * Possibly on later a5xx variants we'll be able to use
-		 * something like the code below instead of workaround
-		 * in the shader:
-		 */
+	if (!binning_pass) {
 		/* figure out VARYING_INTERP / VARYING_PS_REPL register values: */
 		for (j = -1; (j = ir3_next_varying(s[FS].v, j)) < (int)s[FS].v->inputs_count; ) {
 			/* NOTE: varyings are packed, so if compmask is 0xb
@@ -590,20 +581,83 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 			uint32_t inloc = s[FS].v->inputs[j].inloc;
 
-			if ((s[FS].v->inputs[j].interpolate == INTERP_MODE_FLAT) ||
-					(s[FS].v->inputs[j].rasterflat && emit->rasterflat)) {
+			if (s[FS].v->inputs[j].interpolate == INTERP_MODE_FLAT) {
+				uint32_t loc = inloc;
+
+				for (i = 0; i < 4; i++) {
+					if (compmask & (1 << i)) {
+						state->vinterp[loc / 16] |= 1 << ((loc % 16) * 2);
+						loc++;
+					}
+				}
+			}
+		}
+	}
+
+	if (!binning_pass)
+		if (s[FS].instrlen)
+			fd6_emit_shader(ring, s[FS].v);
+
+	OUT_PKT4(ring, REG_A6XX_VFD_CONTROL_1, 6);
+	OUT_RING(ring, A6XX_VFD_CONTROL_1_REGID4VTX(vertex_regid) |
+			A6XX_VFD_CONTROL_1_REGID4INST(instance_regid) |
+			0xfcfc0000);
+	OUT_RING(ring, 0x0000fcfc);   /* VFD_CONTROL_2 */
+	OUT_RING(ring, 0xfcfcfcfc);   /* VFD_CONTROL_3 */
+	OUT_RING(ring, 0x000000fc);   /* VFD_CONTROL_4 */
+	OUT_RING(ring, 0x0000fcfc);   /* VFD_CONTROL_5 */
+	OUT_RING(ring, 0x00000000);   /* VFD_CONTROL_6 */
+}
+
+/* emits the program state which is not part of the stateobj because of
+ * dependency on other gl state (rasterflat or sprite-coord-replacement)
+ */
+void
+fd6_program_emit(struct fd_ringbuffer *ring, struct fd6_emit *emit)
+{
+	const struct fd6_program_state *state = fd6_emit_get_prog(emit);
+
+	if (!unlikely(emit->rasterflat || emit->sprite_coord_enable)) {
+		/* fastpath: */
+		OUT_PKT4(ring, REG_A6XX_VPC_VARYING_INTERP_MODE(0), 8);
+		for (int i = 0; i < 8; i++)
+			OUT_RING(ring, state->vinterp[i]);   /* VPC_VARYING_INTERP[i].MODE */
+
+		OUT_PKT4(ring, REG_A6XX_VPC_VARYING_PS_REPL_MODE(0), 8);
+		for (int i = 0; i < 8; i++)
+			OUT_RING(ring, 0x00000000);          /* VPC_VARYING_PS_REPL[i] */
+	} else {
+		/* slow-path: */
+		struct ir3_shader_variant *fs = state->fs;
+		uint32_t vinterp[8], vpsrepl[8];
+
+		memset(vinterp, 0, sizeof(vinterp));
+		memset(vpsrepl, 0, sizeof(vpsrepl));
+
+		for (int i = 0; i < state->fs_inputs_count; i++) {
+			int j = state->fs_inputs[i];
+
+			/* NOTE: varyings are packed, so if compmask is 0xb
+			 * then first, third, and fourth component occupy
+			 * three consecutive varying slots:
+			 */
+			unsigned compmask = fs->inputs[j].compmask;
+
+			uint32_t inloc = fs->inputs[j].inloc;
+
+			if ((fs->inputs[j].interpolate == INTERP_MODE_FLAT) ||
+					(fs->inputs[j].rasterflat && emit->rasterflat)) {
 				uint32_t loc = inloc;
 
 				for (i = 0; i < 4; i++) {
 					if (compmask & (1 << i)) {
 						vinterp[loc / 16] |= 1 << ((loc % 16) * 2);
-						//flatshade[loc / 32] |= 1 << (loc % 32);
 						loc++;
 					}
 				}
 			}
 
-			gl_varying_slot slot = s[FS].v->inputs[j].slot;
+			gl_varying_slot slot = fs->inputs[j].slot;
 
 			/* since we don't enable PIPE_CAP_TGSI_TEXCOORD: */
 			if (slot >= VARYING_SLOT_VAR0) {
@@ -642,32 +696,57 @@ fd6_program_emit(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		}
 
 		OUT_PKT4(ring, REG_A6XX_VPC_VARYING_INTERP_MODE(0), 8);
-		for (i = 0; i < 8; i++)
+		for (int i = 0; i < 8; i++)
 			OUT_RING(ring, vinterp[i]);     /* VPC_VARYING_INTERP[i].MODE */
 
 		OUT_PKT4(ring, REG_A6XX_VPC_VARYING_PS_REPL_MODE(0), 8);
-		for (i = 0; i < 8; i++)
-			OUT_RING(ring, vpsrepl[i]);   /* VPC_VARYING_PS_REPL[i] */
+		for (int i = 0; i < 8; i++)
+			OUT_RING(ring, vpsrepl[i]);     /* VPC_VARYING_PS_REPL[i] */
 	}
-
-	if (!emit->binning_pass)
-		if (s[FS].instrlen)
-			fd6_emit_shader(ring, s[FS].v);
-
-	OUT_PKT4(ring, REG_A6XX_VFD_CONTROL_1, 6);
-	OUT_RING(ring, A6XX_VFD_CONTROL_1_REGID4VTX(vertex_regid) |
-			A6XX_VFD_CONTROL_1_REGID4INST(instance_regid) |
-			0xfcfc0000);
-	OUT_RING(ring, 0x0000fcfc);   /* VFD_CONTROL_2 */
-	OUT_RING(ring, 0xfcfcfcfc);   /* VFD_CONTROL_3 */
-	OUT_RING(ring, 0x000000fc);   /* VFD_CONTROL_4 */
-	OUT_RING(ring, 0x0000fcfc);   /* VFD_CONTROL_5 */
-	OUT_RING(ring, 0x00000000);   /* VFD_CONTROL_6 */
 }
+
+static struct ir3_program_state *
+fd6_program_create(void *data, struct ir3_shader_variant *bs,
+		struct ir3_shader_variant *vs,
+		struct ir3_shader_variant *fs,
+		const struct ir3_shader_key *key)
+{
+	struct fd_context *ctx = data;
+	struct fd6_program_state *state = CALLOC_STRUCT(fd6_program_state);
+
+	state->bs = bs;
+	state->vs = vs;
+	state->fs = fs;
+	state->binning_stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
+	state->stateobj = fd_ringbuffer_new_object(ctx->pipe, 0x1000);
+
+	setup_stateobj(state->binning_stateobj, state, true);
+	setup_stateobj(state->stateobj, state, false);
+
+	return &state->base;
+}
+
+static void
+fd6_program_destroy(void *data, struct ir3_program_state *state)
+{
+	struct fd6_program_state *so = fd6_program_state(state);
+	fd_ringbuffer_del(so->stateobj);
+	fd_ringbuffer_del(so->binning_stateobj);
+	free(so);
+}
+
+static const struct ir3_cache_funcs cache_funcs = {
+	.create_state = fd6_program_create,
+	.destroy_state = fd6_program_destroy,
+};
 
 void
 fd6_prog_init(struct pipe_context *pctx)
 {
+	struct fd_context *ctx = fd_context(pctx);
+
+	fd6_context(ctx)->shader_cache = ir3_cache_create(&cache_funcs, ctx);
+
 	pctx->create_fs_state = fd6_fp_state_create;
 	pctx->delete_fs_state = fd6_fp_state_delete;
 

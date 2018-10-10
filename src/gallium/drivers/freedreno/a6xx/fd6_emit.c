@@ -533,7 +533,7 @@ fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 {
 	int32_t i, j;
 	const struct fd_vertex_state *vtx = emit->vtx;
-	const struct ir3_shader_variant *vp = fd6_emit_get_vp(emit);
+	const struct ir3_shader_variant *vp = emit->vs;
 
 	for (i = 0, j = 0; i <= vp->inputs_count; i++) {
 		if (vp->inputs[i].sysval)
@@ -588,8 +588,9 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		struct fd6_emit *emit)
 {
 	struct pipe_framebuffer_state *pfb = &ctx->batch->framebuffer;
-	const struct ir3_shader_variant *vp = fd6_emit_get_vp(emit);
-	const struct ir3_shader_variant *fp = fd6_emit_get_fp(emit);
+	const struct fd6_program_state *prog = fd6_emit_get_prog(emit);
+	const struct ir3_shader_variant *vp = emit->vs;
+	const struct ir3_shader_variant *fp = emit->fs;
 	const enum fd_dirty_3d_state dirty = emit->dirty;
 	bool needs_border = false;
 
@@ -719,8 +720,19 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		OUT_RING(ring, A6XX_GRAS_CL_VPORT_ZSCALE_0(ctx->viewport.scale[2]));
 	}
 
-	if (dirty & FD_DIRTY_PROG)
-		fd6_program_emit(ctx, ring, emit);
+	if (dirty & FD_DIRTY_PROG) {
+		struct fd_ringbuffer *stateobj = emit->binning_pass ?
+				prog->binning_stateobj : prog->stateobj;
+
+		fd6_emit_add_group(emit, stateobj, FD6_GROUP_PROG, 0x7);
+
+		/* emit remaining non-stateobj program state, ie. what depends
+		 * on other emit state, so cannot be pre-baked.  This could
+		 * be moved to a separate stateobj which is dynamically
+		 * created.
+		 */
+		fd6_program_emit(ring, emit);
+	}
 
 	if (dirty & FD_DIRTY_RASTERIZER) {
 		struct fd6_rasterizer_stateobj *rasterizer =
@@ -854,7 +866,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		}
 
 		if (emit->streamout_mask) {
-			struct fd6_streamout_state *tf = &fd6_context(ctx)->tf;
+			const struct fd6_streamout_state *tf = &prog->tf;
 
 			OUT_PKT7(ring, CP_CONTEXT_REG_BUNCH, 12 + (2 * tf->prog_count));
 			OUT_RING(ring, REG_A6XX_VPC_SO_BUF_CNTL);

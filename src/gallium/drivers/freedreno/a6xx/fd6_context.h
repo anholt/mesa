@@ -38,13 +38,6 @@
 
 #include "a6xx.xml.h"
 
-struct fd6_streamout_state {
-	uint32_t ncomp[PIPE_MAX_SO_BUFFERS];
-	uint32_t prog[256/2];
-	uint32_t prog_count;
-	uint32_t vpc_so_buf_cntl;
-};
-
 struct fd6_context {
 	struct fd_context base;
 
@@ -101,10 +94,13 @@ struct fd6_context {
 	/* number of active samples-passed queries: */
 	int samples_passed_queries;
 
-	/* cached state about current emitted shader program (3d): */
-	/*{*/
-	struct fd6_streamout_state tf;
-	/*}*/
+	/* maps per-shader-stage state plus variant key to hw
+	 * program stateobj:
+	 */
+	struct ir3_cache *shader_cache;
+
+	/* cached stateobjs to avoid hashtable lookup when not dirty: */
+	const struct fd6_program_state *prog;
 
 	uint16_t tex_seqno;
 	struct hash_table *tex_cache;

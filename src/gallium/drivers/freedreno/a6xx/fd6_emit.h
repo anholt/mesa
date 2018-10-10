@@ -43,6 +43,7 @@ struct fd_ringbuffer;
  * need to be emit'd.
  */
 enum fd6_state_id {
+	FD6_GROUP_PROG,
 	FD6_GROUP_VS_CONST,
 	FD6_GROUP_FS_CONST,
 	FD6_GROUP_VS_TEX,
@@ -57,12 +58,11 @@ struct fd6_state_group {
 
 /* grouped together emit-state for prog/vertex/state emit: */
 struct fd6_emit {
-	struct pipe_debug_callback *debug;
+	struct fd_context *ctx;
 	const struct fd_vertex_state *vtx;
-	const struct fd_program_stateobj *prog;
 	const struct pipe_draw_info *info;
 	bool binning_pass;
-	struct ir3_shader_key key;
+	struct ir3_cache_key key;
 	enum fd_dirty_3d_state dirty;
 
 	uint32_t sprite_coord_enable;  /* bitmask */
@@ -76,9 +76,11 @@ struct fd6_emit {
 	 */
 	bool no_lrz_write;
 
-	/* cached to avoid repeated lookups of same variants: */
-	const struct ir3_shader_variant *vp, *fp;
-	/* TODO: other shader stages.. */
+	/* cached to avoid repeated lookups: */
+	const struct fd6_program_state *prog;
+
+	struct ir3_shader_variant *vs;
+	struct ir3_shader_variant *fs;
 
 	unsigned streamout_mask;
 
@@ -86,32 +88,16 @@ struct fd6_emit {
 	unsigned num_groups;
 };
 
-static inline const struct ir3_shader_variant *
-fd6_emit_get_vp(struct fd6_emit *emit)
+static inline const struct fd6_program_state *
+fd6_emit_get_prog(struct fd6_emit *emit)
 {
-	if (!emit->vp) {
-		struct ir3_shader *shader = emit->prog->vp;
-		emit->vp = ir3_shader_variant(shader, emit->key,
-				emit->binning_pass, emit->debug);
+	if (!emit->prog) {
+		struct fd6_context *fd6_ctx = fd6_context(emit->ctx);
+		struct ir3_program_state *s =
+				ir3_cache_lookup(fd6_ctx->shader_cache, &emit->key, &emit->ctx->debug);
+		emit->prog = fd6_program_state(s);
 	}
-	return emit->vp;
-}
-
-static inline const struct ir3_shader_variant *
-fd6_emit_get_fp(struct fd6_emit *emit)
-{
-	if (!emit->fp) {
-		if (emit->binning_pass) {
-			/* use dummy stateobj to simplify binning vs non-binning: */
-			static const struct ir3_shader_variant binning_fp = {};
-			emit->fp = &binning_fp;
-		} else {
-			struct ir3_shader *shader = emit->prog->fp;
-			emit->fp = ir3_shader_variant(shader, emit->key,
-					false, emit->debug);
-		}
-	}
-	return emit->fp;
+	return emit->prog;
 }
 
 static inline void
