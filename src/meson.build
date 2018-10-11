@@ -51,7 +51,9 @@ subdir('util')
 subdir('mapi')
 # TODO: opengl
 subdir('compiler')
-subdir('egl/wayland/wayland-drm')
+if with_platform_wayland
+  subdir('egl/wayland/wayland-drm')
+endif
 if with_any_vk
   subdir('vulkan')
 endif

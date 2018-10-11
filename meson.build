@@ -1318,13 +1318,6 @@ if with_platform_wayland
     'linux-dmabuf', 'linux-dmabuf-unstable-v1.xml'
   )
   pre_args += ['-DHAVE_WAYLAND_PLATFORM', '-DWL_HIDE_DEPRECATED']
-else
-  prog_wl_scanner = []
-  wl_scanner_arg = ''
-  dep_wl_protocols = null_dep
-  dep_wayland_client = null_dep
-  dep_wayland_server = null_dep
-  wayland_dmabuf_xml = ''
 endif
 
 dep_x11 = null_dep
