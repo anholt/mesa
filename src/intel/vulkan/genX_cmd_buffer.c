@@ -1617,6 +1617,13 @@ genX(cmd_buffer_config_l3)(struct anv_cmd_buffer *cmd_buffer,
    uint32_t l3cr;
    anv_pack_struct(&l3cr, GENX(L3CNTLREG),
                    .SLMEnable = has_slm,
+#if GEN_GEN == 11
+   /* WA_1406697149: Bit 9 "Error Detection Behavior Control" must be set
+    * in L3CNTLREG register. The default setting of the bit is not the
+    * desirable behavior.
+   */
+                   .ErrorDetectionBehaviorControl = true,
+#endif
                    .URBAllocation = cfg->n[GEN_L3P_URB],
                    .ROAllocation = cfg->n[GEN_L3P_RO],
                    .DCAllocation = cfg->n[GEN_L3P_DC],
