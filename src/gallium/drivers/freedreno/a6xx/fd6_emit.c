@@ -596,35 +596,6 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	emit_marker6(ring, 5);
 
-	if ((dirty & FD_DIRTY_FRAMEBUFFER) && !emit->binning_pass) {
-		unsigned char mrt_comp[A6XX_MAX_RENDER_TARGETS] = {0};
-
-		for (unsigned i = 0; i < pfb->nr_cbufs; i++) {
-			mrt_comp[i] = ((i < pfb->nr_cbufs) && pfb->cbufs[i]) ? 0xf : 0;
-		}
-
-		OUT_PKT4(ring, REG_A6XX_RB_RENDER_COMPONENTS, 1);
-		OUT_RING(ring, A6XX_RB_RENDER_COMPONENTS_RT0(mrt_comp[0]) |
-				A6XX_RB_RENDER_COMPONENTS_RT1(mrt_comp[1]) |
-				A6XX_RB_RENDER_COMPONENTS_RT2(mrt_comp[2]) |
-				A6XX_RB_RENDER_COMPONENTS_RT3(mrt_comp[3]) |
-				A6XX_RB_RENDER_COMPONENTS_RT4(mrt_comp[4]) |
-				A6XX_RB_RENDER_COMPONENTS_RT5(mrt_comp[5]) |
-				A6XX_RB_RENDER_COMPONENTS_RT6(mrt_comp[6]) |
-				A6XX_RB_RENDER_COMPONENTS_RT7(mrt_comp[7]));
-
-		OUT_PKT4(ring, REG_A6XX_SP_FS_RENDER_COMPONENTS, 1);
-		OUT_RING(ring,
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT0(mrt_comp[0]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT1(mrt_comp[1]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT2(mrt_comp[2]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT3(mrt_comp[3]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT4(mrt_comp[4]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT5(mrt_comp[5]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT6(mrt_comp[6]) |
-				 A6XX_SP_FS_RENDER_COMPONENTS_RT7(mrt_comp[7]));
-	}
-
 	if (dirty & FD_DIRTY_ZSA) {
 		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
 		uint32_t rb_alpha_control = zsa->rb_alpha_control;
