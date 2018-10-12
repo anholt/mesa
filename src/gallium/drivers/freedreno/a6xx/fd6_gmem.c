@@ -49,14 +49,13 @@
 #include "a4xx/fd4_draw.h"
 
 static void
-emit_mrt(struct fd_ringbuffer *ring, unsigned nr_bufs,
-		struct pipe_surface **bufs, struct fd_gmem_stateobj *gmem)
+emit_mrt(struct fd_ringbuffer *ring, struct pipe_framebuffer_state *pfb,
+		struct fd_gmem_stateobj *gmem)
 {
-	enum a6xx_tile_mode tile_mode;
 	unsigned srgb_cntl = 0;
 	unsigned i;
 
-	for (i = 0; i < nr_bufs; i++) {
+	for (i = 0; i < pfb->nr_cbufs; i++) {
 		enum a6xx_color_fmt format = 0;
 		enum a3xx_color_swap swap = WZYX;
 		bool sint = false, uint = false;
@@ -65,16 +64,10 @@ emit_mrt(struct fd_ringbuffer *ring, unsigned nr_bufs,
 		uint32_t stride = 0;
 		uint32_t offset = 0;
 
-		if (gmem) {
-			tile_mode = TILE6_2;
-		} else {
-			tile_mode = TILE6_LINEAR;
-		}
-
-		if (!bufs[i])
+		if (!pfb->cbufs[i])
 			continue;
 
-		struct pipe_surface *psurf = bufs[i];
+		struct pipe_surface *psurf = pfb->cbufs[i];
 		enum pipe_format pformat = psurf->format;
 		rsc = fd_resource(psurf->texture);
 		if (!rsc->bo)
@@ -460,7 +453,7 @@ fd6_emit_tile_init(struct fd_batch *batch)
 	OUT_RING(ring, 0x7c400004);   /* RB_CCU_CNTL */
 
 	emit_zs(ring, pfb->zsbuf, &ctx->gmem);
-	emit_mrt(ring, pfb->nr_cbufs, pfb->cbufs, &ctx->gmem);
+	emit_mrt(ring, pfb, &ctx->gmem);
 
 	patch_gmem_bases(batch);
 
@@ -856,7 +849,7 @@ fd6_emit_sysmem_prep(struct fd_batch *batch)
 	patch_draws(batch, IGNORE_VISIBILITY);
 
 	emit_zs(ring, pfb->zsbuf, NULL);
-	emit_mrt(ring, pfb->nr_cbufs, pfb->cbufs, NULL);
+	emit_mrt(ring, pfb, NULL);
 
 	disable_msaa(ring);
 }
