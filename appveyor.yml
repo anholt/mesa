@@ -33,7 +33,9 @@ branches:
 # - https://www.appveyor.com/blog/2014/06/04/shallow-clone-for-git-repositories
 clone_depth: 100
 
+# https://www.appveyor.com/docs/build-cache/
 cache:
+- '%LOCALAPPDATA%\pip\Cache -> appveyor.yml'
 - win_flex_bison-2.5.15.zip
 - llvm-5.0.1-msvc2017-mtd.7z
 
