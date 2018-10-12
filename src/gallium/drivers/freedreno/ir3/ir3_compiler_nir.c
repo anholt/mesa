@@ -3562,6 +3562,32 @@ fixup_astc_srgb(struct ir3_context *ctx)
 	}
 }
 
+static void
+fixup_binning_pass(struct ir3_context *ctx)
+{
+	struct ir3_shader_variant *so = ctx->so;
+	struct ir3 *ir = ctx->ir;
+	unsigned i, j;
+
+	for (i = 0, j = 0; i < so->outputs_count; i++) {
+		unsigned slot = so->outputs[i].slot;
+
+		/* throw away everything but first position/psize */
+		if ((slot == VARYING_SLOT_POS) || (slot == VARYING_SLOT_PSIZ)) {
+			if (i != j) {
+				so->outputs[j] = so->outputs[i];
+				ir->outputs[(j*4)+0] = ir->outputs[(i*4)+0];
+				ir->outputs[(j*4)+1] = ir->outputs[(i*4)+1];
+				ir->outputs[(j*4)+2] = ir->outputs[(i*4)+2];
+				ir->outputs[(j*4)+3] = ir->outputs[(i*4)+3];
+			}
+			j++;
+		}
+	}
+	so->outputs_count = j;
+	ir->noutputs = j * 4;
+}
+
 int
 ir3_compile_shader_nir(struct ir3_compiler *compiler,
 		struct ir3_shader_variant *so)
@@ -3569,7 +3595,7 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 	struct ir3_context *ctx;
 	struct ir3 *ir;
 	struct ir3_instruction **inputs;
-	unsigned i, j, actual_in, inloc;
+	unsigned i, actual_in, inloc;
 	int ret = 0, max_bary;
 
 	assert(!so->ir);
@@ -3599,25 +3625,8 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 		fixup_frag_inputs(ctx);
 
 	/* at this point, for binning pass, throw away unneeded outputs: */
-	if (so->binning_pass) {
-		for (i = 0, j = 0; i < so->outputs_count; i++) {
-			unsigned slot = so->outputs[i].slot;
-
-			/* throw away everything but first position/psize */
-			if ((slot == VARYING_SLOT_POS) || (slot == VARYING_SLOT_PSIZ)) {
-				if (i != j) {
-					so->outputs[j] = so->outputs[i];
-					ir->outputs[(j*4)+0] = ir->outputs[(i*4)+0];
-					ir->outputs[(j*4)+1] = ir->outputs[(i*4)+1];
-					ir->outputs[(j*4)+2] = ir->outputs[(i*4)+2];
-					ir->outputs[(j*4)+3] = ir->outputs[(i*4)+3];
-				}
-				j++;
-			}
-		}
-		so->outputs_count = j;
-		ir->noutputs = j * 4;
-	}
+	if (so->binning_pass && (ctx->compiler->gpu_id < 600))
+		fixup_binning_pass(ctx);
 
 	/* if we want half-precision outputs, mark the output registers
 	 * as half:
@@ -3655,6 +3664,14 @@ ir3_compile_shader_nir(struct ir3_compiler *compiler,
 	}
 
 	ir3_cp(ir, so);
+
+	/* at this point, for binning pass, throw away unneeded outputs:
+	 * Note that for a6xx and later, we do this after ir3_cp to ensure
+	 * that the uniform/constant layout for BS and VS matches, so that
+	 * we can re-use same VS_CONST state group.
+	 */
+	if (so->binning_pass && (ctx->compiler->gpu_id >= 600))
+		fixup_binning_pass(ctx);
 
 	/* Insert mov if there's same instruction for each output.
 	 * eg. dEQP-GLES31.functional.shaders.opaque_type_indexing.sampler.const_expression.vertex.sampler2dshadow
