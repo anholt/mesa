@@ -8,17 +8,17 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  37936 bytes, from 2018-10-08 11:43:51)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-10-08 11:43:51)
-- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  42864 bytes, from 2018-10-08 21:57:22)
-- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
-- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-10-08 21:57:22)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140514 bytes, from 2018-10-08 21:57:35)
-- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
-- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
+- /work/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-10 14:59:32)
+- /work/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-10 14:59:32)
+- /work/envytools/rnndb/adreno/a2xx.xml          (  37936 bytes, from 2018-10-08 20:10:47)
+- /work/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-10-08 20:10:47)
+- /work/envytools/rnndb/adreno/adreno_pm4.xml    (  42864 bytes, from 2018-10-08 20:14:26)
+- /work/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-10 14:59:32)
+- /work/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-10 14:59:32)
+- /work/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-09-28 22:41:49)
+- /work/envytools/rnndb/adreno/a6xx.xml          ( 140642 bytes, from 2018-10-12 21:46:25)
+- /work/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-28 22:41:49)
+- /work/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-10 14:59:32)
 
 Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -4744,17 +4744,31 @@ static inline uint32_t A6XX_SP_PS_2D_SRC_INFO_COLOR_SWAP(enum a3xx_color_swap va
 #define A6XX_SP_PS_2D_SRC_INFO_FLAGS				0x00001000
 #define A6XX_SP_PS_2D_SRC_INFO_FILTER				0x00010000
 
+#define REG_A6XX_SP_PS_2D_SRC_SIZE				0x0000b4c1
+#define A6XX_SP_PS_2D_SRC_SIZE_WIDTH__MASK			0x00007fff
+#define A6XX_SP_PS_2D_SRC_SIZE_WIDTH__SHIFT			0
+static inline uint32_t A6XX_SP_PS_2D_SRC_SIZE_WIDTH(uint32_t val)
+{
+	return ((val) << A6XX_SP_PS_2D_SRC_SIZE_WIDTH__SHIFT) & A6XX_SP_PS_2D_SRC_SIZE_WIDTH__MASK;
+}
+#define A6XX_SP_PS_2D_SRC_SIZE_HEIGHT__MASK			0x3fff8000
+#define A6XX_SP_PS_2D_SRC_SIZE_HEIGHT__SHIFT			15
+static inline uint32_t A6XX_SP_PS_2D_SRC_SIZE_HEIGHT(uint32_t val)
+{
+	return ((val) << A6XX_SP_PS_2D_SRC_SIZE_HEIGHT__SHIFT) & A6XX_SP_PS_2D_SRC_SIZE_HEIGHT__MASK;
+}
+
 #define REG_A6XX_SP_PS_2D_SRC_LO				0x0000b4c2
 
 #define REG_A6XX_SP_PS_2D_SRC_HI				0x0000b4c3
 
-#define REG_A6XX_SP_PS_2D_SRC_SIZE				0x0000b4c4
-#define A6XX_SP_PS_2D_SRC_SIZE_PITCH__MASK			0x01fffe00
-#define A6XX_SP_PS_2D_SRC_SIZE_PITCH__SHIFT			9
-static inline uint32_t A6XX_SP_PS_2D_SRC_SIZE_PITCH(uint32_t val)
+#define REG_A6XX_SP_PS_2D_SRC_PITCH				0x0000b4c4
+#define A6XX_SP_PS_2D_SRC_PITCH_PITCH__MASK			0x01fffe00
+#define A6XX_SP_PS_2D_SRC_PITCH_PITCH__SHIFT			9
+static inline uint32_t A6XX_SP_PS_2D_SRC_PITCH_PITCH(uint32_t val)
 {
 	assert(!(val & 0x3f));
-	return ((val >> 6) << A6XX_SP_PS_2D_SRC_SIZE_PITCH__SHIFT) & A6XX_SP_PS_2D_SRC_SIZE_PITCH__MASK;
+	return ((val >> 6) << A6XX_SP_PS_2D_SRC_PITCH_PITCH__SHIFT) & A6XX_SP_PS_2D_SRC_PITCH_PITCH__MASK;
 }
 
 #define REG_A6XX_SP_PS_2D_SRC_FLAGS_LO				0x0000b4ca
