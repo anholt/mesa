@@ -133,7 +133,7 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	const struct pipe_draw_info *info = emit->info;
 	enum pc_di_primtype primtype = ctx->primtypes[info->mode];
 
-	fd6_emit_state(ctx, ring, emit);
+	fd6_emit_state(ring, emit);
 
 	if (emit->dirty & (FD_DIRTY_VTXBUF | FD_DIRTY_VTXSTATE))
 		fd6_emit_vertex_bufs(ring, emit);

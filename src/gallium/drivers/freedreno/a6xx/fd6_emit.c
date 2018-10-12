@@ -584,9 +584,9 @@ fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 }
 
 void
-fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
-		struct fd6_emit *emit)
+fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 {
+	struct fd_context *ctx = emit->ctx;
 	struct pipe_framebuffer_state *pfb = &ctx->batch->framebuffer;
 	const struct fd6_program_state *prog = fd6_emit_get_prog(emit);
 	const struct ir3_shader_variant *vp = emit->vs;
@@ -608,9 +608,12 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 		OUT_PKT4(ring, REG_A6XX_RB_STENCIL_CONTROL, 1);
 		OUT_RING(ring, zsa->rb_stencil_control);
+
+		OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
+		OUT_RING(ring, zsa->rb_depth_cntl);
 	}
 
-	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_BLEND | FD_DIRTY_PROG)) {
+	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) {
 		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
 
 		if (pfb->zsbuf) {
@@ -642,20 +645,6 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 				A6XX_RB_STENCILREF_BFREF(sr->ref_value[1]));
 		OUT_RING(ring, zsa->rb_stencilmask);
 		OUT_RING(ring, zsa->rb_stencilwrmask);
-	}
-
-	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_RASTERIZER | FD_DIRTY_PROG)) {
-		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
-		bool fragz = fp->has_kill | fp->writes_pos;
-
-		OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
-		OUT_RING(ring, zsa->rb_depth_cntl);
-
-		OUT_PKT4(ring, REG_A6XX_RB_DEPTH_PLANE_CNTL, 1);
-		OUT_RING(ring, COND(fragz, A6XX_RB_DEPTH_PLANE_CNTL_FRAG_WRITES_Z));
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_SU_DEPTH_PLANE_CNTL, 1);
-		OUT_RING(ring, COND(fragz, A6XX_GRAS_SU_DEPTH_PLANE_CNTL_FRAG_WRITES_Z));
 	}
 
 	/* NOTE: scissor enabled bit is part of rasterizer state: */
@@ -737,12 +726,7 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 #endif
 	}
 
-	/* note: must come after program emit.. because there is some overlap
-	 * in registers, ex. PC_PRIMITIVE_CNTL and we rely on some cached
-	 * values from fd6_program_emit() to avoid having to re-emit the prog
-	 * every time rast state changes.
-	 *
-	 * Since the primitive restart state is not part of a tracked object, we
+	/* Since the primitive restart state is not part of a tracked object, we
 	 * re-emit this register every time.
 	 */
 	if (emit->info && ctx->rasterizer) {
@@ -763,21 +747,16 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 
 	if (dirty & (FD_DIRTY_FRAMEBUFFER | FD_DIRTY_RASTERIZER | FD_DIRTY_PROG)) {
-		uint32_t posz_regid = ir3_find_output_regid(fp, FRAG_RESULT_DEPTH);
 		unsigned nr = pfb->nr_cbufs;
 
-		if (emit->binning_pass)
-			nr = 0;
-		else if (ctx->rasterizer->rasterizer_discard)
+		if (ctx->rasterizer->rasterizer_discard)
 			nr = 0;
 
 		OUT_PKT4(ring, REG_A6XX_RB_FS_OUTPUT_CNTL0, 2);
 		OUT_RING(ring, COND(fp->writes_pos, A6XX_RB_FS_OUTPUT_CNTL0_FRAG_WRITES_Z));
 		OUT_RING(ring, A6XX_RB_FS_OUTPUT_CNTL1_MRT(nr));
 
-		OUT_PKT4(ring, REG_A6XX_SP_FS_OUTPUT_CNTL0, 2);
-		OUT_RING(ring, A6XX_SP_FS_OUTPUT_CNTL0_DEPTH_REGID(posz_regid) |
-				 0xfcfc0000);
+		OUT_PKT4(ring, REG_A6XX_SP_FS_OUTPUT_CNTL1, 1);
 		OUT_RING(ring, A6XX_SP_FS_OUTPUT_CNTL1_MRT(nr));
 	}
 
@@ -794,14 +773,13 @@ fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		fd_ringbuffer_del(vsconstobj);
 	}
 
-	if ((ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & DIRTY_CONST) &&
-			!emit->binning_pass) {
+	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & DIRTY_CONST) {
 		struct fd_ringbuffer *fsconstobj =
 			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
 					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
 
 		ir3_emit_fs_consts(fp, fsconstobj, ctx);
-		fd6_emit_add_group(emit, fsconstobj, FD6_GROUP_FS_CONST, 0x7);
+		fd6_emit_add_group(emit, fsconstobj, FD6_GROUP_FS_CONST, 0x6);
 		fd_ringbuffer_del(fsconstobj);
 	}
 

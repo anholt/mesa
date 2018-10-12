@@ -171,8 +171,7 @@ bool fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
 
 void fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit);
 
-void fd6_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
-		struct fd6_emit *emit);
+void fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit);
 
 void fd6_emit_cs_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		struct ir3_shader_variant *cp);

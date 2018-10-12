@@ -303,7 +303,7 @@ setup_stateobj(struct fd_ringbuffer *ring,
                struct fd6_program_state *state, bool binning_pass)
 {
 	struct stage s[MAX_STAGES];
-	uint32_t pos_regid, psize_regid, color_regid[8];
+	uint32_t pos_regid, psize_regid, color_regid[8], posz_regid;
 	uint32_t face_regid, coord_regid, zwcoord_regid, samp_id_regid, samp_mask_regid;
 	uint32_t vcoord_regid, vertex_regid, instance_regid;
 	enum a3xx_threadsize fssz;
@@ -340,6 +340,7 @@ setup_stateobj(struct fd_ringbuffer *ring,
 	coord_regid     = ir3_find_sysval_regid(s[FS].v, SYSTEM_VALUE_FRAG_COORD);
 	zwcoord_regid   = (coord_regid == regid(63,0)) ? regid(63,0) : (coord_regid + 2);
 	vcoord_regid    = ir3_find_sysval_regid(s[FS].v, SYSTEM_VALUE_VARYING_COORD);
+	posz_regid      = ir3_find_output_regid(s[FS].v, FRAG_RESULT_DEPTH);
 
 	/* we could probably divide this up into things that need to be
 	 * emitted if frag-prog is dirty vs if vert-prog is dirty..
@@ -383,6 +384,10 @@ setup_stateobj(struct fd_ringbuffer *ring,
 			 A6XX_SP_FS_CONFIG_NTEX(s[FS].v->num_samp) |
 			 A6XX_SP_FS_CONFIG_NSAMP(s[FS].v->num_samp));     /* SP_FS_CONFIG */
 	OUT_RING(ring, s[FS].instrlen);							  /* SP_FS_INSTRLEN */
+
+	OUT_PKT4(ring, REG_A6XX_SP_FS_OUTPUT_CNTL0, 1);
+	OUT_RING(ring, A6XX_SP_FS_OUTPUT_CNTL0_DEPTH_REGID(posz_regid) |
+			 0xfcfc0000);
 
 	OUT_PKT4(ring, REG_A6XX_HLSQ_VS_CNTL, 4);
 	OUT_RING(ring, A6XX_HLSQ_VS_CNTL_CONSTLEN(s[VS].constlen) | 0x100);    /* HLSQ_VS_CONSTLEN */
@@ -607,6 +612,14 @@ setup_stateobj(struct fd_ringbuffer *ring,
 	OUT_RING(ring, 0x000000fc);   /* VFD_CONTROL_4 */
 	OUT_RING(ring, 0x0000fcfc);   /* VFD_CONTROL_5 */
 	OUT_RING(ring, 0x00000000);   /* VFD_CONTROL_6 */
+
+	bool fragz = s[FS].v->has_kill | s[FS].v->writes_pos;
+
+	OUT_PKT4(ring, REG_A6XX_RB_DEPTH_PLANE_CNTL, 1);
+	OUT_RING(ring, COND(fragz, A6XX_RB_DEPTH_PLANE_CNTL_FRAG_WRITES_Z));
+
+	OUT_PKT4(ring, REG_A6XX_GRAS_SU_DEPTH_PLANE_CNTL, 1);
+	OUT_RING(ring, COND(fragz, A6XX_GRAS_SU_DEPTH_PLANE_CNTL_FRAG_WRITES_Z));
 }
 
 /* emits the program state which is not part of the stateobj because of
