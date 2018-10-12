@@ -146,8 +146,6 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	OUT_RING(ring, info->primitive_restart ? /* PC_RESTART_INDEX */
 			info->restart_index : 0xffffffff);
 
-	fd6_emit_render_cntl(ctx, false, emit->key.binning_pass);
-
 	/* for debug after a lock up, write a unique counter value
 	 * to scratch7 for each draw, to make it easier to match up
 	 * register dumps to cmdstream.  The combination of IB
@@ -418,8 +416,6 @@ fd6_clear(struct fd_context *ctx, unsigned buffers,
 	if ((buffers & (PIPE_CLEAR_DEPTH | PIPE_CLEAR_STENCIL)) &&
 			is_z32(pfb->zsbuf->format))
 		return false;
-
-	fd6_emit_render_cntl(ctx, true, false);
 
 	OUT_PKT4(ring, REG_A6XX_RB_BLIT_SCISSOR_TL, 2);
 	OUT_RING(ring, A6XX_RB_BLIT_SCISSOR_TL_X(scissor->minx) |

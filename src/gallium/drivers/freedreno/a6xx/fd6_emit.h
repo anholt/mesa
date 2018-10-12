@@ -121,36 +121,6 @@ fd6_emit_blit(struct fd_batch *batch, struct fd_ringbuffer *ring)
 }
 
 static inline void
-fd6_emit_render_cntl(struct fd_context *ctx, bool blit, bool binning)
-{
-#if 0
-	struct fd_ringbuffer *ring = binning ? ctx->batch->binning : ctx->batch->draw;
-
-	/* TODO eventually this partially depends on the pfb state, ie.
-	 * which of the cbuf(s)/zsbuf has an UBWC flag buffer.. that part
-	 * we could probably cache and just regenerate if framebuffer
-	 * state is dirty (or something like that)..
-	 *
-	 * Other bits seem to depend on query state, like if samples-passed
-	 * query is active.
-	 */
-	bool samples_passed = (fd6_context(ctx)->samples_passed_queries > 0);
-	OUT_PKT4(ring, REG_A6XX_RB_RENDER_CNTL, 1);
-	OUT_RING(ring, 0x00000000 |   /* RB_RENDER_CNTL */
-			COND(binning, A6XX_RB_RENDER_CNTL_BINNING_PASS) |
-			COND(binning, A6XX_RB_RENDER_CNTL_DISABLE_COLOR_PIPE) |
-			COND(samples_passed, A6XX_RB_RENDER_CNTL_SAMPLES_PASSED) |
-			COND(!blit, 0x8));
-	OUT_PKT4(ring, REG_A6XX_GRAS_SC_CNTL, 1);
-	OUT_RING(ring, 0x00000008 |   /* GRAS_SC_CNTL */
-			COND(binning, A6XX_GRAS_SC_CNTL_BINNING_PASS) |
-			COND(samples_passed, A6XX_GRAS_SC_CNTL_SAMPLES_PASSED));
-#else
-	DBG("render ctl stub");
-#endif
-}
-
-static inline void
 fd6_emit_lrz_flush(struct fd_ringbuffer *ring)
 {
 	OUT_PKT7(ring, CP_EVENT_WRITE, 1);
