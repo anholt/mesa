@@ -46,7 +46,6 @@
 static void
 draw_emit_indirect(struct fd_batch *batch, struct fd_ringbuffer *ring,
 				   enum pc_di_primtype primtype,
-				   enum pc_di_vis_cull_mode vismode,
 				   const struct pipe_draw_info *info,
 				   unsigned index_offset)
 {
@@ -77,7 +76,6 @@ draw_emit_indirect(struct fd_batch *batch, struct fd_ringbuffer *ring,
 static void
 draw_emit(struct fd_batch *batch, struct fd_ringbuffer *ring,
 		  enum pc_di_primtype primtype,
-		  enum pc_di_vis_cull_mode vismode,
 		  const struct pipe_draw_info *info,
 		  unsigned index_offset)
 {
@@ -97,11 +95,7 @@ draw_emit(struct fd_batch *batch, struct fd_ringbuffer *ring,
 			0x2000;
 
 		OUT_PKT7(ring, CP_DRAW_INDX_OFFSET, 7);
-		if (vismode == USE_VISIBILITY) {
-			OUT_RINGP(ring, draw, &batch->draw_patches);
-		} else {
-			OUT_RING(ring, draw);
-		}
+		OUT_RINGP(ring, draw, &batch->draw_patches);
 		OUT_RING(ring, info->instance_count);    /* NumInstances */
 		OUT_RING(ring, info->count);             /* NumIndices */
 		OUT_RING(ring, 0x0);           /* XXX */
@@ -116,11 +110,7 @@ draw_emit(struct fd_batch *batch, struct fd_ringbuffer *ring,
 			0x2000;
 
 		OUT_PKT7(ring, CP_DRAW_INDX_OFFSET, 3);
-		if (vismode == USE_VISIBILITY) {
-			OUT_RINGP(ring, draw, &batch->draw_patches);
-		} else {
-			OUT_RING(ring, draw);
-		}
+		OUT_RINGP(ring, draw, &batch->draw_patches);
 		OUT_RING(ring, info->instance_count);    /* NumInstances */
 		OUT_RING(ring, info->count);             /* NumIndices */
 	}
@@ -156,11 +146,9 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 
 	if (info->indirect) {
 		draw_emit_indirect(ctx->batch, ring, primtype,
-						   emit->binning_pass ? IGNORE_VISIBILITY : USE_VISIBILITY,
 						   info, index_offset);
 	} else {
 		draw_emit(ctx->batch, ring, primtype,
-				  emit->binning_pass ? IGNORE_VISIBILITY : USE_VISIBILITY,
 				  info, index_offset);
 	}
 
