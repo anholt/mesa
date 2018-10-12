@@ -95,6 +95,8 @@ struct fd_screen {
 	struct fd_batch_cache batch_cache;
 
 	bool reorder;
+
+	uint16_t rsc_seqno;
 };
 
 static inline struct fd_screen *

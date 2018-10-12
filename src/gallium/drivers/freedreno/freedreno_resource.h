@@ -95,6 +95,9 @@ struct fd_resource {
 	 */
 	uint32_t bc_batch_mask;
 
+	/* Sequence # incremented each time bo changes: */
+	uint16_t seqno;
+
 	unsigned tile_mode : 2;
 	unsigned preferred_tile_mode : 2;
 
