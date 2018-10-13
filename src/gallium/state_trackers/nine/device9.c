@@ -2178,9 +2178,11 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
         NineDevice9_SetLight(This, Index, &light);
     }
 
-    nine_state_light_enable(&state->ff, &state->changed.group, Index, Enable);
+    nine_state_light_enable(&state->ff, Index, Enable);
     if (likely(!This->is_recording))
         nine_context_light_enable(This, Index, Enable);
+    else
+        state->changed.group |= NINE_STATE_FF_LIGHTING;
 
     return D3D_OK;
 }

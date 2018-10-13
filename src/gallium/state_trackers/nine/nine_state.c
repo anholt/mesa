@@ -1827,7 +1827,8 @@ CSMT_ITEM_NO_WAIT(nine_context_light_enable,
 {
     struct nine_context *context = &device->context;
 
-    nine_state_light_enable(&context->ff, &context->changed.group, Index, Enable);
+    nine_state_light_enable(&context->ff, Index, Enable);
+    context->changed.group |= NINE_STATE_FF_LIGHTING;
 }
 
 CSMT_ITEM_NO_WAIT(nine_context_set_texture_stage_state,
@@ -3480,7 +3481,7 @@ nine_state_set_light(struct nine_ff_state *ff_state, DWORD Index,
 }
 
 HRESULT
-nine_state_light_enable(struct nine_ff_state *ff_state, uint32_t *change_group,
+nine_state_light_enable(struct nine_ff_state *ff_state,
                         DWORD Index, BOOL Enable)
 {
     unsigned i;
@@ -3508,8 +3509,6 @@ nine_state_light_enable(struct nine_ff_state *ff_state, uint32_t *change_group,
         for (; i < ff_state->num_lights_active; ++i)
             ff_state->active_light[i] = ff_state->active_light[i + 1];
     }
-
-    *change_group |= NINE_STATE_FF_LIGHTING;
 
     return D3D_OK;
 }
