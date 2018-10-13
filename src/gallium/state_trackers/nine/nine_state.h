@@ -70,8 +70,6 @@
 #define NINE_STATE_VDECL       (1 << 12)
 #define NINE_STATE_IDXBUF      (1 << 13)
 #define NINE_STATE_STREAMFREQ  (1 << 14)
-#define NINE_STATE_PRIM        (1 << 15)
-#define NINE_STATE_MATERIAL    (1 << 16)
 #define NINE_STATE_BLEND_COLOR (1 << 17)
 #define NINE_STATE_STENCIL_REF (1 << 18)
 #define NINE_STATE_SAMPLE_MASK (1 << 19)

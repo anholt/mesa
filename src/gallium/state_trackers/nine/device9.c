@@ -2374,7 +2374,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
           NINE_STATE_BLEND |
           NINE_STATE_DSA |
           NINE_STATE_IDXBUF |
-          NINE_STATE_MATERIAL |
+          NINE_STATE_FF_MATERIAL |
           NINE_STATE_BLEND_COLOR |
           NINE_STATE_SAMPLE_MASK;
        memset(dst->changed.rs, ~0, (D3DRS_COUNT / 32) * sizeof(uint32_t));
