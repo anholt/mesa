@@ -44,6 +44,7 @@ struct fd_ringbuffer;
  */
 enum fd6_state_id {
 	FD6_GROUP_PROG,
+	FD6_GROUP_PROG_BINNING,
 	FD6_GROUP_ZSA,
 	FD6_GROUP_ZSA_BINNING,
 	FD6_GROUP_VBO,

@@ -704,10 +704,9 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	}
 
 	if (dirty & FD_DIRTY_PROG) {
-		struct fd_ringbuffer *stateobj = emit->binning_pass ?
-				prog->binning_stateobj : prog->stateobj;
-
-		fd6_emit_add_group(emit, stateobj, FD6_GROUP_PROG, 0x7);
+		fd6_emit_add_group(emit, prog->stateobj, FD6_GROUP_PROG, 0x6);
+		fd6_emit_add_group(emit, prog->binning_stateobj,
+				FD6_GROUP_PROG_BINNING, 0x1);
 
 		/* emit remaining non-stateobj program state, ie. what depends
 		 * on other emit state, so cannot be pre-baked.  This could
