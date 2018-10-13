@@ -637,14 +637,28 @@ VkResult anv_CreateInstance(
       /* Vulkan requires that entrypoints for extensions which have not been
        * enabled must not be advertised.
        */
-      if (!anv_entrypoint_is_enabled(i, instance->app_info.api_version,
-                                     &instance->enabled_extensions, NULL)) {
+      if (!anv_instance_entrypoint_is_enabled(i, instance->app_info.api_version,
+                                              &instance->enabled_extensions)) {
          instance->dispatch.entrypoints[i] = NULL;
-      } else if (anv_dispatch_table.entrypoints[i] != NULL) {
-         instance->dispatch.entrypoints[i] = anv_dispatch_table.entrypoints[i];
       } else {
          instance->dispatch.entrypoints[i] =
-            anv_tramp_dispatch_table.entrypoints[i];
+            anv_instance_dispatch_table.entrypoints[i];
+      }
+   }
+
+   for (unsigned i = 0; i < ARRAY_SIZE(instance->device_dispatch.entrypoints); i++) {
+      /* Vulkan requires that entrypoints for extensions which have not been
+       * enabled must not be advertised.
+       */
+      if (!anv_device_entrypoint_is_enabled(i, instance->app_info.api_version,
+                                            &instance->enabled_extensions, NULL)) {
+         instance->device_dispatch.entrypoints[i] = NULL;
+      } else if (anv_device_dispatch_table.entrypoints[i] != NULL) {
+         instance->device_dispatch.entrypoints[i] =
+            anv_device_dispatch_table.entrypoints[i];
+      } else {
+         instance->device_dispatch.entrypoints[i] =
+            anv_tramp_device_dispatch_table.entrypoints[i];
       }
    }
 
@@ -1349,11 +1363,15 @@ PFN_vkVoidFunction anv_GetInstanceProcAddr(
    if (instance == NULL)
       return NULL;
 
-   int idx = anv_get_entrypoint_index(pName);
-   if (idx < 0)
-      return NULL;
+   int idx = anv_get_instance_entrypoint_index(pName);
+   if (idx >= 0)
+      return instance->dispatch.entrypoints[idx];
 
-   return instance->dispatch.entrypoints[idx];
+   idx = anv_get_device_entrypoint_index(pName);
+   if (idx >= 0)
+      return instance->device_dispatch.entrypoints[idx];
+
+   return NULL;
 }
 
 /* With version 1+ of the loader interface the ICD should expose
@@ -1381,7 +1399,7 @@ PFN_vkVoidFunction anv_GetDeviceProcAddr(
    if (!device || !pName)
       return NULL;
 
-   int idx = anv_get_entrypoint_index(pName);
+   int idx = anv_get_device_entrypoint_index(pName);
    if (idx < 0)
       return NULL;
 
@@ -1531,25 +1549,25 @@ VkResult anv_EnumerateDeviceExtensionProperties(
 static void
 anv_device_init_dispatch(struct anv_device *device)
 {
-   const struct anv_dispatch_table *genX_table;
+   const struct anv_device_dispatch_table *genX_table;
    switch (device->info.gen) {
    case 11:
-      genX_table = &gen11_dispatch_table;
+      genX_table = &gen11_device_dispatch_table;
       break;
    case 10:
-      genX_table = &gen10_dispatch_table;
+      genX_table = &gen10_device_dispatch_table;
       break;
    case 9:
-      genX_table = &gen9_dispatch_table;
+      genX_table = &gen9_device_dispatch_table;
       break;
    case 8:
-      genX_table = &gen8_dispatch_table;
+      genX_table = &gen8_device_dispatch_table;
       break;
    case 7:
       if (device->info.is_haswell)
-         genX_table = &gen75_dispatch_table;
+         genX_table = &gen75_device_dispatch_table;
       else
-         genX_table = &gen7_dispatch_table;
+         genX_table = &gen7_device_dispatch_table;
       break;
    default:
       unreachable("unsupported gen\n");
@@ -1559,14 +1577,15 @@ anv_device_init_dispatch(struct anv_device *device)
       /* Vulkan requires that entrypoints for extensions which have not been
        * enabled must not be advertised.
        */
-      if (!anv_entrypoint_is_enabled(i, device->instance->app_info.api_version,
-                                     &device->instance->enabled_extensions,
-                                     &device->enabled_extensions)) {
+      if (!anv_device_entrypoint_is_enabled(i, device->instance->app_info.api_version,
+                                            &device->instance->enabled_extensions,
+                                            &device->enabled_extensions)) {
          device->dispatch.entrypoints[i] = NULL;
       } else if (genX_table->entrypoints[i]) {
          device->dispatch.entrypoints[i] = genX_table->entrypoints[i];
       } else {
-         device->dispatch.entrypoints[i] = anv_dispatch_table.entrypoints[i];
+         device->dispatch.entrypoints[i] =
+            anv_device_dispatch_table.entrypoints[i];
       }
    }
 }

@@ -903,7 +903,8 @@ struct anv_instance {
     struct anv_app_info                         app_info;
 
     struct anv_instance_extension_table         enabled_extensions;
-    struct anv_dispatch_table                   dispatch;
+    struct anv_instance_dispatch_table          dispatch;
+    struct anv_device_dispatch_table            device_dispatch;
 
     int                                         physicalDeviceCount;
     struct anv_physical_device                  physicalDevice;
@@ -986,7 +987,7 @@ struct anv_device {
     bool                                        can_chain_batches;
     bool                                        robust_buffer_access;
     struct anv_device_extension_table           enabled_extensions;
-    struct anv_dispatch_table                   dispatch;
+    struct anv_device_dispatch_table            dispatch;
 
     pthread_mutex_t                             vma_mutex;
     struct util_vma_heap                        vma_lo;
@@ -3242,12 +3243,17 @@ struct anv_query_pool {
    struct anv_bo                                bo;
 };
 
-int anv_get_entrypoint_index(const char *name);
+int anv_get_instance_entrypoint_index(const char *name);
+int anv_get_device_entrypoint_index(const char *name);
 
 bool
-anv_entrypoint_is_enabled(int index, uint32_t core_version,
-                          const struct anv_instance_extension_table *instance,
-                          const struct anv_device_extension_table *device);
+anv_instance_entrypoint_is_enabled(int index, uint32_t core_version,
+                                   const struct anv_instance_extension_table *instance);
+
+bool
+anv_device_entrypoint_is_enabled(int index, uint32_t core_version,
+                                 const struct anv_instance_extension_table *instance,
+                                 const struct anv_device_extension_table *device);
 
 void *anv_lookup_entrypoint(const struct gen_device_info *devinfo,
                             const char *name);
