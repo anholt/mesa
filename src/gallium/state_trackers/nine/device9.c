@@ -2014,7 +2014,7 @@ NineDevice9_SetTransform( struct NineDevice9 *This,
     *M = *pMatrix;
     if (unlikely(This->is_recording)) {
         state->ff.changed.transform[State / 32] |= 1 << (State % 32);
-        state->changed.group |= NINE_STATE_FF;
+        state->changed.group |= NINE_STATE_FF_VSTRANSF;
     } else
         nine_context_set_transform(This, State, pMatrix);
 
@@ -2261,7 +2261,6 @@ NineDevice9_SetRenderState( struct NineDevice9 *This,
         state->rs_advertised[State] = Value;
         /* only need to record changed render states for stateblocks */
         state->changed.rs[State / 32] |= 1 << (State % 32);
-        state->changed.group |= nine_render_state_group[State];
         return D3D_OK;
     }
 
