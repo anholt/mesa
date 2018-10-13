@@ -787,6 +787,10 @@ struct_member_decoration_cb(struct vtn_builder *b,
                spirv_decoration_to_string(dec->decoration));
       break;
 
+   case SpvDecorationHlslSemanticGOOGLE:
+      /* HLSL semantic decorations can safely be ignored by the driver. */
+      break;
+
    default:
       vtn_fail("Unhandled decoration");
    }
@@ -874,6 +878,7 @@ type_decoration_cb(struct vtn_builder *b,
    case SpvDecorationOffset:
    case SpvDecorationXfbBuffer:
    case SpvDecorationXfbStride:
+   case SpvDecorationHlslSemanticGOOGLE:
       vtn_warn("Decoration only allowed for struct members: %s",
                spirv_decoration_to_string(dec->decoration));
       break;
