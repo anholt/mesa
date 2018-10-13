@@ -312,6 +312,8 @@ struct radv_physical_device {
 	VkPhysicalDeviceMemoryProperties memory_properties;
 	enum radv_mem_type mem_type_indices[RADV_MEM_TYPE_COUNT];
 
+	drmPciBusInfo bus_info;
+
 	struct radv_device_extension_table supported_extensions;
 };
 

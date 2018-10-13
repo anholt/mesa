@@ -389,6 +389,7 @@ radv_physical_device_init(struct radv_physical_device *device,
 	if ((device->instance->debug_flags & RADV_DEBUG_INFO))
 		ac_print_gpu_info(&device->rad_info);
 
+	device->bus_info = *drm_device->businfo.pci;
 	return VK_SUCCESS;
 
 fail:
@@ -1188,6 +1189,15 @@ void radv_GetPhysicalDeviceProperties2(
 			properties->degenerateLinesRasterized = VK_FALSE;
 			properties->fullyCoveredFragmentShaderInputVariable = VK_FALSE;
 			properties->conservativeRasterizationPostDepthCoverage = VK_FALSE;
+			break;
+		}
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT: {
+			VkPhysicalDevicePCIBusInfoPropertiesEXT *properties =
+				(VkPhysicalDevicePCIBusInfoPropertiesEXT *)ext;
+			properties->pciDomain = pdevice->bus_info.domain;
+			properties->pciBus = pdevice->bus_info.bus;
+			properties->pciDevice = pdevice->bus_info.dev;
+			properties->pciFunction = pdevice->bus_info.func;
 			break;
 		}
 		default:
