@@ -229,14 +229,13 @@ fd6_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 
 	fixup_shader_state(ctx, &emit.key.key);
 
-	unsigned dirty = ctx->dirty;
-
-	if (!(dirty & FD_DIRTY_PROG)) {
+	if (!(ctx->dirty & FD_DIRTY_PROG)) {
 		emit.prog = fd6_ctx->prog;
 	} else {
 		fd6_ctx->prog = fd6_emit_get_prog(&emit);
 	}
 
+	emit.dirty = ctx->dirty;      /* *after* fixup_shader_state() */
 	emit.bs = fd6_emit_get_prog(&emit)->bs;
 	emit.vs = fd6_emit_get_prog(&emit)->vs;
 	emit.fs = fd6_emit_get_prog(&emit)->fs;
@@ -257,17 +256,7 @@ fd6_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 	 */
 	emit.no_lrz_write = fp->writes_pos || fp->has_kill;
 
-	emit.binning_pass = false;
-	emit.dirty = dirty;
-
 	draw_impl(ctx, ctx->batch->draw, &emit, index_offset);
-
-	/* and now binning pass: */
-	emit.binning_pass = true;
-	emit.dirty = dirty & ~(FD_DIRTY_BLEND);
-	emit.vs = fd6_emit_get_prog(&emit)->bs;
-
-	draw_impl(ctx, ctx->batch->binning, &emit, index_offset);
 
 	if (emit.streamout_mask) {
 		struct fd_ringbuffer *ring = ctx->batch->draw;

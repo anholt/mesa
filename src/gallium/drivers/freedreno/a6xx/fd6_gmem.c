@@ -408,7 +408,7 @@ emit_binning_pass(struct fd_batch *batch)
 			A6XX_SP_TP_WINDOW_OFFSET_Y(0));
 
 	/* emit IB to binning drawcmds: */
-	ctx->emit_ib(ring, batch->binning);
+	ctx->emit_ib(ring, batch->draw);
 
 	fd_reset_wfi(batch);
 

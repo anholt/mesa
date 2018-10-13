@@ -66,7 +66,6 @@ struct fd6_emit {
 	struct fd_context *ctx;
 	const struct fd_vertex_state *vtx;
 	const struct pipe_draw_info *info;
-	bool binning_pass;
 	struct ir3_cache_key key;
 	enum fd_dirty_3d_state dirty;
 
