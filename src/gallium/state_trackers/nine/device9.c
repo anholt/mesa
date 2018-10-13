@@ -2315,9 +2315,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
     *ppSB = (IDirect3DStateBlock9 *)nsb;
     dst = &nsb->state;
 
-    dst->changed.group =
-       NINE_STATE_TEXTURE |
-       NINE_STATE_SAMPLER;
+    dst->changed.group = NINE_STATE_SAMPLER;
 
     if (Type == D3DSBT_ALL || Type == D3DSBT_VERTEXSTATE) {
        dst->changed.group |=
@@ -2350,10 +2348,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
     }
     if (Type == D3DSBT_ALL || Type == D3DSBT_PIXELSTATE) {
        dst->changed.group |=
-          NINE_STATE_PS | NINE_STATE_PS_CONST | NINE_STATE_BLEND |
-          NINE_STATE_FF_VS_OTHER | NINE_STATE_FF_PS_CONSTS | NINE_STATE_PS_CONST |
-          NINE_STATE_FB | NINE_STATE_DSA | NINE_STATE_MULTISAMPLE |
-          NINE_STATE_RASTERIZER | NINE_STATE_STENCIL_REF;
+          NINE_STATE_PS | NINE_STATE_PS_CONST | NINE_STATE_FF_PS_CONSTS;
        memcpy(dst->changed.rs,
               nine_render_states_pixel, sizeof(dst->changed.rs));
        nine_ranges_insert(&dst->changed.ps_const_f, 0, This->max_ps_const_f,
@@ -2371,13 +2366,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        dst->changed.group |=
           NINE_STATE_VIEWPORT |
           NINE_STATE_SCISSOR |
-          NINE_STATE_RASTERIZER |
-          NINE_STATE_BLEND |
-          NINE_STATE_DSA |
           NINE_STATE_IDXBUF |
           NINE_STATE_FF_MATERIAL |
-          NINE_STATE_BLEND_COLOR |
-          NINE_STATE_SAMPLE_MASK |
           NINE_STATE_FF_VSTRANSF;
        memset(dst->changed.rs, ~0, (D3DRS_COUNT / 32) * sizeof(uint32_t));
        dst->changed.rs[D3DRS_LAST / 32] |= (1 << (D3DRS_COUNT % 32)) - 1;
@@ -2500,7 +2490,6 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
 
     if (This->is_recording) {
         state->changed.texture |= 1 << Stage;
-        state->changed.group |= NINE_STATE_TEXTURE;
         nine_bind(&state->texture[Stage], pTexture);
         return D3D_OK;
     }
@@ -2549,8 +2538,6 @@ NineDevice9_SetTextureStageState( struct NineDevice9 *This,
     state->ff.tex_stage[Stage][Type] = Value;
 
     if (unlikely(This->is_recording)) {
-        if (Type == D3DTSS_TEXTURETRANSFORMFLAGS)
-            state->changed.group |= NINE_STATE_PS_PARAMS_MISC;
         state->changed.group |= NINE_STATE_FF_PS_CONSTS;
         state->ff.changed.tex_stage[Stage][Type / 32] |= 1 << (Type % 32);
     } else
@@ -3544,8 +3531,6 @@ NineDevice9_SetStreamSourceFreq( struct NineDevice9 *This,
     if (unlikely(This->is_recording)) {
         state->stream_freq[StreamNumber] = Setting;
         state->changed.stream_freq |= 1 << StreamNumber;
-        if (StreamNumber != 0)
-            state->changed.group |= NINE_STATE_STREAMFREQ;
         return D3D_OK;
     }
 
@@ -3634,11 +3619,8 @@ NineDevice9_SetPixelShader( struct NineDevice9 *This,
     DBG("This=%p pShader=%p\n", This, pShader);
 
     if (unlikely(This->is_recording)) {
-        /* Technically we need NINE_STATE_FB only
-         * if the ps mask changes, but put it always
-         * to be safe */
         nine_bind(&state->ps, pShader);
-        state->changed.group |= NINE_STATE_PS | NINE_STATE_FB;
+        state->changed.group |= NINE_STATE_PS;
         return D3D_OK;
     }
 
