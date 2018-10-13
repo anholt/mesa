@@ -128,6 +128,8 @@ EXTENSIONS = [
     Extension('VK_EXT_post_depth_coverage',               1, 'device->info.gen >= 9'),
     Extension('VK_EXT_sampler_filter_minmax',             1, 'device->info.gen >= 9'),
     Extension('VK_EXT_calibrated_timestamps',             1, True),
+    Extension('VK_GOOGLE_decorate_string',                1, True),
+    Extension('VK_GOOGLE_hlsl_functionality1',            1, True),
 ]
 
 class VkVersion:
