@@ -583,6 +583,35 @@ fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	OUT_RING(ring, A6XX_VFD_CONTROL_0_VTXCNT(j) | (j << 8));
 }
 
+static struct fd_ringbuffer *
+build_zsa(struct fd6_emit *emit, bool binning_pass)
+{
+	struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(emit->ctx->zsa);
+	struct pipe_framebuffer_state *pfb = &emit->ctx->batch->framebuffer;
+	struct fd_resource *rsc = fd_resource(pfb->zsbuf->texture);
+	uint32_t gras_lrz_cntl = zsa->gras_lrz_cntl;
+	uint32_t rb_lrz_cntl = zsa->rb_lrz_cntl;
+
+	struct fd_ringbuffer *ring =
+		fd_ringbuffer_new_flags(emit->ctx->pipe, 16,
+				FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+
+	if (emit->no_lrz_write || !rsc->lrz || !rsc->lrz_valid) {
+		gras_lrz_cntl = 0;
+		rb_lrz_cntl = 0;
+	} else if (binning_pass && zsa->lrz_write) {
+		gras_lrz_cntl |= A6XX_GRAS_LRZ_CNTL_LRZ_WRITE;
+	}
+
+	OUT_PKT4(ring, REG_A6XX_GRAS_LRZ_CNTL, 1);
+	OUT_RING(ring, gras_lrz_cntl);
+
+	OUT_PKT4(ring, REG_A6XX_RB_LRZ_CNTL, 1);
+	OUT_RING(ring, rb_lrz_cntl);
+
+	return ring;
+}
+
 void
 fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 {
@@ -613,27 +642,16 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 		OUT_RING(ring, zsa->rb_depth_cntl);
 	}
 
-	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) {
-		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
+	if ((dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) && pfb->zsbuf) {
+		struct fd_ringbuffer *state;
 
-		if (pfb->zsbuf) {
-			struct fd_resource *rsc = fd_resource(pfb->zsbuf->texture);
-			uint32_t gras_lrz_cntl = zsa->gras_lrz_cntl;
-			uint32_t rb_lrz_cntl = zsa->rb_lrz_cntl;
+		state = build_zsa(emit, false);
+		fd6_emit_add_group(emit, state, FD6_GROUP_ZSA, 0x6);
+		fd_ringbuffer_del(state);
 
-			if (emit->no_lrz_write || !rsc->lrz || !rsc->lrz_valid) {
-				gras_lrz_cntl = 0;
-				rb_lrz_cntl = 0;
-			} else if (emit->binning_pass && zsa->lrz_write) {
-				gras_lrz_cntl |= A6XX_GRAS_LRZ_CNTL_LRZ_WRITE;
-			}
-
-			OUT_PKT4(ring, REG_A6XX_GRAS_LRZ_CNTL, 1);
-			OUT_RING(ring, gras_lrz_cntl);
-
-			OUT_PKT4(ring, REG_A6XX_RB_LRZ_CNTL, 1);
-			OUT_RING(ring, rb_lrz_cntl);
-		}
+		state = build_zsa(emit, true);
+		fd6_emit_add_group(emit, state, FD6_GROUP_ZSA_BINNING, 0x1);
+		fd_ringbuffer_del(state);
 	}
 
 	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_STENCIL_REF)) {
