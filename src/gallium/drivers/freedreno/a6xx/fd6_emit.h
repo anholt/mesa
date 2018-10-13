@@ -47,6 +47,7 @@ enum fd6_state_id {
 	FD6_GROUP_ZSA,
 	FD6_GROUP_ZSA_BINNING,
 	FD6_GROUP_VBO,
+	FD6_GROUP_VBO_BINNING,
 	FD6_GROUP_VS_CONST,
 	FD6_GROUP_FS_CONST,
 	FD6_GROUP_VS_TEX,
@@ -82,6 +83,7 @@ struct fd6_emit {
 	/* cached to avoid repeated lookups: */
 	const struct fd6_program_state *prog;
 
+	struct ir3_shader_variant *bs;
 	struct ir3_shader_variant *vs;
 	struct ir3_shader_variant *fs;
 

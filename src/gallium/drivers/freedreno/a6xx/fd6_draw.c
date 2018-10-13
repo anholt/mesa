@@ -127,7 +127,11 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		struct fd_ringbuffer *state;
 
 		state = fd6_build_vbo_state(emit, emit->vs);
-		fd6_emit_add_group(emit, state, FD6_GROUP_VBO, 0x7);
+		fd6_emit_add_group(emit, state, FD6_GROUP_VBO, 0x6);
+		fd_ringbuffer_del(state);
+
+		state = fd6_build_vbo_state(emit, emit->bs);
+		fd6_emit_add_group(emit, state, FD6_GROUP_VBO_BINNING, 0x1);
 		fd_ringbuffer_del(state);
 	}
 
@@ -233,6 +237,7 @@ fd6_draw_vbo(struct fd_context *ctx, const struct pipe_draw_info *info,
 		fd6_ctx->prog = fd6_emit_get_prog(&emit);
 	}
 
+	emit.bs = fd6_emit_get_prog(&emit)->bs;
 	emit.vs = fd6_emit_get_prog(&emit)->vs;
 	emit.fs = fd6_emit_get_prog(&emit)->fs;
 
