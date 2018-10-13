@@ -528,12 +528,15 @@ emit_ssbos(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 }
 
-void
-fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit)
+struct fd_ringbuffer *
+fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp)
 {
-	int32_t i, j;
 	const struct fd_vertex_state *vtx = emit->vtx;
-	const struct ir3_shader_variant *vp = emit->vs;
+	int32_t i, j;
+
+	struct fd_ringbuffer *ring =
+		fd_ringbuffer_new_flags(emit->ctx->pipe, 4 * (10 * vp->inputs_count + 2),
+				FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
 
 	for (i = 0, j = 0; i <= vp->inputs_count; i++) {
 		if (vp->inputs[i].sysval)
@@ -581,6 +584,8 @@ fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 
 	OUT_PKT4(ring, REG_A6XX_VFD_CONTROL_0, 1);
 	OUT_RING(ring, A6XX_VFD_CONTROL_0_VTXCNT(j) | (j << 8));
+
+	return ring;
 }
 
 static struct fd_ringbuffer *

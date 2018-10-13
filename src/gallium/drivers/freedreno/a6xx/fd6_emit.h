@@ -46,6 +46,7 @@ enum fd6_state_id {
 	FD6_GROUP_PROG,
 	FD6_GROUP_ZSA,
 	FD6_GROUP_ZSA_BINNING,
+	FD6_GROUP_VBO,
 	FD6_GROUP_VS_CONST,
 	FD6_GROUP_FS_CONST,
 	FD6_GROUP_VS_TEX,
@@ -171,7 +172,7 @@ bool fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
 		enum a6xx_state_block sb, struct fd_texture_stateobj *tex,
 		unsigned bcolor_offset);
 
-void fd6_emit_vertex_bufs(struct fd_ringbuffer *ring, struct fd6_emit *emit);
+struct fd_ringbuffer * fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp);
 
 void fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit);
 
