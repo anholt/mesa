@@ -309,9 +309,10 @@ anv_physical_device_free_disk_cache(struct anv_physical_device *device)
 static VkResult
 anv_physical_device_init(struct anv_physical_device *device,
                          struct anv_instance *instance,
-                         const char *primary_path,
-                         const char *path)
+                         drmDevicePtr drm_device)
 {
+   const char *primary_path = drm_device->nodes[DRM_NODE_PRIMARY];
+   const char *path = drm_device->nodes[DRM_NODE_RENDER];
    VkResult result;
    int fd;
    int master_fd = -1;
@@ -341,6 +342,11 @@ anv_physical_device_init(struct anv_physical_device *device,
       device->chipset_id = pci_id_override;
       device->no_hw = true;
    }
+
+   device->pci_info.domain = drm_device->businfo.pci->domain;
+   device->pci_info.bus = drm_device->businfo.pci->bus;
+   device->pci_info.device = drm_device->businfo.pci->dev;
+   device->pci_info.function = drm_device->businfo.pci->func;
 
    device->name = gen_get_device_name(device->chipset_id);
    if (!gen_get_device_info(device->chipset_id, &device->info)) {
@@ -729,9 +735,7 @@ anv_enumerate_devices(struct anv_instance *instance)
           devices[i]->deviceinfo.pci->vendor_id == 0x8086) {
 
          result = anv_physical_device_init(&instance->physicalDevice,
-                        instance,
-                        devices[i]->nodes[DRM_NODE_PRIMARY],
-                        devices[i]->nodes[DRM_NODE_RENDER]);
+                                           instance, devices[i]);
          if (result != VK_ERROR_INCOMPATIBLE_DRIVER)
             break;
       }
@@ -1177,6 +1181,16 @@ void anv_GetPhysicalDeviceProperties2(
             (VkPhysicalDeviceMultiviewProperties *)ext;
          properties->maxMultiviewViewCount = 16;
          properties->maxMultiviewInstanceIndex = UINT32_MAX / 16;
+         break;
+      }
+
+      case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT: {
+         VkPhysicalDevicePCIBusInfoPropertiesEXT *properties =
+            (VkPhysicalDevicePCIBusInfoPropertiesEXT *)ext;
+         properties->pciDomain = pdevice->pci_info.domain;
+         properties->pciBus = pdevice->pci_info.bus;
+         properties->pciDevice = pdevice->pci_info.device;
+         properties->pciFunction = pdevice->pci_info.function;
          break;
       }
 

@@ -841,6 +841,12 @@ struct anv_physical_device {
     bool                                        no_hw;
     char                                        path[20];
     const char *                                name;
+    struct {
+       uint16_t                                 domain;
+       uint8_t                                  bus;
+       uint8_t                                  device;
+       uint8_t                                  function;
+    }                                           pci_info;
     struct gen_device_info                      info;
     /** Amount of "GPU memory" we want to advertise
      *
