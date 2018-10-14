@@ -2451,7 +2451,7 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
                         DWORD Stage,
                         IDirect3DBaseTexture9 **ppTexture )
 {
-    user_assert(Stage < This->caps.MaxSimultaneousTextures ||
+    user_assert(Stage < NINE_MAX_SAMPLERS_PS ||
                 Stage == D3DDMAPSAMPLER ||
                 (Stage >= D3DVERTEXTEXTURESAMPLER0 &&
                  Stage <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
@@ -2478,7 +2478,7 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
 
     DBG("This=%p Stage=%u pTexture=%p\n", This, Stage, pTexture);
 
-    user_assert(Stage < This->caps.MaxSimultaneousTextures ||
+    user_assert(Stage < NINE_MAX_SAMPLERS_PS ||
                 Stage == D3DDMAPSAMPLER ||
                 (Stage >= D3DVERTEXTEXTURESAMPLER0 &&
                  Stage <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
@@ -2552,7 +2552,7 @@ NineDevice9_GetSamplerState( struct NineDevice9 *This,
                              D3DSAMPLERSTATETYPE Type,
                              DWORD *pValue )
 {
-    user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
+    user_assert(Sampler < NINE_MAX_SAMPLERS_PS ||
                 Sampler == D3DDMAPSAMPLER ||
                 (Sampler >= D3DVERTEXTEXTURESAMPLER0 &&
                  Sampler <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
@@ -2575,7 +2575,7 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
     DBG("This=%p Sampler=%u Type=%s Value=%08x\n", This,
         Sampler, nine_D3DSAMP_to_str(Type), Value);
 
-    user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
+    user_assert(Sampler < NINE_MAX_SAMPLERS_PS ||
                 Sampler == D3DDMAPSAMPLER ||
                 (Sampler >= D3DVERTEXTEXTURESAMPLER0 &&
                  Sampler <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
