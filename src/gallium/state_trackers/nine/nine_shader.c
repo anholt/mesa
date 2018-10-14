@@ -771,12 +771,13 @@ TEX_with_ps1x_projection(struct shader_translator *tx, struct ureg_dst dst,
 {
     unsigned dim = 1 + ((tx->info->projected >> (2 * idx)) & 3);
     struct ureg_dst tmp;
+    boolean shadow = !!(tx->info->sampler_mask_shadow & (1 << idx));
 
     /* dim == 1: no projection
      * Looks like must be disabled when it makes no
      * sense according the texture dimensions
      */
-    if (dim == 1 || dim <= target) {
+    if (dim == 1 || (dim <= target && !shadow)) {
         ureg_TEX(tx->ureg, dst, target, src0, src1);
     } else if (dim == 4) {
         ureg_TXP(tx->ureg, dst, target, src0, src1);
@@ -2107,9 +2108,10 @@ d3dstt_to_tgsi_tex_shadow(BYTE sampler_type)
 static inline unsigned
 ps1x_sampler_type(const struct nine_shader_info *info, unsigned stage)
 {
+    boolean shadow = !!(info->sampler_mask_shadow & (1 << stage));
     switch ((info->sampler_ps1xtypes >> (stage * 2)) & 0x3) {
-    case 1: return TGSI_TEXTURE_1D;
-    case 0: return TGSI_TEXTURE_2D;
+    case 1: return shadow ? TGSI_TEXTURE_SHADOW1D : TGSI_TEXTURE_1D;
+    case 0: return shadow ? TGSI_TEXTURE_SHADOW2D : TGSI_TEXTURE_2D;
     case 3: return TGSI_TEXTURE_3D;
     default:
         return TGSI_TEXTURE_CUBE;

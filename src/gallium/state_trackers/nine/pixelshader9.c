@@ -164,7 +164,7 @@ NinePixelShader9_GetVariant( struct NinePixelShader9 *This )
         info.const_b_base = NINE_CONST_B_BASE(device->max_ps_const_f) / 16;
         info.byte_code = This->byte_code.tokens;
         info.sampler_mask_shadow = key & 0xffff;
-        info.sampler_ps1xtypes = key;
+        info.sampler_ps1xtypes = (key >> 16) & 0xffff;
         info.fog_enable = device->context.rs[D3DRS_FOGENABLE];
         info.fog_mode = device->context.rs[D3DRS_FOGTABLEMODE];
         info.force_color_in_centroid = key >> 34 & 1;
