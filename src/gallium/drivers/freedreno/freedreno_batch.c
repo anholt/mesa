@@ -56,12 +56,15 @@ batch_init(struct fd_batch *batch)
 
 	batch->draw    = fd_ringbuffer_new(ctx->pipe, size);
 	if (!batch->nondraw) {
-		batch->binning = fd_ringbuffer_new(ctx->pipe, size);
 		batch->gmem    = fd_ringbuffer_new(ctx->pipe, size);
 
 		fd_ringbuffer_set_parent(batch->gmem, NULL);
 		fd_ringbuffer_set_parent(batch->draw, batch->gmem);
-		fd_ringbuffer_set_parent(batch->binning, batch->gmem);
+
+		if (ctx->screen->gpu_id < 600) {
+			batch->binning = fd_ringbuffer_new(ctx->pipe, size);
+			fd_ringbuffer_set_parent(batch->binning, batch->gmem);
+		}
 	} else {
 		fd_ringbuffer_set_parent(batch->draw, NULL);
 	}
@@ -131,7 +134,8 @@ batch_fini(struct fd_batch *batch)
 
 	fd_ringbuffer_del(batch->draw);
 	if (!batch->nondraw) {
-		fd_ringbuffer_del(batch->binning);
+		if (batch->binning)
+			fd_ringbuffer_del(batch->binning);
 		fd_ringbuffer_del(batch->gmem);
 	} else {
 		debug_assert(!batch->binning);
