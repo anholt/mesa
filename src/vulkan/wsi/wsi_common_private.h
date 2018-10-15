@@ -118,6 +118,11 @@ struct wsi_interface {
    VkResult (*get_present_modes)(VkIcdSurfaceBase *surface,
                                  uint32_t* pPresentModeCount,
                                  VkPresentModeKHR* pPresentModes);
+   VkResult (*get_present_rectangles)(VkIcdSurfaceBase *surface,
+                                      struct wsi_device *wsi_device,
+                                      int local_fd,
+                                      uint32_t* pRectCount,
+                                      VkRect2D* pRects);
    VkResult (*create_swapchain)(VkIcdSurfaceBase *surface,
                                 VkDevice device,
                                 struct wsi_device *wsi_device,

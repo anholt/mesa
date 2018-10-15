@@ -200,6 +200,13 @@ wsi_common_get_surface_present_modes(struct wsi_device *wsi_device,
                                      VkPresentModeKHR *pPresentModes);
 
 VkResult
+wsi_common_get_present_rectangles(struct wsi_device *wsi,
+                                  int local_fd,
+                                  VkSurfaceKHR surface,
+                                  uint32_t* pRectCount,
+                                  VkRect2D* pRects);
+
+VkResult
 wsi_common_get_surface_capabilities2ext(
    struct wsi_device *wsi_device,
    VkSurfaceKHR surface,

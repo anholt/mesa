@@ -804,6 +804,20 @@ wsi_common_get_surface_present_modes(struct wsi_device *wsi_device,
 }
 
 VkResult
+wsi_common_get_present_rectangles(struct wsi_device *wsi_device,
+                                  int local_fd,
+                                  VkSurfaceKHR _surface,
+                                  uint32_t* pRectCount,
+                                  VkRect2D* pRects)
+{
+   ICD_FROM_HANDLE(VkIcdSurfaceBase, surface, _surface);
+   struct wsi_interface *iface = wsi_device->wsi[surface->platform];
+
+   return iface->get_present_rectangles(surface, wsi_device, local_fd,
+                                        pRectCount, pRects);
+}
+
+VkResult
 wsi_common_create_swapchain(struct wsi_device *wsi,
                             VkDevice device,
                             int fd,

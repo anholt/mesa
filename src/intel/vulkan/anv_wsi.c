@@ -293,3 +293,17 @@ VkResult anv_GetDeviceGroupSurfacePresentModesKHR(
 
    return VK_SUCCESS;
 }
+
+VkResult anv_GetPhysicalDevicePresentRectanglesKHR(
+    VkPhysicalDevice                            physicalDevice,
+    VkSurfaceKHR                                surface,
+    uint32_t*                                   pRectCount,
+    VkRect2D*                                   pRects)
+{
+   ANV_FROM_HANDLE(anv_physical_device, device, physicalDevice);
+
+   return wsi_common_get_present_rectangles(&device->wsi_device,
+                                            device->local_fd,
+                                            surface,
+                                            pRectCount, pRects);
+}

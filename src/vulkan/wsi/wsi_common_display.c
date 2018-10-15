@@ -934,6 +934,46 @@ wsi_display_surface_get_present_modes(VkIcdSurfaceBase *surface,
    return vk_outarray_status(&conn);
 }
 
+static bool
+fds_are_same_gpu(int fd1, int fd2)
+{
+   if (fd1 == -1 || fd2 == -1)
+      return false;
+
+   char *fd1_dev = drmGetRenderDeviceNameFromFd(fd1);
+   char *fd2_dev = drmGetRenderDeviceNameFromFd(fd2);
+
+   int ret = strcmp(fd1_dev, fd2_dev);
+
+   free(fd1_dev);
+   free(fd2_dev);
+
+   return ret == 0;
+}
+
+static VkResult
+wsi_display_surface_get_present_rectangles(VkIcdSurfaceBase *surface_base,
+                                           struct wsi_device *wsi_device,
+                                           int local_fd,
+                                           uint32_t* pRectCount,
+                                           VkRect2D* pRects)
+{
+   VkIcdSurfaceDisplay *surface = (VkIcdSurfaceDisplay *) surface_base;
+   wsi_display_mode *mode = wsi_display_mode_from_handle(surface->displayMode);
+   VK_OUTARRAY_MAKE(out, pRects, pRectCount);
+
+   if (fds_are_same_gpu(local_fd, mode->connector->wsi->fd)) {
+      vk_outarray_append(&out, rect) {
+         *rect = (VkRect2D) {
+            .offset = { 0, 0 },
+            .extent = { mode->hdisplay, mode->vdisplay },
+         };
+      }
+   }
+
+   return vk_outarray_status(&out);
+}
+
 static void
 wsi_display_destroy_buffer(struct wsi_display *wsi,
                            uint32_t buffer)
@@ -1810,6 +1850,7 @@ wsi_display_init_wsi(struct wsi_device *wsi_device,
    wsi->base.get_formats = wsi_display_surface_get_formats;
    wsi->base.get_formats2 = wsi_display_surface_get_formats2;
    wsi->base.get_present_modes = wsi_display_surface_get_present_modes;
+   wsi->base.get_present_rectangles = wsi_display_surface_get_present_rectangles;
    wsi->base.create_swapchain = wsi_display_surface_create_swapchain;
 
    wsi_device->wsi[VK_ICD_WSI_PLATFORM_DISPLAY] = &wsi->base;

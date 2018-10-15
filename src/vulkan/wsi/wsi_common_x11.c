@@ -599,6 +599,66 @@ x11_surface_get_present_modes(VkIcdSurfaceBase *surface,
       VK_INCOMPLETE : VK_SUCCESS;
 }
 
+static bool
+x11_surface_is_local_to_gpu(struct wsi_device *wsi_dev,
+                            int local_fd,
+                            xcb_connection_t *conn)
+{
+   struct wsi_x11_connection *wsi_conn =
+      wsi_x11_get_connection(wsi_dev, conn);
+
+   if (!wsi_conn)
+      return false;
+
+   if (!wsi_x11_check_for_dri3(wsi_conn))
+      return false;
+
+   if (!wsi_x11_check_dri3_compatible(conn, local_fd))
+      return false;
+
+   return true;
+}
+
+static VkResult
+x11_surface_get_present_rectangles(VkIcdSurfaceBase *icd_surface,
+                                   struct wsi_device *wsi_device,
+                                   int local_fd,
+                                   uint32_t* pRectCount,
+                                   VkRect2D* pRects)
+{
+   xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
+   xcb_window_t window = x11_surface_get_window(icd_surface);
+   VK_OUTARRAY_MAKE(out, pRects, pRectCount);
+
+   if (x11_surface_is_local_to_gpu(wsi_device, local_fd, conn)) {
+      vk_outarray_append(&out, rect) {
+         xcb_generic_error_t *err = NULL;
+         xcb_get_geometry_cookie_t geom_cookie = xcb_get_geometry(conn, window);
+         xcb_get_geometry_reply_t *geom =
+            xcb_get_geometry_reply(conn, geom_cookie, &err);
+         free(err);
+         if (geom) {
+            *rect = (VkRect2D) {
+               .offset = { 0, 0 },
+               .extent = { geom->width, geom->height },
+            };
+         } else {
+            /* This can happen if the client didn't wait for the configure event
+             * to come back from the compositor.  In that case, we don't know the
+             * size of the window so we just return valid "I don't know" stuff.
+             */
+            *rect = (VkRect2D) {
+               .offset = { 0, 0 },
+               .extent = { -1, -1 },
+            };
+         }
+         free(geom);
+      }
+   }
+
+   return vk_outarray_status(&out);
+}
+
 VkResult wsi_create_xcb_surface(const VkAllocationCallbacks *pAllocator,
 				const VkXcbSurfaceCreateInfoKHR *pCreateInfo,
 				VkSurfaceKHR *pSurface)
@@ -1470,6 +1530,7 @@ wsi_x11_init_wsi(struct wsi_device *wsi_device,
    wsi->base.get_formats = x11_surface_get_formats;
    wsi->base.get_formats2 = x11_surface_get_formats2;
    wsi->base.get_present_modes = x11_surface_get_present_modes;
+   wsi->base.get_present_rectangles = x11_surface_get_present_rectangles;
    wsi->base.create_swapchain = x11_surface_create_swapchain;
 
    wsi_device->wsi[VK_ICD_WSI_PLATFORM_XCB] = &wsi->base;

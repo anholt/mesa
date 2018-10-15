@@ -284,3 +284,17 @@ VkResult radv_GetDeviceGroupSurfacePresentModesKHR(
 
    return VK_SUCCESS;
 }
+
+VkResult radv_GetPhysicalDevicePresentRectanglesKHR(
+	VkPhysicalDevice                            physicalDevice,
+	VkSurfaceKHR                                surface,
+	uint32_t*                                   pRectCount,
+	VkRect2D*                                   pRects)
+{
+	RADV_FROM_HANDLE(radv_physical_device, device, physicalDevice);
+
+	return wsi_common_get_present_rectangles(&device->wsi_device,
+						 device->local_fd,
+						 surface,
+						 pRectCount, pRects);
+}
