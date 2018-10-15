@@ -246,10 +246,9 @@ brw_nir_setup_arb_uniforms(void *mem_ctx, nir_shader *shader,
    stage_prog_data->param = rzalloc_array(mem_ctx, uint32_t, nr_params);
 
    /* For ARB programs, prog_to_nir generates a single "parameters" variable
-    * for all uniform data.  nir_lower_wpos_ytransform may also create an
-    * additional variable.
+    * for all uniform data.  There may be additional sampler variables, and
+    * an extra uniform from nir_lower_wpos_ytransform.
     */
-   assert(shader->uniforms.length() <= 2);
 
    for (unsigned p = 0; p < plist->NumParameters; p++) {
       /* Parameters should be either vec4 uniforms or single component
