@@ -227,19 +227,6 @@ ${strmap(device_strmap, 'device')}
  * either pick the correct entry point.
  */
 
-% for e in instance_entrypoints:
-  % if e.alias:
-    <% continue %>
-  % endif
-  % if e.guard is not None:
-#ifdef ${e.guard}
-  % endif
-  ${e.return_type} ${e.prefixed_name('anv')}(${e.decl_params()}) __attribute__ ((weak));
-  % if e.guard is not None:
-#endif // ${e.guard}
-  % endif
-% endfor
-
 const struct anv_instance_dispatch_table anv_instance_dispatch_table = {
 % for e in instance_entrypoints:
   % if e.guard is not None:
