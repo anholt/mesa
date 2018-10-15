@@ -92,7 +92,6 @@ extern const struct anv_instance_dispatch_table anv_instance_dispatch_table;
 %for layer in LAYERS:
 extern const struct anv_device_dispatch_table ${layer}_device_dispatch_table;
 %endfor
-extern const struct anv_device_dispatch_table anv_tramp_device_dispatch_table;
 
 % for e in instance_entrypoints:
   % if e.alias:
@@ -260,7 +259,26 @@ const struct anv_instance_dispatch_table anv_instance_dispatch_table = {
     % if e.guard is not None:
 #ifdef ${e.guard}
     % endif
-    ${e.return_type} ${e.prefixed_name(layer)}(${e.decl_params()}) __attribute__ ((weak));
+    % if layer == 'anv':
+      ${e.return_type} __attribute__ ((weak))
+      ${e.prefixed_name('anv')}(${e.decl_params()})
+      {
+        % if e.params[0].type == 'VkDevice':
+          ANV_FROM_HANDLE(anv_device, anv_device, ${e.params[0].name});
+          return anv_device->dispatch.${e.name}(${e.call_params()});
+        % elif e.params[0].type == 'VkCommandBuffer':
+          ANV_FROM_HANDLE(anv_cmd_buffer, anv_cmd_buffer, ${e.params[0].name});
+          return anv_cmd_buffer->device->dispatch.${e.name}(${e.call_params()});
+        % elif e.params[0].type == 'VkQueue':
+          ANV_FROM_HANDLE(anv_queue, anv_queue, ${e.params[0].name});
+          return anv_queue->device->dispatch.${e.name}(${e.call_params()});
+        % else:
+          assert(!"Unhandled device child trampoline case: ${e.params[0].type}");
+        % endif
+      }
+    % else:
+      ${e.return_type} ${e.prefixed_name(layer)}(${e.decl_params()}) __attribute__ ((weak));
+    % endif
     % if e.guard is not None:
 #endif // ${e.guard}
     % endif
@@ -278,49 +296,6 @@ const struct anv_instance_dispatch_table anv_instance_dispatch_table = {
   % endfor
   };
 % endfor
-
-
-/** Trampoline entrypoints for all device functions */
-
-% for e in device_entrypoints:
-  % if e.alias:
-    <% continue %>
-  % endif
-  % if e.guard is not None:
-#ifdef ${e.guard}
-  % endif
-  static ${e.return_type}
-  ${e.prefixed_name('anv_tramp')}(${e.decl_params()})
-  {
-    % if e.params[0].type == 'VkDevice':
-      ANV_FROM_HANDLE(anv_device, anv_device, ${e.params[0].name});
-      return anv_device->dispatch.${e.name}(${e.call_params()});
-    % elif e.params[0].type == 'VkCommandBuffer':
-      ANV_FROM_HANDLE(anv_cmd_buffer, anv_cmd_buffer, ${e.params[0].name});
-      return anv_cmd_buffer->device->dispatch.${e.name}(${e.call_params()});
-    % elif e.params[0].type == 'VkQueue':
-      ANV_FROM_HANDLE(anv_queue, anv_queue, ${e.params[0].name});
-      return anv_queue->device->dispatch.${e.name}(${e.call_params()});
-    % else:
-      assert(!"Unhandled device child trampoline case: ${e.params[0].type}");
-    % endif
-  }
-  % if e.guard is not None:
-#endif // ${e.guard}
-  % endif
-% endfor
-
-const struct anv_device_dispatch_table anv_tramp_device_dispatch_table = {
-% for e in device_entrypoints:
-  % if e.guard is not None:
-#ifdef ${e.guard}
-  % endif
-    .${e.name} = ${e.prefixed_name('anv_tramp')},
-  % if e.guard is not None:
-#endif // ${e.guard}
-  % endif
-% endfor
-};
 
 
 /** Return true if the core version or extension in which the given entrypoint

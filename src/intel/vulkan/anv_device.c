@@ -659,12 +659,9 @@ VkResult anv_CreateInstance(
       if (!anv_device_entrypoint_is_enabled(i, instance->app_info.api_version,
                                             &instance->enabled_extensions, NULL)) {
          instance->device_dispatch.entrypoints[i] = NULL;
-      } else if (anv_device_dispatch_table.entrypoints[i] != NULL) {
-         instance->device_dispatch.entrypoints[i] =
-            anv_device_dispatch_table.entrypoints[i];
       } else {
          instance->device_dispatch.entrypoints[i] =
-            anv_tramp_device_dispatch_table.entrypoints[i];
+            anv_device_dispatch_table.entrypoints[i];
       }
    }
 
