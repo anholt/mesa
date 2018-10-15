@@ -521,6 +521,14 @@ get_image_format_features(const struct gen_device_info *devinfo,
        isl_format_get_layout(plane_format.isl_format)->txc == ISL_TXC_ASTC)
       return 0;
 
+   /* ASTC requires nasty workarounds on BSW so we just disable it for now.
+    *
+    * TODO: Figure out the ASTC workarounds and re-enable on BSW.
+    */
+   if (devinfo->gen < 9 &&
+       isl_format_get_layout(plane_format.isl_format)->txc == ISL_TXC_ASTC)
+      return 0;
+
    if (isl_format_supports_sampling(devinfo, plane_format.isl_format)) {
       flags |= VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
 
