@@ -161,7 +161,8 @@ def parse_ir_builder(input_file):
                         func_name == 'CreateAlignmentAssumptionHelper' or
                         func_name == 'CreateGEP' or
                         func_name == 'CreateLoad' or
-                        func_name == 'CreateMaskedLoad'):
+                        func_name == 'CreateMaskedLoad' or
+                        func_name == 'CreateElementUnorderedAtomicMemCpy'):
                         ignore = True
 
                     # Convert CamelCase to CAMEL_CASE
