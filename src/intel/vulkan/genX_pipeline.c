@@ -1445,12 +1445,12 @@ emit_3dstate_wm(struct anv_pipeline *pipeline, struct anv_subpass *subpass,
             wm.EarlyDepthStencilControl         = EDSC_NORMAL;
          }
 
-#if GEN_GEN == 8
-         /* Gen8 and later hardware tries to compute ThreadDispatchEnable for
-          * us but doesn't take into account KillPixels when no depth or
-          * stencil writes are enabled.  In order for occlusion queries to
-          * work correctly with no attachments, we need to force-enable PS
-          * thread dispatch.
+#if GEN_GEN >= 8
+         /* Gen8 hardware tries to compute ThreadDispatchEnable for us but
+          * doesn't take into account KillPixels when no depth or stencil
+          * writes are enabled.  In order for occlusion queries to work
+          * correctly with no attachments, we need to force-enable PS thread
+          * dispatch.
           *
           * The BDW docs are pretty clear that that this bit isn't validated
           * and probably shouldn't be used in production:
@@ -1460,9 +1460,7 @@ emit_3dstate_wm(struct anv_pipeline *pipeline, struct anv_subpass *subpass,
           *
           * Unfortunately, however, the other mechanism we have for doing this
           * is 3DSTATE_PS_EXTRA::PixelShaderHasUAV which causes hangs on BDW.
-          * Given two bad options, we choose the one which works.  On Skylake
-          * and later, setting ForceThreadDispatchEnable causes GPU hangs so
-          * we use the PixelShaderHasUAV mechanism there.
+          * Given two bad options, we choose the one which works.
           */
          if ((wm_prog_data->has_side_effects || wm_prog_data->uses_kill) &&
              !has_color_buffer_write_enabled(pipeline, blend))
@@ -1665,32 +1663,6 @@ emit_3dstate_ps_extra(struct anv_pipeline *pipeline,
                                          wm_prog_data->uses_kill;
 
 #if GEN_GEN >= 9
-      /* Gen8 and later hardware tries to compute ThreadDispatchEnable for us
-       * but doesn't take into account KillPixels when no depth or stencil
-       * writes are enabled.  In order for occlusion queries to work correctly
-       * with no attachments, we need to force-enable PS thread dispatch.
-       *
-       * The stricter cross-primitive coherency guarantees that the hardware
-       * gives us with the "Accesses UAV" bit set for at least one shader stage
-       * and the "UAV coherency required" bit set on the 3DPRIMITIVE command are
-       * redundant within the current image, atomic counter and SSBO GL and
-       * Vulkan APIs, which all have very loose ordering and coherency
-       * requirements and generally rely on the application to insert explicit
-       * barriers when a shader invocation is expected to see the memory
-       * writes performed by the invocations of some previous primitive.
-       * Regardless of the value of "UAV coherency required", the "Accesses
-       * UAV" bits will implicitly cause an in most cases useless DC flush
-       * when the lowermost stage with the bit set finishes execution.
-       *
-       * Unfortunately, however, the other mechanism we have for doing this is
-       * 3DSTATE_WM::ForceThreadDispatchEnable which causes GPU hangs on
-       * Skylake and later hardware.  On Broadwell, however, setting this bit
-       * causes GPU hangs so we use ForceThreadDispatchEnable there.
-       */
-      if ((wm_prog_data->has_side_effects || wm_prog_data->uses_kill) &&
-          !has_color_buffer_write_enabled(pipeline, blend))
-         ps.PixelShaderHasUAV = true;
-
       ps.PixelShaderComputesStencil = wm_prog_data->computed_stencil;
       ps.PixelShaderPullsBary    = wm_prog_data->pulls_bary;
 
