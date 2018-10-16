@@ -724,8 +724,8 @@ translate_tex(struct fd2_compile_context *ctx,
 
 		instr = ir2_instr_create_alu_s(ctx->so->ir, RECIP_IEEE);
 		add_dst_reg(ctx, instr, &tmp_dst)->swizzle = "x___";
-		add_src_reg(ctx, instr, &inst->Src[0].Register)->swizzle =
-				swiz[inst->Src[0].Register.SwizzleW];
+		memcpy(add_src_reg(ctx, instr, &inst->Src[0].Register)->swizzle,
+			   swiz[inst->Src[0].Register.SwizzleW], 4);
 
 		instr = ir2_instr_create_alu_v(ctx->so->ir, MULv);
 		add_dst_reg(ctx, instr, &tmp_dst)->swizzle = "xyz_";
