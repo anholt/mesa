@@ -183,6 +183,14 @@ void fd6_emit_restore(struct fd_batch *batch, struct fd_ringbuffer *ring);
 
 void fd6_emit_init(struct pipe_context *pctx);
 
+static inline void
+fd6_emit_ib(struct fd_ringbuffer *ring, struct fd_ringbuffer *target)
+{
+	emit_marker6(ring, 6);
+	__OUT_IB5(ring, target);
+	emit_marker6(ring, 6);
+}
+
 #define WRITE(reg, val) do {					\
 		OUT_PKT4(ring, reg, 1);					\
 		OUT_RING(ring, val);					\

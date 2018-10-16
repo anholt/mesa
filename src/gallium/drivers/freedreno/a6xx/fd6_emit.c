@@ -1196,14 +1196,6 @@ t7              opcode: CP_WAIT_FOR_IDLE (26) (1 dwords)
 }
 
 static void
-fd6_emit_ib(struct fd_ringbuffer *ring, struct fd_ringbuffer *target)
-{
-	emit_marker6(ring, 6);
-	__OUT_IB5(ring, target);
-	emit_marker6(ring, 6);
-}
-
-static void
 fd6_mem_to_mem(struct fd_ringbuffer *ring, struct pipe_resource *dst,
 		unsigned dst_off, struct pipe_resource *src, unsigned src_off,
 		unsigned sizedwords)
