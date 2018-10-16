@@ -473,9 +473,24 @@ static int64_t anv_get_relative_timeout(uint64_t abs_timeout)
 {
    uint64_t now = gettime_ns();
 
+   /* We don't want negative timeouts.
+    *
+    * DRM_IOCTL_I915_GEM_WAIT uses a signed 64 bit timeout and is
+    * supposed to block indefinitely timeouts < 0.  Unfortunately,
+    * this was broken for a couple of kernel releases.  Since there's
+    * no way to know whether or not the kernel we're using is one of
+    * the broken ones, the best we can do is to clamp the timeout to
+    * INT64_MAX.  This limits the maximum timeout from 584 years to
+    * 292 years - likely not a big deal.
+    */
    if (abs_timeout < now)
       return 0;
-   return abs_timeout - now;
+
+   uint64_t rel_timeout = abs_timeout - now;
+   if (rel_timeout > (uint64_t) INT64_MAX)
+      rel_timeout = INT64_MAX;
+
+   return rel_timeout;
 }
 
 static VkResult
@@ -532,17 +547,8 @@ anv_wait_for_bo_fences(struct anv_device *device,
                        uint32_t fenceCount,
                        const VkFence *pFences,
                        bool waitAll,
-                       uint64_t _timeout)
+                       uint64_t abs_timeout_ns)
 {
-   /* DRM_IOCTL_I915_GEM_WAIT uses a signed 64 bit timeout and is supposed
-    * to block indefinitely timeouts <= 0.  Unfortunately, this was broken
-    * for a couple of kernel releases.  Since there's no way to know
-    * whether or not the kernel we're using is one of the broken ones, the
-    * best we can do is to clamp the timeout to INT64_MAX.  This limits the
-    * maximum timeout from 584 years to 292 years - likely not a big deal.
-    */
-   int64_t timeout = MIN2(_timeout, (uint64_t) INT64_MAX);
-
    VkResult result = VK_SUCCESS;
    uint32_t pending_fences = fenceCount;
    while (pending_fences) {
@@ -583,7 +589,8 @@ anv_wait_for_bo_fences(struct anv_device *device,
             /* These are the fences we really care about.  Go ahead and wait
              * on it until we hit a timeout.
              */
-            result = anv_device_wait(device, &impl->bo.bo, timeout);
+            result = anv_device_wait(device, &impl->bo.bo,
+                                     anv_get_relative_timeout(abs_timeout_ns));
             switch (result) {
             case VK_SUCCESS:
                impl->bo.state = ANV_BO_FENCE_STATE_SIGNALED;
@@ -622,39 +629,20 @@ anv_wait_for_bo_fences(struct anv_device *device,
          assert(now_pending_fences <= pending_fences);
 
          if (now_pending_fences == pending_fences) {
-            struct timespec before;
-            clock_gettime(CLOCK_MONOTONIC, &before);
-
-            uint32_t abs_nsec = before.tv_nsec + timeout % NSEC_PER_SEC;
-            uint64_t abs_sec = before.tv_sec + (abs_nsec / NSEC_PER_SEC) +
-                               (timeout / NSEC_PER_SEC);
-            abs_nsec %= NSEC_PER_SEC;
-
-            /* Avoid roll-over in tv_sec on 32-bit systems if the user
-             * provided timeout is UINT64_MAX
-             */
-            struct timespec abstime;
-            abstime.tv_nsec = abs_nsec;
-            abstime.tv_sec = MIN2(abs_sec, INT_TYPE_MAX(abstime.tv_sec));
+            struct timespec abstime = {
+               .tv_sec = abs_timeout_ns / NSEC_PER_SEC,
+               .tv_nsec = abs_timeout_ns % NSEC_PER_SEC,
+            };
 
             MAYBE_UNUSED int ret;
             ret = pthread_cond_timedwait(&device->queue_submit,
                                          &device->mutex, &abstime);
             assert(ret != EINVAL);
-
-            struct timespec after;
-            clock_gettime(CLOCK_MONOTONIC, &after);
-            uint64_t time_elapsed =
-               ((uint64_t)after.tv_sec * NSEC_PER_SEC + after.tv_nsec) -
-               ((uint64_t)before.tv_sec * NSEC_PER_SEC + before.tv_nsec);
-
-            if (time_elapsed >= timeout) {
+            if (gettime_ns() >= abs_timeout_ns) {
                pthread_mutex_unlock(&device->mutex);
                result = VK_TIMEOUT;
                goto done;
             }
-
-            timeout -= time_elapsed;
          }
 
          pthread_mutex_unlock(&device->mutex);
@@ -693,9 +681,8 @@ anv_wait_for_fences(struct anv_device *device,
          ANV_FROM_HANDLE(anv_fence, fence, pFences[i]);
          switch (fence->permanent.type) {
          case ANV_FENCE_TYPE_BO:
-            result = anv_wait_for_bo_fences(
-               device, 1, &pFences[i], true,
-               anv_get_relative_timeout(abs_timeout));
+            result = anv_wait_for_bo_fences(device, 1, &pFences[i],
+                                            true, abs_timeout);
             break;
          case ANV_FENCE_TYPE_SYNCOBJ:
             result = anv_wait_for_syncobj_fences(device, 1, &pFences[i],
@@ -755,15 +742,16 @@ VkResult anv_WaitForFences(
    if (anv_device_is_lost(device))
       return VK_ERROR_DEVICE_LOST;
 
+   uint64_t abs_timeout = anv_get_absolute_timeout(timeout);
    if (anv_all_fences_syncobj(fenceCount, pFences)) {
       return anv_wait_for_syncobj_fences(device, fenceCount, pFences,
-                                         waitAll, anv_get_absolute_timeout(timeout));
+                                         waitAll, abs_timeout);
    } else if (anv_all_fences_bo(fenceCount, pFences)) {
       return anv_wait_for_bo_fences(device, fenceCount, pFences,
-                                    waitAll, timeout);
+                                    waitAll, abs_timeout);
    } else {
       return anv_wait_for_fences(device, fenceCount, pFences,
-                                 waitAll, anv_get_absolute_timeout(timeout));
+                                 waitAll, abs_timeout);
    }
 }
 
