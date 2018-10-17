@@ -1054,13 +1054,11 @@ void radv_GetPhysicalDeviceProperties2(
 			    (VkPhysicalDeviceSubgroupProperties*)ext;
 			properties->subgroupSize = 64;
 			properties->supportedStages = VK_SHADER_STAGE_ALL;
-			/* TODO: Enable VK_SUBGROUP_FEATURE_VOTE_BIT when wwm
-			 * is fixed in LLVM.
-			 */
 			properties->supportedOperations =
 							VK_SUBGROUP_FEATURE_BASIC_BIT |
 							VK_SUBGROUP_FEATURE_BALLOT_BIT |
-							VK_SUBGROUP_FEATURE_QUAD_BIT;
+							VK_SUBGROUP_FEATURE_QUAD_BIT |
+							VK_SUBGROUP_FEATURE_VOTE_BIT;
 			if (pdevice->rad_info.chip_class >= VI) {
 				properties->supportedOperations |=
 							VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
