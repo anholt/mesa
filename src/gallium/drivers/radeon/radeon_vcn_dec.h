@@ -768,6 +768,10 @@ void send_cmd_dec(struct radeon_decoder *dec,
 		  struct pipe_video_buffer *target,
 		  struct pipe_picture_desc *picture);
 
+void send_cmd_jpeg(struct radeon_decoder *dec,
+		  struct pipe_video_buffer *target,
+		  struct pipe_picture_desc *picture);
+
 struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 		const struct pipe_video_codec *templat);
 

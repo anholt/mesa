@@ -1247,6 +1247,10 @@ static unsigned calc_dpb_size(struct radeon_decoder *dec)
 			dpb_size *= (3 / 2);
 		break;
 
+	case PIPE_VIDEO_FORMAT_JPEG:
+		dpb_size = 0;
+		break;
+
 	default:
 		// something is missing here
 		assert(0);
@@ -1547,13 +1551,13 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 	}
 
 	dpb_size = calc_dpb_size(dec);
-
-	if (!si_vid_create_buffer(dec->screen, &dec->dpb, dpb_size, PIPE_USAGE_DEFAULT)) {
-		RVID_ERR("Can't allocated dpb.\n");
-		goto error;
+	if (dpb_size) {
+		if (!si_vid_create_buffer(dec->screen, &dec->dpb, dpb_size, PIPE_USAGE_DEFAULT)) {
+			RVID_ERR("Can't allocated dpb.\n");
+			goto error;
+		}
+		si_vid_clear_buffer(context, &dec->dpb);
 	}
-
-	si_vid_clear_buffer(context, &dec->dpb);
 
 	if (dec->stream_type == RDECODE_CODEC_H264_PERF) {
 		unsigned ctx_size = calc_ctx_size_h264_perf(dec);
@@ -1581,7 +1585,10 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 
 	next_buffer(dec);
 
-	dec->send_cmd = send_cmd_dec;
+	if (stream_type == RDECODE_CODEC_JPEG)
+		dec->send_cmd = send_cmd_jpeg;
+	else
+		dec->send_cmd = send_cmd_dec;
 
 	return &dec->base;
 

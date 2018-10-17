@@ -52,6 +52,7 @@ C_SOURCES := \
 	../radeon/r600_perfcounter.c \
 	../radeon/radeon_uvd.c \
 	../radeon/radeon_uvd.h \
+	../radeon/radeon_vcn_dec_jpeg.c \
 	../radeon/radeon_vcn_dec.c \
 	../radeon/radeon_vcn_dec.h \
 	../radeon/radeon_vcn_enc_1_2.c \
