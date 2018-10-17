@@ -845,6 +845,10 @@ static bool amdgpu_init_cs_context(struct amdgpu_winsys *ws,
       cs->ib[IB_MAIN].ip_type = AMDGPU_HW_IP_VCN_ENC;
       break;
 
+   case RING_VCN_JPEG:
+      cs->ib[IB_MAIN].ip_type = AMDGPU_HW_IP_VCN_JPEG;
+      break;
+
    case RING_COMPUTE:
    case RING_GFX:
       cs->ib[IB_MAIN].ip_type = ring_type == RING_GFX ? AMDGPU_HW_IP_GFX :
@@ -1588,6 +1592,14 @@ static int amdgpu_cs_flush(struct radeon_cmdbuf *rcs,
    case RING_UVD_ENC:
       while (rcs->current.cdw & 15)
          radeon_emit(rcs, 0x80000000); /* type2 nop packet */
+      break;
+   case RING_VCN_JPEG:
+      if (rcs->current.cdw % 2)
+         assert(0);
+      while (rcs->current.cdw & 15) {
+         radeon_emit(rcs, 0x60000000); /* nop packet */
+         radeon_emit(rcs, 0x00000000);
+      }
       break;
    case RING_VCN_DEC:
       while (rcs->current.cdw & 15)
