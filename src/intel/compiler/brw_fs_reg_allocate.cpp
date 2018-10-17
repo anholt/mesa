@@ -632,26 +632,24 @@ fs_visitor::assign_regs(bool allow_spilling, bool spill_all)
       }
    }
 
-   if (dispatch_width > 8) {
-      /* In 16-wide dispatch we have an issue where a compressed
-       * instruction is actually two instructions executed simultaneiously.
-       * It's actually ok to have the source and destination registers be
-       * the same.  In this case, each instruction over-writes its own
-       * source and there's no problem.  The real problem here is if the
-       * source and destination registers are off by one.  Then you can end
-       * up in a scenario where the first instruction over-writes the
-       * source of the second instruction.  Since the compiler doesn't know
-       * about this level of granularity, we simply make the source and
-       * destination interfere.
-       */
-      foreach_block_and_inst(block, fs_inst, inst, cfg) {
-         if (inst->dst.file != VGRF)
-            continue;
+   /* In 16-wide instructions we have an issue where a compressed
+    * instruction is actually two instructions executed simultaneously.
+    * It's actually ok to have the source and destination registers be
+    * the same.  In this case, each instruction over-writes its own
+    * source and there's no problem.  The real problem here is if the
+    * source and destination registers are off by one.  Then you can end
+    * up in a scenario where the first instruction over-writes the
+    * source of the second instruction.  Since the compiler doesn't know
+    * about this level of granularity, we simply make the source and
+    * destination interfere.
+    */
+   foreach_block_and_inst(block, fs_inst, inst, cfg) {
+      if (inst->exec_size < 16 || inst->dst.file != VGRF)
+         continue;
 
-         for (int i = 0; i < inst->sources; ++i) {
-            if (inst->src[i].file == VGRF) {
-               ra_add_node_interference(g, inst->dst.nr, inst->src[i].nr);
-            }
+      for (int i = 0; i < inst->sources; ++i) {
+         if (inst->src[i].file == VGRF) {
+            ra_add_node_interference(g, inst->dst.nr, inst->src[i].nr);
          }
       }
    }
