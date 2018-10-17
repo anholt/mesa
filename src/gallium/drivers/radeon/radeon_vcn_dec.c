@@ -1433,7 +1433,7 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 	struct si_context *sctx = (struct si_context*)context;
 	struct radeon_winsys *ws = sctx->ws;
 	unsigned width = templ->width, height = templ->height;
-	unsigned dpb_size, bs_buf_size, stream_type = 0;
+	unsigned dpb_size, bs_buf_size, stream_type = 0, ring = RING_VCN_DEC;
 	struct radeon_decoder *dec;
 	int r, i;
 
@@ -1462,6 +1462,10 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 	case PIPE_VIDEO_FORMAT_VP9:
 		stream_type = RDECODE_CODEC_VP9;
 		break;
+	case PIPE_VIDEO_FORMAT_JPEG:
+		stream_type = RDECODE_CODEC_JPEG;
+		ring = RING_VCN_JPEG;
+		break;
 	default:
 		assert(0);
 		break;
@@ -1488,7 +1492,7 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 	dec->stream_handle = si_vid_alloc_stream_handle();
 	dec->screen = context->screen;
 	dec->ws = ws;
-	dec->cs = ws->cs_create(sctx->ctx, RING_VCN_DEC, NULL, NULL);
+	dec->cs = ws->cs_create(sctx->ctx, ring, NULL, NULL);
 	if (!dec->cs) {
 		RVID_ERR("Can't get command submission context.\n");
 		goto error;
