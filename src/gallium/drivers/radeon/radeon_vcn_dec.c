@@ -1368,20 +1368,14 @@ static void radeon_dec_decode_bitstream(struct pipe_video_codec *decoder,
 }
 
 /**
- * end decoding of the current frame
+ * send cmd for vcn dec
  */
-static void radeon_dec_end_frame(struct pipe_video_codec *decoder,
+void send_cmd_dec(struct radeon_decoder *dec,
 			   struct pipe_video_buffer *target,
 			   struct pipe_picture_desc *picture)
 {
-	struct radeon_decoder *dec = (struct radeon_decoder*)decoder;
 	struct pb_buffer *dt;
 	struct rvid_buffer *msg_fb_it_probs_buf, *bs_buf;
-
-	assert(decoder);
-
-	if (!dec->bs_ptr)
-		return;
 
 	msg_fb_it_probs_buf = &dec->msg_fb_it_probs_buffers[dec->cur_buffer];
 	bs_buf = &dec->bs_buffers[dec->cur_buffer];
@@ -1412,6 +1406,23 @@ static void radeon_dec_end_frame(struct pipe_video_codec *decoder,
 		send_cmd(dec, RDECODE_CMD_PROB_TBL_BUFFER, msg_fb_it_probs_buf->res->buf,
 			 FB_BUFFER_OFFSET + FB_BUFFER_SIZE, RADEON_USAGE_READ, RADEON_DOMAIN_GTT);
 	set_reg(dec, RDECODE_ENGINE_CNTL, 1);
+}
+
+/**
+ * end decoding of the current frame
+ */
+static void radeon_dec_end_frame(struct pipe_video_codec *decoder,
+			   struct pipe_video_buffer *target,
+			   struct pipe_picture_desc *picture)
+{
+	struct radeon_decoder *dec = (struct radeon_decoder*)decoder;
+
+	assert(decoder);
+
+	if (!dec->bs_ptr)
+		return;
+
+	dec->send_cmd(dec, target, picture);
 
 	flush(dec, PIPE_FLUSH_ASYNC);
 	next_buffer(dec);
@@ -1569,6 +1580,8 @@ struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 		goto error;
 
 	next_buffer(dec);
+
+	dec->send_cmd = send_cmd_dec;
 
 	return &dec->base;
 
