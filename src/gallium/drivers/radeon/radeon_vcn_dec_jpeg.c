@@ -59,12 +59,56 @@ static struct pb_buffer *radeon_jpeg_get_decode_param(struct radeon_decoder *dec
 	return luma->buffer.buf;
 }
 
+/* add a new set register command to the IB */
+static void set_reg_jpeg(struct radeon_decoder *dec, unsigned reg,
+			 unsigned cond, unsigned type, uint32_t val)
+{
+	radeon_emit(dec->cs, RDECODE_PKTJ(SOC15_REG_ADDR(reg), cond, type));
+	radeon_emit(dec->cs, val);
+}
+
 /* send a bitstream buffer command */
 static void send_cmd_bitstream(struct radeon_decoder *dec,
 		     struct pb_buffer* buf, uint32_t off,
 		     enum radeon_bo_usage usage, enum radeon_bo_domain domain)
 {
-	/* TODO */
+	uint64_t addr;
+
+	// jpeg soft reset
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 1);
+
+	// ensuring the Reset is asserted in SCLK domain
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C2);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, 0x01400200);
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (1 << 9));
+	set_reg_jpeg(dec, mmUVD_SOFT_RESET, COND0, TYPE3, (1 << 9));
+
+	// wait mem
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 0);
+
+	// ensuring the Reset is de-asserted in SCLK domain
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (0 << 9));
+	set_reg_jpeg(dec, mmUVD_SOFT_RESET, COND0, TYPE3, (1 << 9));
+
+	dec->ws->cs_add_buffer(dec->cs, buf, usage | RADEON_USAGE_SYNCHRONIZED,
+						   domain, 0);
+	addr = dec->ws->buffer_get_virtual_address(buf);
+	addr = addr + off;
+
+	// set UVD_LMI_JPEG_READ_64BIT_BAR_LOW/HIGH based on bitstream buffer address
+	set_reg_jpeg(dec, mmUVD_LMI_JPEG_READ_64BIT_BAR_HIGH, COND0, TYPE0, (addr >> 32));
+	set_reg_jpeg(dec, mmUVD_LMI_JPEG_READ_64BIT_BAR_LOW, COND0, TYPE0, addr);
+
+	// set jpeg_rb_base
+	set_reg_jpeg(dec, mmUVD_JPEG_RB_BASE, COND0, TYPE0, 0);
+
+	// set jpeg_rb_base
+	set_reg_jpeg(dec, mmUVD_JPEG_RB_SIZE, COND0, TYPE0, 0xFFFFFFF0);
+
+	// set jpeg_rb_wptr
+	set_reg_jpeg(dec, mmUVD_JPEG_RB_WPTR, COND0, TYPE0, (dec->jpg.bsd_size >> 2));
 }
 
 /* send a target buffer command */
