@@ -572,12 +572,6 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 				 &sctx->null_const_buf);
 		si_set_rw_buffer(sctx, SI_PS_CONST_SAMPLE_POSITIONS,
 				 &sctx->null_const_buf);
-
-		/* Clear the NULL constant buffer, because loads should return zeros. */
-		uint32_t clear_value = 0;
-		si_clear_buffer(sctx, sctx->null_const_buf.buffer, 0,
-				sctx->null_const_buf.buffer->width0,
-				&clear_value, 4, SI_COHERENCY_SHADER);
 	}
 
 	uint64_t max_threads_per_block;
@@ -622,6 +616,14 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 
 	/* this must be last */
 	si_begin_new_gfx_cs(sctx);
+
+	if (sctx->chip_class == CIK) {
+		/* Clear the NULL constant buffer, because loads should return zeros. */
+		uint32_t clear_value = 0;
+		si_clear_buffer(sctx, sctx->null_const_buf.buffer, 0,
+				sctx->null_const_buf.buffer->width0,
+				&clear_value, 4, SI_COHERENCY_SHADER);
+	}
 	return &sctx->b;
 fail:
 	fprintf(stderr, "radeonsi: Failed to create a context.\n");
