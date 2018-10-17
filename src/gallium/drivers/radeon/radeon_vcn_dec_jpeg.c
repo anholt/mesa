@@ -116,7 +116,78 @@ static void send_cmd_target(struct radeon_decoder *dec,
 		     struct pb_buffer* buf, uint32_t off,
 		     enum radeon_bo_usage usage, enum radeon_bo_domain domain)
 {
-	/* TODO */
+	uint64_t addr;
+
+	set_reg_jpeg(dec, mmUVD_JPEG_PITCH, COND0, TYPE0, (dec->jpg.dt_pitch >> 4));
+	set_reg_jpeg(dec, mmUVD_JPEG_UV_PITCH, COND0, TYPE0, ((dec->jpg.dt_uv_pitch * 2) >> 4));
+
+	set_reg_jpeg(dec, mmUVD_JPEG_TILING_CTRL, COND0, TYPE0, 0);
+	set_reg_jpeg(dec, mmUVD_JPEG_UV_TILING_CTRL, COND0, TYPE0, 0);
+
+	dec->ws->cs_add_buffer(dec->cs, buf, usage | RADEON_USAGE_SYNCHRONIZED,
+						   domain, 0);
+	addr = dec->ws->buffer_get_virtual_address(buf);
+	addr = addr + off;
+
+	// set UVD_LMI_JPEG_WRITE_64BIT_BAR_LOW/HIGH based on target buffer address
+	set_reg_jpeg(dec, mmUVD_LMI_JPEG_WRITE_64BIT_BAR_HIGH, COND0, TYPE0, (addr >> 32));
+	set_reg_jpeg(dec, mmUVD_LMI_JPEG_WRITE_64BIT_BAR_LOW, COND0, TYPE0, addr);
+
+	// set output buffer data address
+	set_reg_jpeg(dec, mmUVD_JPEG_INDEX, COND0, TYPE0, 0);
+	set_reg_jpeg(dec, mmUVD_JPEG_DATA, COND0, TYPE0, dec->jpg.dt_luma_top_offset);
+	set_reg_jpeg(dec, mmUVD_JPEG_INDEX, COND0, TYPE0, 1);
+	set_reg_jpeg(dec, mmUVD_JPEG_DATA, COND0, TYPE0, dec->jpg.dt_chroma_top_offset);
+	set_reg_jpeg(dec, mmUVD_JPEG_TIER_CNTL2, COND0, TYPE3, 0);
+
+	// set output buffer read pointer
+	set_reg_jpeg(dec, mmUVD_JPEG_OUTBUF_RPTR, COND0, TYPE0, 0);
+
+	// enable error interrupts
+	set_reg_jpeg(dec, mmUVD_JPEG_INT_EN, COND0, TYPE0, 0xFFFFFFFE);
+
+	// start engine command
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 0x6);
+
+	// wait for job completion, wait for job JBSI fetch done
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (dec->jpg.bsd_size >> 2));
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C2);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, 0x01400200);
+	set_reg_jpeg(dec, mmUVD_JPEG_RB_RPTR, COND0, TYPE3, 0xFFFFFFFF);
+
+	// wait for job jpeg outbuf idle
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, 0xFFFFFFFF);
+	set_reg_jpeg(dec, mmUVD_JPEG_OUTBUF_WPTR, COND0, TYPE3, 0x00000001);
+
+	// stop engine
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 0x4);
+
+	// asserting jpeg lmi drop
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x0005);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (1 << 23 | 1 << 0));
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE1, 0);
+
+	// asserting jpeg reset
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 1);
+
+	// ensure reset is asserted in sclk domain
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (1 << 9));
+	set_reg_jpeg(dec, mmUVD_SOFT_RESET, COND0, TYPE3, (1 << 9));
+
+	// de-assert jpeg reset
+	set_reg_jpeg(dec, mmUVD_JPEG_CNTL, COND0, TYPE0, 0);
+
+	// ensure reset is de-asserted in sclk domain
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x01C3);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, (0 << 9));
+	set_reg_jpeg(dec, mmUVD_SOFT_RESET, COND0, TYPE3, (1 << 9));
+
+	// de-asserting jpeg lmi drop
+	set_reg_jpeg(dec, mmUVD_CTX_INDEX, COND0, TYPE0, 0x0005);
+	set_reg_jpeg(dec, mmUVD_CTX_DATA, COND0, TYPE0, 0);
 }
 
 /**
