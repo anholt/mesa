@@ -127,6 +127,7 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively,
                 progress = false;
 
 		NIR_PASS(progress, shader, nir_split_array_vars, nir_var_local);
+		NIR_PASS(progress, shader, nir_shrink_vec_array_vars, nir_var_local);
 
                 NIR_PASS_V(shader, nir_lower_vars_to_ssa);
 		NIR_PASS_V(shader, nir_lower_pack);
