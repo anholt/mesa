@@ -125,7 +125,7 @@ wsi_x11_check_dri3_compatible(xcb_connection_t *conn, int local_fd)
 }
 
 static struct wsi_x11_connection *
-wsi_x11_connection_create(const VkAllocationCallbacks *alloc,
+wsi_x11_connection_create(struct wsi_device *wsi_dev,
                           xcb_connection_t *conn)
 {
    xcb_query_extension_cookie_t dri3_cookie, pres_cookie, amd_cookie, nv_cookie;
@@ -134,7 +134,7 @@ wsi_x11_connection_create(const VkAllocationCallbacks *alloc,
    bool has_present_v1_2 = false;
 
    struct wsi_x11_connection *wsi_conn =
-      vk_alloc(alloc, sizeof(*wsi_conn), 8,
+      vk_alloc(&wsi_dev->instance_alloc, sizeof(*wsi_conn), 8,
                 VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
    if (!wsi_conn)
       return NULL;
@@ -163,7 +163,7 @@ wsi_x11_connection_create(const VkAllocationCallbacks *alloc,
       free(pres_reply);
       free(amd_reply);
       free(nv_reply);
-      vk_free(alloc, wsi_conn);
+      vk_free(&wsi_dev->instance_alloc, wsi_conn);
       return NULL;
    }
 
@@ -211,10 +211,10 @@ wsi_x11_connection_create(const VkAllocationCallbacks *alloc,
 }
 
 static void
-wsi_x11_connection_destroy(const VkAllocationCallbacks *alloc,
+wsi_x11_connection_destroy(struct wsi_device *wsi_dev,
                            struct wsi_x11_connection *conn)
 {
-   vk_free(alloc, conn);
+   vk_free(&wsi_dev->instance_alloc, conn);
 }
 
 static bool
@@ -231,7 +231,6 @@ wsi_x11_check_for_dri3(struct wsi_x11_connection *wsi_conn)
 
 static struct wsi_x11_connection *
 wsi_x11_get_connection(struct wsi_device *wsi_dev,
-		       const VkAllocationCallbacks *alloc,
                        xcb_connection_t *conn)
 {
    struct wsi_x11 *wsi =
@@ -247,7 +246,7 @@ wsi_x11_get_connection(struct wsi_device *wsi_dev,
       pthread_mutex_unlock(&wsi->mutex);
 
       struct wsi_x11_connection *wsi_conn =
-         wsi_x11_connection_create(alloc, conn);
+         wsi_x11_connection_create(wsi_dev, conn);
       if (!wsi_conn)
          return NULL;
 
@@ -256,7 +255,7 @@ wsi_x11_get_connection(struct wsi_device *wsi_dev,
       entry = _mesa_hash_table_search(wsi->connections, conn);
       if (entry) {
          /* Oops, someone raced us to it */
-         wsi_x11_connection_destroy(alloc, wsi_conn);
+         wsi_x11_connection_destroy(wsi_dev, wsi_conn);
       } else {
          entry = _mesa_hash_table_insert(wsi->connections, conn, wsi_conn);
       }
@@ -382,7 +381,6 @@ visual_has_alpha(xcb_visualtype_t *visual, unsigned depth)
 
 VkBool32 wsi_get_physical_device_xcb_presentation_support(
     struct wsi_device *wsi_device,
-    VkAllocationCallbacks *alloc,
     uint32_t                                    queueFamilyIndex,
     int fd,
     bool can_handle_different_gpu,
@@ -390,7 +388,7 @@ VkBool32 wsi_get_physical_device_xcb_presentation_support(
     xcb_visualid_t                              visual_id)
 {
    struct wsi_x11_connection *wsi_conn =
-      wsi_x11_get_connection(wsi_device, alloc, connection);
+      wsi_x11_get_connection(wsi_device, connection);
 
    if (!wsi_conn)
       return false;
@@ -433,7 +431,6 @@ x11_surface_get_window(VkIcdSurfaceBase *icd_surface)
 static VkResult
 x11_surface_get_support(VkIcdSurfaceBase *icd_surface,
                         struct wsi_device *wsi_device,
-                        const VkAllocationCallbacks *alloc,
                         uint32_t queueFamilyIndex,
                         int local_fd,
                         VkBool32* pSupported)
@@ -442,7 +439,7 @@ x11_surface_get_support(VkIcdSurfaceBase *icd_surface,
    xcb_window_t window = x11_surface_get_window(icd_surface);
 
    struct wsi_x11_connection *wsi_conn =
-      wsi_x11_get_connection(wsi_device, alloc, conn);
+      wsi_x11_get_connection(wsi_device, conn);
    if (!wsi_conn)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -1279,7 +1276,7 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
 
    xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
    struct wsi_x11_connection *wsi_conn =
-      wsi_x11_get_connection(wsi_device, pAllocator, conn);
+      wsi_x11_get_connection(wsi_device, conn);
    if (!wsi_conn)
       return VK_ERROR_OUT_OF_HOST_MEMORY;
 
@@ -1501,7 +1498,7 @@ wsi_x11_finish_wsi(struct wsi_device *wsi_device,
    if (wsi) {
       struct hash_entry *entry;
       hash_table_foreach(wsi->connections, entry)
-         wsi_x11_connection_destroy(alloc, entry->data);
+         wsi_x11_connection_destroy(wsi_device, entry->data);
 
       _mesa_hash_table_destroy(wsi->connections, NULL);
 

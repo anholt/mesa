@@ -90,6 +90,9 @@ struct wsi_interface;
 #define VK_ICD_WSI_PLATFORM_MAX (VK_ICD_WSI_PLATFORM_DISPLAY + 1)
 
 struct wsi_device {
+   /* Allocator for the instance */
+   VkAllocationCallbacks instance_alloc;
+
    VkPhysicalDevice pdevice;
    VkPhysicalDeviceMemoryProperties memory_props;
    uint32_t queue_family_count;
@@ -166,7 +169,6 @@ wsi_common_get_surface_support(struct wsi_device *wsi_device,
                                int local_fd,
                                uint32_t queueFamilyIndex,
                                VkSurfaceKHR surface,
-                               const VkAllocationCallbacks *alloc,
                                VkBool32* pSupported);
 
 VkResult

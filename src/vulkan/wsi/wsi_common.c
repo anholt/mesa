@@ -39,6 +39,7 @@ wsi_device_init(struct wsi_device *wsi,
 
    memset(wsi, 0, sizeof(*wsi));
 
+   wsi->instance_alloc = *alloc;
    wsi->pdevice = pdevice;
 
 #define WSI_GET_CB(func) \
@@ -677,13 +678,12 @@ wsi_common_get_surface_support(struct wsi_device *wsi_device,
                                int local_fd,
                                uint32_t queueFamilyIndex,
                                VkSurfaceKHR _surface,
-                               const VkAllocationCallbacks *alloc,
                                VkBool32* pSupported)
 {
    ICD_FROM_HANDLE(VkIcdSurfaceBase, surface, _surface);
    struct wsi_interface *iface = wsi_device->wsi[surface->platform];
 
-   return iface->get_support(surface, wsi_device, alloc,
+   return iface->get_support(surface, wsi_device,
                              queueFamilyIndex, local_fd, pSupported);
 }
 

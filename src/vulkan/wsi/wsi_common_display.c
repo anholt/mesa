@@ -802,7 +802,6 @@ wsi_create_display_surface(VkInstance instance,
 static VkResult
 wsi_display_surface_get_support(VkIcdSurfaceBase *surface,
                                 struct wsi_device *wsi_device,
-                                const VkAllocationCallbacks *allocator,
                                 uint32_t queueFamilyIndex,
                                 int local_fd,
                                 VkBool32* pSupported)

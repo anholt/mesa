@@ -92,7 +92,6 @@ VkResult anv_GetPhysicalDeviceSurfaceSupportKHR(
                                          device->local_fd,
                                          queueFamilyIndex,
                                          surface,
-                                         &device->instance->alloc,
                                          pSupported);
 }
 

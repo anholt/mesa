@@ -100,7 +100,6 @@ wsi_destroy_image(const struct wsi_swapchain *chain,
 struct wsi_interface {
    VkResult (*get_support)(VkIcdSurfaceBase *surface,
                            struct wsi_device *wsi_device,
-                           const VkAllocationCallbacks *alloc,
                            uint32_t queueFamilyIndex,
                            int local_fd,
                            VkBool32* pSupported);

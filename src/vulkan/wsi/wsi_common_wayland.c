@@ -464,7 +464,6 @@ wsi_wl_get_presentation_support(struct wsi_device *wsi_device,
 static VkResult
 wsi_wl_surface_get_support(VkIcdSurfaceBase *surface,
                            struct wsi_device *wsi_device,
-                           const VkAllocationCallbacks *alloc,
                            uint32_t queueFamilyIndex,
                            int local_fd,
                            VkBool32* pSupported)
