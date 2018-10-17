@@ -459,7 +459,7 @@ fd_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
 	struct fd_batch *batch, *save_batch = NULL;
 	unsigned i;
 
-	batch = fd_batch_create(ctx, true);
+	batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx, true);
 	fd_batch_reference(&save_batch, ctx->batch);
 	fd_batch_reference(&ctx->batch, batch);
 
@@ -506,6 +506,7 @@ fd_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
 
 	fd_batch_reference(&ctx->batch, save_batch);
 	fd_batch_reference(&save_batch, NULL);
+	fd_batch_reference(&batch, NULL);
 }
 
 void
