@@ -51,41 +51,10 @@
 #define RDECODE_GPCOM_VCPU_DATA1	0x20714
 #define RDECODE_ENGINE_CNTL		0x20718
 
-#define NUM_BUFFERS			4
 #define NUM_MPEG2_REFS			6
 #define NUM_H264_REFS			17
 #define NUM_VC1_REFS			5
 #define NUM_VP9_REFS			8
-
-struct radeon_decoder {
-	struct pipe_video_codec		base;
-
-	unsigned			stream_handle;
-	unsigned			stream_type;
-	unsigned			frame_number;
-
-	struct pipe_screen		*screen;
-	struct radeon_winsys		*ws;
-	struct radeon_cmdbuf		*cs;
-
-	void				*msg;
-	uint32_t			*fb;
-	uint8_t				*it;
-	uint8_t				*probs;
-	void				*bs_ptr;
-
-	struct rvid_buffer		msg_fb_it_probs_buffers[NUM_BUFFERS];
-	struct rvid_buffer		bs_buffers[NUM_BUFFERS];
-	struct rvid_buffer		dpb;
-	struct rvid_buffer		ctx;
-	struct rvid_buffer		sessionctx;
-
-	unsigned			bs_size;
-	unsigned			cur_buffer;
-	void				*render_pic_list[16];
-	bool				show_frame;
-	unsigned			ref_idx;
-};
 
 static rvcn_dec_message_avc_t get_h264_msg(struct radeon_decoder *dec,
 		struct pipe_h264_picture_desc *pic)

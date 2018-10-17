@@ -108,6 +108,8 @@
 
 #define RDECODE_SPS_INFO_H264_EXTENSION_SUPPORT_FLAG_SHIFT	7
 
+#define NUM_BUFFERS			4
+
 #define RDECODE_VP9_PROBS_DATA_SIZE			2304
 
 /* VP9 Frame header flags */
@@ -638,6 +640,36 @@ typedef struct rvcn_dec_vp9_probs_segment_s {
         unsigned char	segment_data[256];
     };
 } rvcn_dec_vp9_probs_segment_t;
+
+struct radeon_decoder {
+	struct pipe_video_codec		base;
+
+	unsigned			stream_handle;
+	unsigned			stream_type;
+	unsigned			frame_number;
+
+	struct pipe_screen		*screen;
+	struct radeon_winsys		*ws;
+	struct radeon_cmdbuf		*cs;
+
+	void				*msg;
+	uint32_t			*fb;
+	uint8_t				*it;
+	uint8_t				*probs;
+	void				*bs_ptr;
+
+	struct rvid_buffer		msg_fb_it_probs_buffers[NUM_BUFFERS];
+	struct rvid_buffer		bs_buffers[NUM_BUFFERS];
+	struct rvid_buffer		dpb;
+	struct rvid_buffer		ctx;
+	struct rvid_buffer		sessionctx;
+
+	unsigned			bs_size;
+	unsigned			cur_buffer;
+	void				*render_pic_list[16];
+	bool				show_frame;
+	unsigned			ref_idx;
+};
 
 struct pipe_video_codec *radeon_create_decoder(struct pipe_context *context,
 		const struct pipe_video_codec *templat);
