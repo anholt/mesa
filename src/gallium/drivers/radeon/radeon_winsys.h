@@ -87,6 +87,7 @@ enum ring_type {
     RING_UVD_ENC,
     RING_VCN_DEC,
     RING_VCN_ENC,
+    RING_VCN_JPEG,
     RING_LAST,
 };
 
