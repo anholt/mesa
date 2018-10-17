@@ -898,7 +898,7 @@ static void *si_create_rs_state(struct pipe_context *ctx,
 
 	if (state->point_size_per_vertex) {
 		psize_min = util_get_min_point_size(state);
-		psize_max = 8192;
+		psize_max = SI_MAX_POINT_SIZE;
 	} else {
 		/* Force the point size to be as if the vertex output was disabled. */
 		psize_min = state->point_size;

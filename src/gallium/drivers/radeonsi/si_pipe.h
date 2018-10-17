@@ -48,6 +48,7 @@
 #define SI_BASE_VERTEX_UNKNOWN		INT_MIN
 #define SI_RESTART_INDEX_UNKNOWN	INT_MIN
 #define SI_NUM_SMOOTH_AA_SAMPLES	8
+#define SI_MAX_POINT_SIZE		2048
 #define SI_GS_PER_ES			128
 /* Alignment for optimal CP DMA performance. */
 #define SI_CPDMA_ALIGNMENT		32
