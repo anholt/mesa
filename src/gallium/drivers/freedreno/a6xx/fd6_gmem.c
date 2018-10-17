@@ -591,8 +591,8 @@ set_blit_scissor(struct fd_batch *batch)
 
 	blit_scissor.minx = batch->max_scissor.minx;
 	blit_scissor.miny = batch->max_scissor.miny;
-	blit_scissor.maxx = MIN2(pfb->width - 1, batch->max_scissor.maxx);
-	blit_scissor.maxy = MIN2(pfb->height - 1, batch->max_scissor.maxy);
+	blit_scissor.maxx = MIN2(pfb->width, batch->max_scissor.maxx);
+	blit_scissor.maxy = MIN2(pfb->height, batch->max_scissor.maxy);
 
 	OUT_PKT4(ring, REG_A6XX_RB_BLIT_SCISSOR_TL, 2);
 	OUT_RING(ring,
