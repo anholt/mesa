@@ -270,7 +270,7 @@ fd_bc_invalidate_resource(struct fd_resource *rsc, bool destroy)
 }
 
 struct fd_batch *
-fd_bc_alloc_batch(struct fd_batch_cache *cache, struct fd_context *ctx)
+fd_bc_alloc_batch(struct fd_batch_cache *cache, struct fd_context *ctx, bool nondraw)
 {
 	struct fd_batch *batch;
 	uint32_t idx;
@@ -333,7 +333,7 @@ fd_bc_alloc_batch(struct fd_batch_cache *cache, struct fd_context *ctx)
 
 	idx--;              /* bit zero returns 1 for ffs() */
 
-	batch = fd_batch_create(ctx, false);
+	batch = fd_batch_create(ctx, nondraw);
 	if (!batch)
 		goto out;
 
@@ -365,7 +365,7 @@ batch_from_key(struct fd_batch_cache *cache, struct key *key,
 		return batch;
 	}
 
-	batch = fd_bc_alloc_batch(cache, ctx);
+	batch = fd_bc_alloc_batch(cache, ctx, false);
 #ifdef DEBUG
 	DBG("%p: hash=0x%08x, %ux%u, %u layers, %u samples", batch, hash,
 			key->width, key->height, key->layers, key->samples);

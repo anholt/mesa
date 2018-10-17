@@ -486,7 +486,7 @@ fd6_blit(struct pipe_context *pctx, const struct pipe_blit_info *info)
 		return;
 	}
 
-	batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx);
+	batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx, true);
 
 	fd6_emit_restore(batch, batch->draw);
 	fd6_emit_lrz_flush(batch->draw);

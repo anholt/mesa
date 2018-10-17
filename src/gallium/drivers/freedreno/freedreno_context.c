@@ -316,7 +316,7 @@ fd_context_init(struct fd_context *ctx, struct pipe_screen *pscreen,
 	pctx->const_uploader = pctx->stream_uploader;
 
 	if (!ctx->screen->reorder)
-		ctx->batch = fd_bc_alloc_batch(&screen->batch_cache, ctx);
+		ctx->batch = fd_bc_alloc_batch(&screen->batch_cache, ctx, false);
 
 	slab_create_child(&ctx->transfer_pool, &screen->transfer_pool);
 
