@@ -1808,13 +1808,13 @@ radv_link_shaders(struct radv_pipeline *pipeline, nir_shader **shaders)
 				ac_lower_indirect_derefs(ordered_shaders[i],
 				                         pipeline->device->physical_device->rad_info.chip_class);
 			}
-			radv_optimize_nir(ordered_shaders[i], false);
+			radv_optimize_nir(ordered_shaders[i], false, false);
 
 			if (nir_lower_global_vars_to_local(ordered_shaders[i - 1])) {
 				ac_lower_indirect_derefs(ordered_shaders[i - 1],
 				                         pipeline->device->physical_device->rad_info.chip_class);
 			}
-			radv_optimize_nir(ordered_shaders[i - 1], false);
+			radv_optimize_nir(ordered_shaders[i - 1], false, false);
 		}
 	}
 }
@@ -2073,7 +2073,7 @@ void radv_create_shaders(struct radv_pipeline *pipeline,
 
 			if (!(flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)) {
 				nir_lower_io_to_scalar_early(nir[i], mask);
-				radv_optimize_nir(nir[i], false);
+				radv_optimize_nir(nir[i], false, false);
 			}
 		}
 	}

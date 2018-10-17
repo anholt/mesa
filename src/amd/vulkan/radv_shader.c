@@ -118,7 +118,8 @@ void radv_DestroyShaderModule(
 }
 
 void
-radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
+radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively,
+                  bool allow_copies)
 {
         bool progress;
 
@@ -127,6 +128,15 @@ radv_optimize_nir(struct nir_shader *shader, bool optimize_conservatively)
 
                 NIR_PASS_V(shader, nir_lower_vars_to_ssa);
 		NIR_PASS_V(shader, nir_lower_pack);
+
+		if (allow_copies) {
+			/* Only run this pass in the first call to
+			 * radv_optimize_nir.  Later calls assume that we've
+			 * lowered away any copy_deref instructions and we
+			 *  don't want to introduce any more.
+			*/
+			NIR_PASS(progress, shader, nir_opt_find_array_copies);
+		}
 
 		NIR_PASS(progress, shader, nir_opt_copy_prop_vars);
 		NIR_PASS(progress, shader, nir_opt_dead_write_vars);
@@ -306,7 +316,6 @@ radv_shader_compile_to_nir(struct radv_device *device,
 	}
 
 	nir_split_var_copies(nir);
-	nir_lower_var_copies(nir);
 
 	nir_lower_global_vars_to_local(nir);
 	nir_remove_dead_variables(nir, nir_var_local);
@@ -323,7 +332,12 @@ radv_shader_compile_to_nir(struct radv_device *device,
 	nir_lower_load_const_to_scalar(nir);
 
 	if (!(flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT))
-		radv_optimize_nir(nir, false);
+		radv_optimize_nir(nir, false, true);
+
+	/* We call nir_lower_var_copies() after the first radv_optimize_nir()
+	 * to remove any copies introduced by nir_opt_find_array_copies().
+	 */
+	nir_lower_var_copies(nir);
 
 	/* Indirect lowering must be called after the radv_optimize_nir() loop
 	 * has been called at least once. Otherwise indirect lowering can
@@ -331,7 +345,7 @@ radv_shader_compile_to_nir(struct radv_device *device,
 	 * considered too large for unrolling.
 	 */
 	ac_lower_indirect_derefs(nir, device->physical_device->rad_info.chip_class);
-	radv_optimize_nir(nir, flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT);
+	radv_optimize_nir(nir, flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT, false);
 
 	return nir;
 }
