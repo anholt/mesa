@@ -468,8 +468,10 @@ fd_batch_resource_used(struct fd_batch *batch, struct fd_resource *rsc, bool wri
 			flush_write_batch(rsc);
 	}
 
-	if (rsc->batch_mask & (1 << batch->idx))
+	if (rsc->batch_mask & (1 << batch->idx)) {
+		debug_assert(_mesa_set_search(batch->resources, rsc));
 		return;
+	}
 
 	debug_assert(!_mesa_set_search(batch->resources, rsc));
 
