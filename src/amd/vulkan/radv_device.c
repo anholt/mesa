@@ -483,7 +483,7 @@ static const struct debug_control radv_perftest_options[] = {
 const char *
 radv_get_perftest_option_name(int id)
 {
-	assert(id < ARRAY_SIZE(radv_debug_options) - 1);
+	assert(id < ARRAY_SIZE(radv_perftest_options) - 1);
 	return radv_perftest_options[id].string;
 }
 
