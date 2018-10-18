@@ -189,7 +189,7 @@ radv_shader_compile_to_nir(struct radv_device *device,
 		 * and just use the NIR shader */
 		nir = module->nir;
 		nir->options = &nir_options;
-		nir_validate_shader(nir);
+		nir_validate_shader(nir, "in internal shader");
 
 		assert(exec_list_length(&nir->functions) == 1);
 		struct exec_node *node = exec_list_get_head(&nir->functions);
@@ -251,7 +251,7 @@ radv_shader_compile_to_nir(struct radv_device *device,
 					   &spirv_options, &nir_options);
 		nir = entry_point->shader;
 		assert(nir->info.stage == stage);
-		nir_validate_shader(nir);
+		nir_validate_shader(nir, "after spirv_to_nir");
 
 		free(spec_entries);
 

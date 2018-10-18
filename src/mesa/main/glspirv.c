@@ -234,7 +234,7 @@ _mesa_spirv_to_nir(struct gl_context *ctx,
       ralloc_asprintf(nir, "SPIRV:%s:%d",
                       _mesa_shader_stage_to_abbrev(nir->info.stage),
                       prog->Name);
-   nir_validate_shader(nir);
+   nir_validate_shader(nir, "after spirv_to_nir");
 
    nir->info.separate_shader = linked_shader->Program->info.separate_shader;
 

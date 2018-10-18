@@ -165,7 +165,7 @@ anv_shader_compile_to_nir(struct anv_pipeline *pipeline,
                    stage, entrypoint_name, &spirv_options, nir_options);
    nir_shader *nir = entry_point->shader;
    assert(nir->info.stage == stage);
-   nir_validate_shader(nir);
+   nir_validate_shader(nir, "after spirv_to_nir");
    ralloc_steal(mem_ctx, nir);
 
    free(spec_entries);

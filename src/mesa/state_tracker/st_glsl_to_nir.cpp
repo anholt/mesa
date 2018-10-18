@@ -721,7 +721,7 @@ st_link_nir(struct gl_context *ctx,
                                PIPE_CAP_TGSI_FS_COORD_PIXEL_CENTER_HALF_INTEGER);
 
          if (nir_lower_wpos_ytransform(nir, &wpos_options)) {
-            nir_validate_shader(nir);
+            nir_validate_shader(nir, "after nir_lower_wpos_ytransform");
             _mesa_add_state_reference(shader->Program->Parameters,
                                       wposTransformState);
          }

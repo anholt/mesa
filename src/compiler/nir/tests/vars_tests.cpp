@@ -147,14 +147,14 @@ TEST_F(nir_redundant_load_vars_test, duplicated_load)
    nir_store_var(b, out[0], nir_load_var(b, in), 1);
    nir_store_var(b, out[1], nir_load_var(b, in), 1);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 2);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
 }
@@ -173,14 +173,14 @@ TEST_F(nir_redundant_load_vars_test, duplicated_load_in_two_blocks)
 
    nir_store_var(b, out[1], nir_load_var(b, in), 1);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 2);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_load_deref), 1);
 }
@@ -210,7 +210,7 @@ TEST_F(nir_redundant_load_vars_test, invalidate_inside_if_block)
    nir_store_var(b, out[1], nir_load_var(b, g[1]), 1);
    nir_store_var(b, out[2], nir_load_var(b, g[2]), 1);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
@@ -265,12 +265,12 @@ TEST_F(nir_copy_prop_vars_test, simple_copies)
    nir_copy_var(b, temp, in);
    nir_copy_var(b, out, temp);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    nir_intrinsic_instr *copy = NULL;
    copy = find_next_intrinsic(nir_intrinsic_copy_deref, copy);
@@ -293,12 +293,12 @@ TEST_F(nir_copy_prop_vars_test, simple_store_load)
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, mask);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_store_deref), 2);
 
@@ -324,12 +324,12 @@ TEST_F(nir_copy_prop_vars_test, store_store_load)
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, mask);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    /* Store to v[1] should use second_value directly. */
    nir_intrinsic_instr *store_to_v1 = NULL;
@@ -356,15 +356,15 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components)
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, 1 << 1);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    nir_opt_constant_folding(b->shader);
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    /* Store to v[1] should use first_value directly.  The write of
     * second_value did not overwrite the component it uses.
@@ -401,7 +401,7 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components_in_many_bl
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, 1 << 1);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    nir_print_shader(b->shader, stdout);
 
@@ -410,10 +410,10 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components_in_many_bl
 
    nir_print_shader(b->shader, stdout);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    nir_opt_constant_folding(b->shader);
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    /* Store to v[1] should use first_value directly.  The write of
     * second_value did not overwrite the component it uses.
@@ -471,12 +471,12 @@ TEST_F(nir_copy_prop_vars_test, simple_store_load_in_two_blocks)
    nir_ssa_def *read_value = nir_load_var(b, v[0]);
    nir_store_var(b, v[1], read_value, mask);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    bool progress = nir_opt_copy_prop_vars(b->shader);
    EXPECT_TRUE(progress);
 
-   nir_validate_shader(b->shader);
+   nir_validate_shader(b->shader, NULL);
 
    ASSERT_EQ(count_intrinsics(nir_intrinsic_store_deref), 2);
 
