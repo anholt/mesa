@@ -69,6 +69,9 @@ struct wsi_swapchain {
                              const VkPresentRegionKHR *damage);
 };
 
+bool
+wsi_device_matches_drm_fd(const struct wsi_device *wsi, int drm_fd);
+
 VkResult
 wsi_swapchain_init(const struct wsi_device *wsi,
                    struct wsi_swapchain *chain,
@@ -101,7 +104,6 @@ struct wsi_interface {
    VkResult (*get_support)(VkIcdSurfaceBase *surface,
                            struct wsi_device *wsi_device,
                            uint32_t queueFamilyIndex,
-                           int local_fd,
                            VkBool32* pSupported);
    VkResult (*get_capabilities2)(VkIcdSurfaceBase *surface,
                                  const void *info_next,
@@ -120,13 +122,11 @@ struct wsi_interface {
                                  VkPresentModeKHR* pPresentModes);
    VkResult (*get_present_rectangles)(VkIcdSurfaceBase *surface,
                                       struct wsi_device *wsi_device,
-                                      int local_fd,
                                       uint32_t* pRectCount,
                                       VkRect2D* pRects);
    VkResult (*create_swapchain)(VkIcdSurfaceBase *surface,
                                 VkDevice device,
                                 struct wsi_device *wsi_device,
-                                int local_fd,
                                 const VkSwapchainCreateInfoKHR* pCreateInfo,
                                 const VkAllocationCallbacks* pAllocator,
                                 struct wsi_swapchain **swapchain);

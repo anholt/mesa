@@ -803,7 +803,6 @@ static VkResult
 wsi_display_surface_get_support(VkIcdSurfaceBase *surface,
                                 struct wsi_device *wsi_device,
                                 uint32_t queueFamilyIndex,
-                                int local_fd,
                                 VkBool32* pSupported)
 {
    *pSupported = VK_TRUE;
@@ -934,27 +933,9 @@ wsi_display_surface_get_present_modes(VkIcdSurfaceBase *surface,
    return vk_outarray_status(&conn);
 }
 
-static bool
-fds_are_same_gpu(int fd1, int fd2)
-{
-   if (fd1 == -1 || fd2 == -1)
-      return false;
-
-   char *fd1_dev = drmGetRenderDeviceNameFromFd(fd1);
-   char *fd2_dev = drmGetRenderDeviceNameFromFd(fd2);
-
-   int ret = strcmp(fd1_dev, fd2_dev);
-
-   free(fd1_dev);
-   free(fd2_dev);
-
-   return ret == 0;
-}
-
 static VkResult
 wsi_display_surface_get_present_rectangles(VkIcdSurfaceBase *surface_base,
                                            struct wsi_device *wsi_device,
-                                           int local_fd,
                                            uint32_t* pRectCount,
                                            VkRect2D* pRects)
 {
@@ -962,7 +943,7 @@ wsi_display_surface_get_present_rectangles(VkIcdSurfaceBase *surface_base,
    wsi_display_mode *mode = wsi_display_mode_from_handle(surface->displayMode);
    VK_OUTARRAY_MAKE(out, pRects, pRectCount);
 
-   if (fds_are_same_gpu(local_fd, mode->connector->wsi->fd)) {
+   if (wsi_device_matches_drm_fd(wsi_device, mode->connector->wsi->fd)) {
       vk_outarray_append(&out, rect) {
          *rect = (VkRect2D) {
             .offset = { 0, 0 },
@@ -1730,7 +1711,6 @@ wsi_display_surface_create_swapchain(
    VkIcdSurfaceBase *icd_surface,
    VkDevice device,
    struct wsi_device *wsi_device,
-   int local_fd,
    const VkSwapchainCreateInfoKHR *create_info,
    const VkAllocationCallbacks *allocator,
    struct wsi_swapchain **swapchain_out)

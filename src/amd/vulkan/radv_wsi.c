@@ -72,7 +72,6 @@ VkResult radv_GetPhysicalDeviceSurfaceSupportKHR(
 	RADV_FROM_HANDLE(radv_physical_device, device, physicalDevice);
 
 	return wsi_common_get_surface_support(&device->wsi_device,
-					      device->local_fd,
 					      queueFamilyIndex,
 					      surface,
 					      pSupported);
@@ -171,7 +170,6 @@ VkResult radv_CreateSwapchainKHR(
 
 	return wsi_common_create_swapchain(&device->physical_device->wsi_device,
 					   radv_device_to_handle(device),
-					   device->physical_device->local_fd,
 					   pCreateInfo,
 					   alloc,
 					   pSwapchain);
@@ -294,7 +292,6 @@ VkResult radv_GetPhysicalDevicePresentRectanglesKHR(
 	RADV_FROM_HANDLE(radv_physical_device, device, physicalDevice);
 
 	return wsi_common_get_present_rectangles(&device->wsi_device,
-						 device->local_fd,
 						 surface,
 						 pRectCount, pRects);
 }

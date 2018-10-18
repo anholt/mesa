@@ -41,7 +41,7 @@ VkBool32 anv_GetPhysicalDeviceXcbPresentationSupportKHR(
    return wsi_get_physical_device_xcb_presentation_support(
       &device->wsi_device,
       queueFamilyIndex,
-      device->local_fd, false,
+      false,
       connection, visual_id);
 }
 
@@ -56,7 +56,7 @@ VkBool32 anv_GetPhysicalDeviceXlibPresentationSupportKHR(
    return wsi_get_physical_device_xcb_presentation_support(
       &device->wsi_device,
       queueFamilyIndex,
-      device->local_fd, false,
+      false,
       XGetXCBConnection(dpy), visualID);
 }
 

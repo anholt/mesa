@@ -99,29 +99,22 @@ wsi_dri3_open(xcb_connection_t *conn,
 }
 
 static bool
-wsi_x11_check_dri3_compatible(xcb_connection_t *conn, int local_fd)
+wsi_x11_check_dri3_compatible(const struct wsi_device *wsi_dev,
+                              xcb_connection_t *conn)
 {
    xcb_screen_iterator_t screen_iter =
       xcb_setup_roots_iterator(xcb_get_setup(conn));
    xcb_screen_t *screen = screen_iter.data;
 
    int dri3_fd = wsi_dri3_open(conn, screen->root, None);
-   if (dri3_fd != -1) {
-      char *local_dev = drmGetRenderDeviceNameFromFd(local_fd);
-      char *dri3_dev = drmGetRenderDeviceNameFromFd(dri3_fd);
-      int ret;
+   if (dri3_fd == -1)
+      return true;
 
-      close(dri3_fd);
+   bool match = wsi_device_matches_drm_fd(wsi_dev, dri3_fd);
 
-      ret = strcmp(local_dev, dri3_dev);
+   close(dri3_fd);
 
-      free(local_dev);
-      free(dri3_dev);
-
-      if (ret != 0)
-         return false;
-   }
-   return true;
+   return match;
 }
 
 static struct wsi_x11_connection *
@@ -382,7 +375,6 @@ visual_has_alpha(xcb_visualtype_t *visual, unsigned depth)
 VkBool32 wsi_get_physical_device_xcb_presentation_support(
     struct wsi_device *wsi_device,
     uint32_t                                    queueFamilyIndex,
-    int fd,
     bool can_handle_different_gpu,
     xcb_connection_t*                           connection,
     xcb_visualid_t                              visual_id)
@@ -397,7 +389,7 @@ VkBool32 wsi_get_physical_device_xcb_presentation_support(
       return false;
 
    if (!can_handle_different_gpu)
-      if (!wsi_x11_check_dri3_compatible(connection, fd))
+      if (!wsi_x11_check_dri3_compatible(wsi_device, connection))
          return false;
 
    unsigned visual_depth;
@@ -432,7 +424,6 @@ static VkResult
 x11_surface_get_support(VkIcdSurfaceBase *icd_surface,
                         struct wsi_device *wsi_device,
                         uint32_t queueFamilyIndex,
-                        int local_fd,
                         VkBool32* pSupported)
 {
    xcb_connection_t *conn = x11_surface_get_connection(icd_surface);
@@ -601,7 +592,6 @@ x11_surface_get_present_modes(VkIcdSurfaceBase *surface,
 
 static bool
 x11_surface_is_local_to_gpu(struct wsi_device *wsi_dev,
-                            int local_fd,
                             xcb_connection_t *conn)
 {
    struct wsi_x11_connection *wsi_conn =
@@ -613,7 +603,7 @@ x11_surface_is_local_to_gpu(struct wsi_device *wsi_dev,
    if (!wsi_x11_check_for_dri3(wsi_conn))
       return false;
 
-   if (!wsi_x11_check_dri3_compatible(conn, local_fd))
+   if (!wsi_x11_check_dri3_compatible(wsi_dev, conn))
       return false;
 
    return true;
@@ -622,7 +612,6 @@ x11_surface_is_local_to_gpu(struct wsi_device *wsi_dev,
 static VkResult
 x11_surface_get_present_rectangles(VkIcdSurfaceBase *icd_surface,
                                    struct wsi_device *wsi_device,
-                                   int local_fd,
                                    uint32_t* pRectCount,
                                    VkRect2D* pRects)
 {
@@ -630,7 +619,7 @@ x11_surface_get_present_rectangles(VkIcdSurfaceBase *icd_surface,
    xcb_window_t window = x11_surface_get_window(icd_surface);
    VK_OUTARRAY_MAKE(out, pRects, pRectCount);
 
-   if (x11_surface_is_local_to_gpu(wsi_device, local_fd, conn)) {
+   if (x11_surface_is_local_to_gpu(wsi_device, conn)) {
       vk_outarray_append(&out, rect) {
          xcb_generic_error_t *err = NULL;
          xcb_get_geometry_cookie_t geom_cookie = xcb_get_geometry(conn, window);
@@ -1321,7 +1310,6 @@ static VkResult
 x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
                              VkDevice device,
                              struct wsi_device *wsi_device,
-                             int local_fd,
                              const VkSwapchainCreateInfoKHR *pCreateInfo,
                              const VkAllocationCallbacks* pAllocator,
                              struct wsi_swapchain **swapchain_out)
@@ -1388,7 +1376,7 @@ x11_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
    else
       chain->last_present_mode = XCB_PRESENT_COMPLETE_MODE_COPY;
 
-   if (!wsi_x11_check_dri3_compatible(conn, local_fd))
+   if (!wsi_x11_check_dri3_compatible(wsi_device, conn))
        chain->base.use_prime_blit = true;
 
    chain->event_id = xcb_generate_id(chain->conn);

@@ -465,7 +465,6 @@ static VkResult
 wsi_wl_surface_get_support(VkIcdSurfaceBase *surface,
                            struct wsi_device *wsi_device,
                            uint32_t queueFamilyIndex,
-                           int local_fd,
                            VkBool32* pSupported)
 {
    *pSupported = true;
@@ -604,7 +603,6 @@ wsi_wl_surface_get_present_modes(VkIcdSurfaceBase *surface,
 static VkResult
 wsi_wl_surface_get_present_rectangles(VkIcdSurfaceBase *surface,
                                       struct wsi_device *wsi_device,
-                                      int local_fd,
                                       uint32_t* pRectCount,
                                       VkRect2D* pRects)
 {
@@ -908,7 +906,6 @@ static VkResult
 wsi_wl_surface_create_swapchain(VkIcdSurfaceBase *icd_surface,
                                 VkDevice device,
                                 struct wsi_device *wsi_device,
-                                int local_fd,
                                 const VkSwapchainCreateInfoKHR* pCreateInfo,
                                 const VkAllocationCallbacks* pAllocator,
                                 struct wsi_swapchain **swapchain_out)
