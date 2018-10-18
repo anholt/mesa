@@ -176,8 +176,8 @@ static void si_emit_guardband(struct si_context *ctx)
 	/* Determine the optimal hardware screen offset to center the viewport
 	 * within the viewport range in order to maximize the guardband size.
 	 */
-	int hw_screen_offset_x = (vp_as_scissor.maxx - vp_as_scissor.minx) / 2;
-	int hw_screen_offset_y = (vp_as_scissor.maxy - vp_as_scissor.miny) / 2;
+	int hw_screen_offset_x = (vp_as_scissor.maxx + vp_as_scissor.minx) / 2;
+	int hw_screen_offset_y = (vp_as_scissor.maxy + vp_as_scissor.miny) / 2;
 
 	const unsigned hw_screen_offset_max = 8176;
 	/* SI-CI need to align the offset to an ubertile consisting of all SEs. */
