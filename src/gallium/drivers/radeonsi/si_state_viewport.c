@@ -187,7 +187,7 @@ static void si_emit_guardband(struct si_context *ctx)
 	hw_screen_offset_x = CLAMP(hw_screen_offset_x, 0, hw_screen_offset_max);
 	hw_screen_offset_y = CLAMP(hw_screen_offset_y, 0, hw_screen_offset_max);
 
-	/* Align the screen offset by dropping the low 4 bits. */
+	/* Align the screen offset by dropping the low bits. */
 	hw_screen_offset_x &= ~(hw_screen_offset_alignment - 1);
 	hw_screen_offset_y &= ~(hw_screen_offset_alignment - 1);
 
