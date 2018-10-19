@@ -339,7 +339,17 @@ class BitSizeValidator(object):
       self._propagate_bit_class_down(search, search_dst_class)
 
       replace_dst_class = self._validate_bit_class_up(replace)
-      assert replace_dst_class == 0 or replace_dst_class == search_dst_class
+      if replace_dst_class != 0:
+         assert search_dst_class != 0, \
+                'Search expression matches any bit size but replace ' \
+                'expression can only generate {0}-bit values' \
+                .format(replace_dst_class)
+
+         assert search_dst_class == replace_dst_class, \
+                'Search expression matches any {0}-bit values but replace ' \
+                'expression can only generates {1}-bit values' \
+                .format(search_dst_class, replace_dst_class)
+
       self._validate_bit_class_down(replace, search_dst_class)
 
    def _new_class(self):
@@ -378,37 +388,60 @@ class BitSizeValidator(object):
 
             src_type_bits = type_bits(nir_op.input_types[i])
             if src_type_bits != 0:
-               assert src_bits == src_type_bits
+               assert src_bits == src_type_bits, \
+                      'Source {0} of nir_op_{1} must be a {2}-bit value but ' \
+                      'the only possible matched values are {3}-bit: {4}' \
+                      .format(i, val.opcode, src_type_bits, src_bits, str(val))
             else:
-               assert val.common_size == 0 or src_bits == val.common_size
+               assert val.common_size == 0 or src_bits == val.common_size, \
+                      'Expression cannot have both {0}-bit and {1}-bit ' \
+                      'variable-width sources: {2}' \
+                      .format(src_bits, val.common_size, str(val))
                val.common_size = src_bits
 
          dst_type_bits = type_bits(nir_op.output_type)
          if dst_type_bits != 0:
-            assert val.bit_size == 0 or val.bit_size == dst_type_bits
+            assert val.bit_size == 0 or val.bit_size == dst_type_bits, \
+                   'nir_op_{0} produces a {1}-bit result but a {2}-bit ' \
+                   'result was requested' \
+                   .format(val.opcode, dst_type_bits, val.bit_size)
             return dst_type_bits
          else:
             if val.common_size != 0:
-               assert val.bit_size == 0 or val.bit_size == val.common_size
+               assert val.bit_size == 0 or val.bit_size == val.common_size, \
+                      'Variable width expression musr be {0}-bit based on ' \
+                      'the sources but a {1}-bit result was requested: {2}' \
+                      .format(val.common_size, val.bit_size, str(val))
             else:
                val.common_size = val.bit_size
             return val.common_size
 
    def _propagate_bit_class_down(self, val, bit_class):
       if isinstance(val, Constant):
-         assert val.bit_size == 0 or val.bit_size == bit_class
+         assert val.bit_size == 0 or val.bit_size == bit_class, \
+                'Constant is {0}-bit but a {1}-bit value is required: {2}' \
+                .format(val.bit_size, bit_class, str(val))
 
       elif isinstance(val, Variable):
-         assert val.bit_size == 0 or val.bit_size == bit_class
+         assert val.bit_size == 0 or val.bit_size == bit_class, \
+                'Variable is {0}-bit but a {1}-bit value is required: {2}' \
+                .format(val.bit_size, bit_class, str(val))
          self._set_var_bit_class(val, bit_class)
 
       elif isinstance(val, Expression):
          nir_op = opcodes[val.opcode]
          dst_type_bits = type_bits(nir_op.output_type)
          if dst_type_bits != 0:
-            assert bit_class == 0 or bit_class == dst_type_bits
+            assert bit_class == 0 or bit_class == dst_type_bits, \
+                   'nir_op_{0} produces a {1}-bit result but the parent ' \
+                   'expression wants a {2}-bit value' \
+                   .format(val.opcode, dst_type_bits, bit_class)
          else:
-            assert val.common_size == 0 or val.common_size == bit_class
+            assert val.common_size == 0 or val.common_size == bit_class, \
+                   'Variable-width expression produces a {0}-bit result ' \
+                   'based on the source widths but the parent expression ' \
+                   'wants a {1}-bit value: {2}' \
+                   .format(val.common_size, bit_class, str(val))
             val.common_size = bit_class
 
          if val.common_size:
