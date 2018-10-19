@@ -264,7 +264,7 @@ patch_gmem_bases(struct fd_batch *batch)
 		if (patch->val < MAX_RENDER_TARGETS)
 			*patch->cs = gmem->cbuf_base[patch->val];
 		else
-			*patch->cs = gmem->zsbuf_base[0];
+			*patch->cs = gmem->zsbuf_base[patch->val - MAX_RENDER_TARGETS];
 	}
 	util_dynarray_resize(&batch->gmem_patches, 0);
 }
