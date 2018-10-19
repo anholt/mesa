@@ -352,8 +352,12 @@ class BitSizeValidator(object):
       if var_class == 0:
          self._var_classes[var.index] = bit_class
       else:
-         canon_class = self._class_relation.get_canonical(var_class)
-         assert canon_class < 0 or canon_class == bit_class
+         canon_bit_class = self._class_relation.get_canonical(var_class)
+         canon_var_class = self._class_relation.get_canonical(bit_class)
+         assert canon_var_class < 0 or canon_bit_class < 0 or \
+                canon_var_class == canon_bit_class, \
+                'Variable {0} cannot be both {1}-bit and {2}-bit' \
+                .format(str(var), bit_class, var_class)
          var_class = self._class_relation.add_equiv(var_class, bit_class)
          self._var_classes[var.index] = var_class
 
