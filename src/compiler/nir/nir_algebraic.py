@@ -104,9 +104,13 @@ static const ${val.c_type} ${val.name} = {
 % endif
 };""")
 
-   def __init__(self, name, type_str):
+   def __init__(self, val, name, type_str):
+      self.in_val = str(val)
       self.name = name
       self.type_str = type_str
+
+   def __str__(self):
+      return self.in_val
 
    @property
    def type_enum(self):
@@ -130,8 +134,9 @@ _constant_re = re.compile(r"(?P<value>[^@\(]+)(?:@(?P<bits>\d+))?")
 
 class Constant(Value):
    def __init__(self, val, name):
-      Value.__init__(self, name, "constant")
+      Value.__init__(self, val, name, "constant")
 
+      self.in_val = str(val)
       if isinstance(val, (str)):
          m = _constant_re.match(val)
          self.value = ast.literal_eval(m.group('value'))
@@ -177,7 +182,7 @@ _var_name_re = re.compile(r"(?P<const>#)?(?P<name>\w+)"
 
 class Variable(Value):
    def __init__(self, val, name, varset):
-      Value.__init__(self, name, "variable")
+      Value.__init__(self, val, name, "variable")
 
       m = _var_name_re.match(val)
       assert m and m.group('name') is not None
@@ -197,6 +202,9 @@ class Variable(Value):
 
       self.index = varset[self.var_name]
 
+   def __str__(self):
+      return self.in_val
+
    def type(self):
       if self.required_type == 'bool':
          return "nir_type_bool"
@@ -210,7 +218,7 @@ _opcode_re = re.compile(r"(?P<inexact>~)?(?P<opcode>\w+)(?:@(?P<bits>\d+))?"
 
 class Expression(Value):
    def __init__(self, expr, name_base, varset):
-      Value.__init__(self, name_base, "expression")
+      Value.__init__(self, expr, name_base, "expression")
       assert isinstance(expr, tuple)
 
       m = _opcode_re.match(expr[0])
