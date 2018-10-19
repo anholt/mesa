@@ -165,7 +165,7 @@ class Constant(Value):
 
    def type(self):
       if isinstance(self.value, (bool)):
-         return "nir_type_bool32"
+         return "nir_type_bool"
       elif isinstance(self.value, integer_types):
          return "nir_type_int"
       elif isinstance(self.value, float):
@@ -199,7 +199,7 @@ class Variable(Value):
 
    def type(self):
       if self.required_type == 'bool':
-         return "nir_type_bool32"
+         return "nir_type_bool"
       elif self.required_type in ('int', 'uint'):
          return "nir_type_int"
       elif self.required_type == 'float':
