@@ -674,7 +674,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir)
    /* Lower int64 instructions before nir_optimize so that loop unrolling
     * sees their actual cost.
     */
-   nir_lower_int64(nir, nir_lower_imul64 |
+   OPT(nir_lower_int64, nir_lower_imul64 |
                         nir_lower_isign64 |
                         nir_lower_divmod64);
 
@@ -687,7 +687,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir)
       OPT(nir_opt_large_constants, NULL, 32);
    }
 
-   nir_lower_bit_size(nir, lower_bit_size_callback, NULL);
+   OPT(nir_lower_bit_size, lower_bit_size_callback, NULL);
 
    if (is_scalar) {
       OPT(nir_lower_load_const_to_scalar);
@@ -712,7 +712,7 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir)
 
    nir_variable_mode indirect_mask =
       brw_nir_no_indirect_mask(compiler, nir->info.stage);
-   nir_lower_indirect_derefs(nir, indirect_mask);
+   OPT(nir_lower_indirect_derefs, indirect_mask);
 
    /* Get rid of split copies */
    nir = brw_nir_optimize(nir, compiler, is_scalar, false);
