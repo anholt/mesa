@@ -123,7 +123,7 @@ image_coord_is_in_bounds(nir_builder *b, nir_deref_instr *deref,
    nir_ssa_def *cmp = nir_ilt(b, coord, size);
 
    unsigned coord_comps = glsl_get_sampler_coordinate_components(deref->type);
-   nir_ssa_def *in_bounds = nir_imm_int(b, NIR_TRUE);
+   nir_ssa_def *in_bounds = nir_imm_true(b);
    for (unsigned i = 0; i < coord_comps; i++)
       in_bounds = nir_iand(b, in_bounds, nir_channel(b, cmp, i));
 

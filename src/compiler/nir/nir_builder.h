@@ -206,6 +206,29 @@ nir_build_imm(nir_builder *build, unsigned num_components,
 }
 
 static inline nir_ssa_def *
+nir_imm_bool(nir_builder *build, bool x)
+{
+   nir_const_value v;
+
+   memset(&v, 0, sizeof(v));
+   v.u32[0] = x ? NIR_TRUE : NIR_FALSE;
+
+   return nir_build_imm(build, 1, 32, v);
+}
+
+static inline nir_ssa_def *
+nir_imm_true(nir_builder *build)
+{
+   return nir_imm_bool(build, true);
+}
+
+static inline nir_ssa_def *
+nir_imm_false(nir_builder *build)
+{
+   return nir_imm_bool(build, false);
+}
+
+static inline nir_ssa_def *
 nir_imm_float(nir_builder *build, float x)
 {
    nir_const_value v;
@@ -489,7 +512,7 @@ nir_bany_inequal(nir_builder *b, nir_ssa_def *src0, nir_ssa_def *src1)
 static inline nir_ssa_def *
 nir_bany(nir_builder *b, nir_ssa_def *src)
 {
-   return nir_bany_inequal(b, src, nir_imm_int(b, 0));
+   return nir_bany_inequal(b, src, nir_imm_false(b));
 }
 
 static inline nir_ssa_def *

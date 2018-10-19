@@ -723,7 +723,7 @@ vtn_emit_branch(struct vtn_builder *b, enum vtn_branch_type branch_type,
 {
    switch (branch_type) {
    case vtn_branch_type_switch_break:
-      nir_store_var(&b->nb, switch_fall_var, nir_imm_int(&b->nb, NIR_FALSE), 1);
+      nir_store_var(&b->nb, switch_fall_var, nir_imm_false(&b->nb), 1);
       *has_switch_break = true;
       break;
    case vtn_branch_type_switch_fallthrough:
@@ -841,7 +841,7 @@ vtn_emit_cf_list(struct vtn_builder *b, struct list_head *cf_list,
                nir_local_variable_create(b->nb.impl, glsl_bool_type(), "cont");
 
             b->nb.cursor = nir_before_cf_node(&loop->cf_node);
-            nir_store_var(&b->nb, do_cont, nir_imm_int(&b->nb, NIR_FALSE), 1);
+            nir_store_var(&b->nb, do_cont, nir_imm_false(&b->nb), 1);
 
             b->nb.cursor = nir_before_cf_list(&loop->body);
 
@@ -852,7 +852,7 @@ vtn_emit_cf_list(struct vtn_builder *b, struct list_head *cf_list,
 
             nir_pop_if(&b->nb, cont_if);
 
-            nir_store_var(&b->nb, do_cont, nir_imm_int(&b->nb, NIR_TRUE), 1);
+            nir_store_var(&b->nb, do_cont, nir_imm_true(&b->nb), 1);
 
             b->has_loop_continue = true;
          }
@@ -870,7 +870,7 @@ vtn_emit_cf_list(struct vtn_builder *b, struct list_head *cf_list,
           */
          nir_variable *fall_var =
             nir_local_variable_create(b->nb.impl, glsl_bool_type(), "fall");
-         nir_store_var(&b->nb, fall_var, nir_imm_int(&b->nb, NIR_FALSE), 1);
+         nir_store_var(&b->nb, fall_var, nir_imm_false(&b->nb), 1);
 
          /* Next, we gather up all of the conditions.  We have to do this
           * up-front because we also need to build an "any" condition so
@@ -918,7 +918,7 @@ vtn_emit_cf_list(struct vtn_builder *b, struct list_head *cf_list,
             nir_if *case_if = nir_push_if(&b->nb, cond);
 
             bool has_break = false;
-            nir_store_var(&b->nb, fall_var, nir_imm_int(&b->nb, NIR_TRUE), 1);
+            nir_store_var(&b->nb, fall_var, nir_imm_true(&b->nb), 1);
             vtn_emit_cf_list(b, &cse->body, fall_var, &has_break, handler);
             (void)has_break; /* We don't care */
 
