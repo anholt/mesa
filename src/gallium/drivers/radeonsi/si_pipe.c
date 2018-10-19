@@ -993,8 +993,10 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 	}
 
 	/* The mere presense of CLEAR_STATE in the IB causes random GPU hangs
-	 * on SI. */
-	sscreen->has_clear_state = sscreen->info.chip_class >= CIK;
+        * on SI. Some CLEAR_STATE cause asic hang on radeon kernel, etc.
+        * SPI_VS_OUT_CONFIG. So only enable CI CLEAR_STATE on amdgpu kernel.*/
+       sscreen->has_clear_state = sscreen->info.chip_class >= CIK &&
+                                  sscreen->info.drm_major == 3;
 
 	sscreen->has_distributed_tess =
 		sscreen->info.chip_class >= VI &&

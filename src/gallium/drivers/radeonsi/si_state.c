@@ -4899,8 +4899,9 @@ static void si_init_config(struct si_context *sctx)
 	bool has_clear_state = sscreen->has_clear_state;
 	struct si_pm4_state *pm4 = CALLOC_STRUCT(si_pm4_state);
 
-	/* Only SI can disable CLEAR_STATE for now. */
-	assert(has_clear_state || sscreen->info.chip_class == SI);
+       /* SI, radeon kernel disabled CLEAR_STATE. */
+       assert(has_clear_state || sscreen->info.chip_class == SI ||
+              sscreen->info.drm_major != 3);
 
 	if (!pm4)
 		return;
