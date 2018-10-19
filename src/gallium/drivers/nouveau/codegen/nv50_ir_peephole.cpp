@@ -965,7 +965,7 @@ ConstantFolding::createMul(DataType ty, Value *def, Value *a, int64_t b, Value *
    if (b >= 0 && util_is_power_of_two_or_zero64(b)) {
       int shl = util_logbase2_64(b);
 
-      Value *res = c ? bld.getSSA() : def;
+      Value *res = c ? bld.getSSA(typeSizeof(ty)) : def;
       bld.mkOp2(OP_SHL, ty, res, a, bld.mkImm(shl));
       if (c)
          bld.mkOp2(OP_ADD, ty, def, res, c);
