@@ -374,9 +374,8 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components)
       if (nir_intrinsic_get_var(store_to_v1, 0) == v[1]) {
          ASSERT_TRUE(store_to_v1->src[1].is_ssa);
 
-         nir_const_value *const_index = nir_src_as_const_value(store_to_v1->src[1]);
-         ASSERT_TRUE(const_index);
-         ASSERT_EQ(const_index->u32[1], 20);
+         ASSERT_TRUE(nir_src_is_const(store_to_v1->src[1]));
+         ASSERT_EQ(nir_src_as_uint(store_to_v1->src[1]), 20);
          break;
       }
    }
@@ -424,9 +423,8 @@ TEST_F(nir_copy_prop_vars_test, store_store_load_different_components_in_many_bl
       if (nir_intrinsic_get_var(store_to_v1, 0) == v[1]) {
          ASSERT_TRUE(store_to_v1->src[1].is_ssa);
 
-         nir_const_value *const_index = nir_src_as_const_value(store_to_v1->src[1]);
-         ASSERT_TRUE(const_index);
-         ASSERT_EQ(const_index->u32[1], 20);
+         ASSERT_TRUE(nir_src_is_const(store_to_v1->src[1]));
+         ASSERT_EQ(nir_src_as_uint(store_to_v1->src[1]), 20);
          break;
       }
    }
