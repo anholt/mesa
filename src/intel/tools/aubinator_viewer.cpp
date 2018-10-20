@@ -839,7 +839,6 @@ display_registers_window(struct window *win)
    filter.Draw();
 
    ImGui::BeginChild(ImGui::GetID("##block"));
-   struct hash_entry *entry;
    hash_table_foreach(context.file->spec->registers_by_name, entry) {
       struct gen_group *reg = (struct gen_group *) entry->data;
       if (filter.PassFilter(reg->name) &&
@@ -895,7 +894,6 @@ display_commands_window(struct window *win)
    if (ImGui::Button("Dwords")) show_dwords ^= 1;
 
    ImGui::BeginChild(ImGui::GetID("##block"));
-   struct hash_entry *entry;
    hash_table_foreach(context.file->spec->commands, entry) {
       struct gen_group *cmd = (struct gen_group *) entry->data;
       if ((cmd_filter.PassFilter(cmd->name) &&

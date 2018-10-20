@@ -1848,7 +1848,6 @@ static bool
 kernel_has_dynamic_config_support(struct brw_context *brw)
 {
    __DRIscreen *screen = brw->screen->driScrnPriv;
-   struct hash_entry *entry;
 
    hash_table_foreach(brw->perfquery.oa_metrics_table, entry) {
       struct brw_perf_query_info *query = entry->data;
@@ -1872,7 +1871,6 @@ static void
 init_oa_configs(struct brw_context *brw)
 {
    __DRIscreen *screen = brw->screen->driScrnPriv;
-   struct hash_entry *entry;
 
    hash_table_foreach(brw->perfquery.oa_metrics_table, entry) {
       const struct brw_perf_query_info *query = entry->data;

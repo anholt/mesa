@@ -979,11 +979,9 @@ intel_renderbuffer_move_to_temp(struct brw_context *brw,
 void
 brw_cache_sets_clear(struct brw_context *brw)
 {
-   struct hash_entry *render_entry;
    hash_table_foreach(brw->render_cache, render_entry)
       _mesa_hash_table_remove(brw->render_cache, render_entry);
 
-   struct set_entry *depth_entry;
    set_foreach(brw->depth_cache, depth_entry)
       _mesa_set_remove(brw->depth_cache, depth_entry);
 }

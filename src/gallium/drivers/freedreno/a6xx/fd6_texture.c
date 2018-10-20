@@ -151,7 +151,6 @@ fd6_sampler_state_delete(struct pipe_context *pctx, void *hwcso)
 	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
 	struct fd6_sampler_stateobj *samp = hwcso;
 
-	struct hash_entry *entry;
 	hash_table_foreach(fd6_ctx->tex_cache, entry) {
 		struct fd6_texture_state *state = entry->data;
 
@@ -344,7 +343,6 @@ fd6_sampler_view_destroy(struct pipe_context *pctx,
 	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
 	struct fd6_pipe_sampler_view *view = fd6_pipe_sampler_view(_view);
 
-	struct hash_entry *entry;
 	hash_table_foreach(fd6_ctx->tex_cache, entry) {
 		struct fd6_texture_state *state = entry->data;
 
@@ -508,7 +506,6 @@ fd6_texture_fini(struct pipe_context *pctx)
 {
 	struct fd6_context *fd6_ctx = fd6_context(fd_context(pctx));
 
-	struct hash_entry *entry;
 	hash_table_foreach(fd6_ctx->tex_cache, entry) {
 		fd6_texture_state_destroy(entry->data);
 	}

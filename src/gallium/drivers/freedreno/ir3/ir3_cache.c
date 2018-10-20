@@ -76,7 +76,6 @@ struct ir3_cache * ir3_cache_create(const struct ir3_cache_funcs *funcs, void *d
 void ir3_cache_destroy(struct ir3_cache *cache)
 {
 	/* _mesa_hash_table_destroy is so *almost* useful.. */
-	struct hash_entry *entry;
 	hash_table_foreach(cache->ht, entry) {
 		cache->funcs->destroy_state(cache->data, entry->data);
 	}
@@ -117,7 +116,6 @@ ir3_cache_lookup(struct ir3_cache *cache, const struct ir3_cache_key *key,
  */
 void ir3_cache_invalidate(struct ir3_cache *cache, void *stobj)
 {
-	struct hash_entry *entry;
 	hash_table_foreach(cache->ht, entry) {
 		const struct ir3_cache_key *key = entry->key;
 		if ((key->fs == stobj) || (key->vs == stobj)) {

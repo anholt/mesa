@@ -702,8 +702,6 @@ void gen_spec_destroy(struct gen_spec *spec)
 struct gen_group *
 gen_spec_find_instruction(struct gen_spec *spec, const uint32_t *p)
 {
-   struct hash_entry *entry;
-
    hash_table_foreach(spec->commands, entry) {
       struct gen_group *command = entry->data;
       uint32_t opcode = *p & command->opcode_mask;
