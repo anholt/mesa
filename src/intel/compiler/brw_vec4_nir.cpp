@@ -253,6 +253,16 @@ vec4_visitor::get_nir_src(const nir_src &src, unsigned num_components)
 }
 
 src_reg
+vec4_visitor::get_nir_src_imm(const nir_src &src)
+{
+   assert(nir_src_num_components(src) == 1);
+   assert(nir_src_bit_size(src) == 32);
+   nir_const_value *const_val = nir_src_as_const_value(src);
+   return const_val ? src_reg(brw_imm_d(const_val->i32[0])) :
+                              get_nir_src(src, 1);
+}
+
+src_reg
 vec4_visitor::get_indirect_offset(nir_intrinsic_instr *instr)
 {
    nir_src *offset_src = nir_get_io_offset_src(instr);
@@ -368,6 +378,34 @@ vec4_visitor::nir_emit_load_const(nir_load_const_instr *instr)
    nir_ssa_values[instr->def.index] = reg;
 }
 
+src_reg
+vec4_visitor::get_nir_ssbo_intrinsic_index(nir_intrinsic_instr *instr)
+{
+   /* SSBO stores are weird in that their index is in src[1] */
+   const unsigned src = instr->intrinsic == nir_intrinsic_store_ssbo ? 1 : 0;
+
+   src_reg surf_index;
+   nir_const_value *const_uniform_block =
+      nir_src_as_const_value(instr->src[src]);
+   if (const_uniform_block) {
+      unsigned index = prog_data->base.binding_table.ssbo_start +
+                       const_uniform_block->u32[0];
+      surf_index = brw_imm_ud(index);
+      brw_mark_surface_used(&prog_data->base, index);
+   } else {
+      surf_index = src_reg(this, glsl_type::uint_type);
+      emit(ADD(dst_reg(surf_index), get_nir_src(instr->src[src], 1),
+               brw_imm_ud(prog_data->base.binding_table.ssbo_start)));
+      surf_index = emit_uniformize(surf_index);
+
+      brw_mark_surface_used(&prog_data->base,
+                            prog_data->base.binding_table.ssbo_start +
+                            nir->info.num_ssbos - 1);
+   }
+
+   return surf_index;
+}
+
 void
 vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
 {
@@ -470,34 +508,9 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    case nir_intrinsic_store_ssbo: {
       assert(devinfo->gen >= 7);
 
-      /* Block index */
-      src_reg surf_index;
-      nir_const_value *const_uniform_block =
-         nir_src_as_const_value(instr->src[1]);
-      if (const_uniform_block) {
-         unsigned index = prog_data->base.binding_table.ssbo_start +
-                          const_uniform_block->u32[0];
-         surf_index = brw_imm_ud(index);
-         brw_mark_surface_used(&prog_data->base, index);
-      } else {
-         surf_index = src_reg(this, glsl_type::uint_type);
-         emit(ADD(dst_reg(surf_index), get_nir_src(instr->src[1], 1),
-                  brw_imm_ud(prog_data->base.binding_table.ssbo_start)));
-         surf_index = emit_uniformize(surf_index);
-
-         brw_mark_surface_used(&prog_data->base,
-                               prog_data->base.binding_table.ssbo_start +
-                               nir->info.num_ssbos - 1);
-      }
-
-      /* Offset */
-      src_reg offset_reg;
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[2]);
-      if (const_offset) {
-         offset_reg = brw_imm_ud(const_offset->u32[0]);
-      } else {
-         offset_reg = get_nir_src(instr->src[2], 1);
-      }
+      src_reg surf_index = get_nir_ssbo_intrinsic_index(instr);
+      src_reg offset_reg = retype(get_nir_src_imm(instr->src[2]),
+                                  BRW_REGISTER_TYPE_UD);
 
       /* Value */
       src_reg val_reg = get_nir_src(instr->src[0], BRW_REGISTER_TYPE_F, 4);
@@ -632,37 +645,9 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    case nir_intrinsic_load_ssbo: {
       assert(devinfo->gen >= 7);
 
-      nir_const_value *const_uniform_block =
-         nir_src_as_const_value(instr->src[0]);
-
-      src_reg surf_index;
-      if (const_uniform_block) {
-         unsigned index = prog_data->base.binding_table.ssbo_start +
-                          const_uniform_block->u32[0];
-         surf_index = brw_imm_ud(index);
-
-         brw_mark_surface_used(&prog_data->base, index);
-      } else {
-         surf_index = src_reg(this, glsl_type::uint_type);
-         emit(ADD(dst_reg(surf_index), get_nir_src(instr->src[0], 1),
-                  brw_imm_ud(prog_data->base.binding_table.ssbo_start)));
-         surf_index = emit_uniformize(surf_index);
-
-         /* Assume this may touch any UBO. It would be nice to provide
-          * a tighter bound, but the array information is already lowered away.
-          */
-         brw_mark_surface_used(&prog_data->base,
-                               prog_data->base.binding_table.ssbo_start +
-                               nir->info.num_ssbos - 1);
-      }
-
-      src_reg offset_reg;
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[1]);
-      if (const_offset) {
-         offset_reg = brw_imm_ud(const_offset->u32[0]);
-      } else {
-         offset_reg = get_nir_src(instr->src[1], 1);
-      }
+      src_reg surf_index = get_nir_ssbo_intrinsic_index(instr);
+      src_reg offset_reg = retype(get_nir_src_imm(instr->src[1]),
+                                  BRW_REGISTER_TYPE_UD);
 
       /* Read the vector */
       const vec4_builder bld = vec4_builder(this).at_end()
@@ -922,26 +907,7 @@ vec4_visitor::nir_emit_ssbo_atomic(int op, nir_intrinsic_instr *instr)
    if (nir_intrinsic_infos[instr->intrinsic].has_dest)
       dest = get_nir_dest(instr->dest);
 
-   src_reg surface;
-   nir_const_value *const_surface = nir_src_as_const_value(instr->src[0]);
-   if (const_surface) {
-      unsigned surf_index = prog_data->base.binding_table.ssbo_start +
-                            const_surface->u32[0];
-      surface = brw_imm_ud(surf_index);
-      brw_mark_surface_used(&prog_data->base, surf_index);
-   } else {
-      surface = src_reg(this, glsl_type::uint_type);
-      emit(ADD(dst_reg(surface), get_nir_src(instr->src[0]),
-               brw_imm_ud(prog_data->base.binding_table.ssbo_start)));
-
-      /* Assume this may touch any UBO. This is the same we do for other
-       * UBO/SSBO accesses with non-constant surface.
-       */
-      brw_mark_surface_used(&prog_data->base,
-                            prog_data->base.binding_table.ssbo_start +
-                            nir->info.num_ssbos - 1);
-   }
-
+   src_reg surface = get_nir_ssbo_intrinsic_index(instr);
    src_reg offset = get_nir_src(instr->src[1], 1);
    src_reg data1;
    if (op != BRW_AOP_INC && op != BRW_AOP_DEC && op != BRW_AOP_PREDEC)

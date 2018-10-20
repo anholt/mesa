@@ -3762,6 +3762,37 @@ fs_visitor::get_nir_image_intrinsic_image(const brw::fs_builder &bld,
    return bld.emit_uniformize(image);
 }
 
+fs_reg
+fs_visitor::get_nir_ssbo_intrinsic_index(const brw::fs_builder &bld,
+                                         nir_intrinsic_instr *instr)
+{
+   /* SSBO stores are weird in that their index is in src[1] */
+   const unsigned src = instr->intrinsic == nir_intrinsic_store_ssbo ? 1 : 0;
+   nir_const_value *const_uniform_block =
+      nir_src_as_const_value(instr->src[src]);
+
+   fs_reg surf_index;
+   if (const_uniform_block) {
+      unsigned index = stage_prog_data->binding_table.ssbo_start +
+                       const_uniform_block->u32[0];
+      surf_index = brw_imm_ud(index);
+      brw_mark_surface_used(prog_data, index);
+   } else {
+      surf_index = vgrf(glsl_type::uint_type);
+      bld.ADD(surf_index, get_nir_src(instr->src[src]),
+              brw_imm_ud(stage_prog_data->binding_table.ssbo_start));
+
+      /* Assume this may touch any UBO. It would be nice to provide
+       * a tighter bound, but the array information is already lowered away.
+       */
+      brw_mark_surface_used(prog_data,
+                            stage_prog_data->binding_table.ssbo_start +
+                            nir->info.num_ssbos - 1);
+   }
+
+   return surf_index;
+}
+
 static unsigned
 image_intrinsic_coord_components(nir_intrinsic_instr *instr)
 {
@@ -4139,35 +4170,8 @@ fs_visitor::nir_emit_intrinsic(const fs_builder &bld, nir_intrinsic_instr *instr
    case nir_intrinsic_load_ssbo: {
       assert(devinfo->gen >= 7);
 
-      nir_const_value *const_uniform_block =
-         nir_src_as_const_value(instr->src[0]);
-
-      fs_reg surf_index;
-      if (const_uniform_block) {
-         unsigned index = stage_prog_data->binding_table.ssbo_start +
-                          const_uniform_block->u32[0];
-         surf_index = brw_imm_ud(index);
-         brw_mark_surface_used(prog_data, index);
-      } else {
-         surf_index = vgrf(glsl_type::uint_type);
-         bld.ADD(surf_index, get_nir_src(instr->src[0]),
-                 brw_imm_ud(stage_prog_data->binding_table.ssbo_start));
-
-         /* Assume this may touch any UBO. It would be nice to provide
-          * a tighter bound, but the array information is already lowered away.
-          */
-         brw_mark_surface_used(prog_data,
-                               stage_prog_data->binding_table.ssbo_start +
-                               nir->info.num_ssbos - 1);
-      }
-
-      fs_reg offset_reg;
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[1]);
-      if (const_offset) {
-         offset_reg = brw_imm_ud(const_offset->u32[0]);
-      } else {
-         offset_reg = retype(get_nir_src(instr->src[1]), BRW_REGISTER_TYPE_UD);
-      }
+      fs_reg surf_index = get_nir_ssbo_intrinsic_index(bld, instr);
+      fs_reg offset_reg = get_nir_src_imm(instr->src[1]);
 
       /* Read the vector */
       do_untyped_vector_read(bld, dest, surf_index, offset_reg,
@@ -4182,24 +4186,7 @@ fs_visitor::nir_emit_intrinsic(const fs_builder &bld, nir_intrinsic_instr *instr
       if (stage == MESA_SHADER_FRAGMENT)
          brw_wm_prog_data(prog_data)->has_side_effects = true;
 
-      /* Block index */
-      fs_reg surf_index;
-      nir_const_value *const_uniform_block =
-         nir_src_as_const_value(instr->src[1]);
-      if (const_uniform_block) {
-         unsigned index = stage_prog_data->binding_table.ssbo_start +
-                          const_uniform_block->u32[0];
-         surf_index = brw_imm_ud(index);
-         brw_mark_surface_used(prog_data, index);
-      } else {
-         surf_index = vgrf(glsl_type::uint_type);
-         bld.ADD(surf_index, get_nir_src(instr->src[1]),
-                  brw_imm_ud(stage_prog_data->binding_table.ssbo_start));
-
-         brw_mark_surface_used(prog_data,
-                               stage_prog_data->binding_table.ssbo_start +
-                               nir->info.num_ssbos - 1);
-      }
+      fs_reg surf_index = get_nir_ssbo_intrinsic_index(bld, instr);
 
       /* Value */
       fs_reg val_reg = get_nir_src(instr->src[0]);
@@ -4836,26 +4823,7 @@ fs_visitor::nir_emit_ssbo_atomic(const fs_builder &bld,
    if (nir_intrinsic_infos[instr->intrinsic].has_dest)
       dest = get_nir_dest(instr->dest);
 
-   fs_reg surface;
-   nir_const_value *const_surface = nir_src_as_const_value(instr->src[0]);
-   if (const_surface) {
-      unsigned surf_index = stage_prog_data->binding_table.ssbo_start +
-                            const_surface->u32[0];
-      surface = brw_imm_ud(surf_index);
-      brw_mark_surface_used(prog_data, surf_index);
-   } else {
-      surface = vgrf(glsl_type::uint_type);
-      bld.ADD(surface, get_nir_src(instr->src[0]),
-              brw_imm_ud(stage_prog_data->binding_table.ssbo_start));
-
-      /* Assume this may touch any SSBO. This is the same we do for other
-       * UBO/SSBO accesses with non-constant surface.
-       */
-      brw_mark_surface_used(prog_data,
-                            stage_prog_data->binding_table.ssbo_start +
-                            nir->info.num_ssbos - 1);
-   }
-
+   fs_reg surface = get_nir_ssbo_intrinsic_index(bld, instr);
    fs_reg offset = get_nir_src(instr->src[1]);
    fs_reg data1;
    if (op != BRW_AOP_INC && op != BRW_AOP_DEC && op != BRW_AOP_PREDEC)
@@ -4886,26 +4854,7 @@ fs_visitor::nir_emit_ssbo_atomic_float(const fs_builder &bld,
    if (nir_intrinsic_infos[instr->intrinsic].has_dest)
       dest = get_nir_dest(instr->dest);
 
-   fs_reg surface;
-   nir_const_value *const_surface = nir_src_as_const_value(instr->src[0]);
-   if (const_surface) {
-      unsigned surf_index = stage_prog_data->binding_table.ssbo_start +
-                            const_surface->u32[0];
-      surface = brw_imm_ud(surf_index);
-      brw_mark_surface_used(prog_data, surf_index);
-   } else {
-      surface = vgrf(glsl_type::uint_type);
-      bld.ADD(surface, get_nir_src(instr->src[0]),
-              brw_imm_ud(stage_prog_data->binding_table.ssbo_start));
-
-      /* Assume this may touch any SSBO. This is the same we do for other
-       * UBO/SSBO accesses with non-constant surface.
-       */
-      brw_mark_surface_used(prog_data,
-                            stage_prog_data->binding_table.ssbo_start +
-                            nir->info.num_ssbos - 1);
-   }
-
+   fs_reg surface = get_nir_ssbo_intrinsic_index(bld, instr);
    fs_reg offset = get_nir_src(instr->src[1]);
    fs_reg data1 = get_nir_src(instr->src[2]);
    fs_reg data2;

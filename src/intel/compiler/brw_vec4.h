@@ -338,6 +338,7 @@ public:
    virtual void nir_emit_block(nir_block *block);
    virtual void nir_emit_instr(nir_instr *instr);
    virtual void nir_emit_load_const(nir_load_const_instr *instr);
+   src_reg get_nir_ssbo_intrinsic_index(nir_intrinsic_instr *instr);
    virtual void nir_emit_intrinsic(nir_intrinsic_instr *instr);
    virtual void nir_emit_alu(nir_alu_instr *instr);
    virtual void nir_emit_jump(nir_jump_instr *instr);
@@ -354,6 +355,7 @@ public:
                        unsigned num_components = 4);
    src_reg get_nir_src(const nir_src &src,
                        unsigned num_components = 4);
+   src_reg get_nir_src_imm(const nir_src &src);
    src_reg get_indirect_offset(nir_intrinsic_instr *instr);
 
    dst_reg *nir_locals;
