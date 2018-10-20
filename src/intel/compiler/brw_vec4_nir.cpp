@@ -257,23 +257,21 @@ vec4_visitor::get_nir_src_imm(const nir_src &src)
 {
    assert(nir_src_num_components(src) == 1);
    assert(nir_src_bit_size(src) == 32);
-   nir_const_value *const_val = nir_src_as_const_value(src);
-   return const_val ? src_reg(brw_imm_d(const_val->i32[0])) :
-                              get_nir_src(src, 1);
+   return nir_src_is_const(src) ? src_reg(brw_imm_d(nir_src_as_int(src))) :
+                                  get_nir_src(src, 1);
 }
 
 src_reg
 vec4_visitor::get_indirect_offset(nir_intrinsic_instr *instr)
 {
    nir_src *offset_src = nir_get_io_offset_src(instr);
-   nir_const_value *const_value = nir_src_as_const_value(*offset_src);
 
-   if (const_value) {
+   if (nir_src_is_const(*offset_src)) {
       /* The only constant offset we should find is 0.  brw_nir.c's
        * add_const_offset_to_base() will fold other constant offsets
        * into instr->const_index[0].
        */
-      assert(const_value->u32[0] == 0);
+      assert(nir_src_as_uint(*offset_src) == 0);
       return src_reg();
    }
 
@@ -385,11 +383,9 @@ vec4_visitor::get_nir_ssbo_intrinsic_index(nir_intrinsic_instr *instr)
    const unsigned src = instr->intrinsic == nir_intrinsic_store_ssbo ? 1 : 0;
 
    src_reg surf_index;
-   nir_const_value *const_uniform_block =
-      nir_src_as_const_value(instr->src[src]);
-   if (const_uniform_block) {
+   if (nir_src_is_const(instr->src[src])) {
       unsigned index = prog_data->base.binding_table.ssbo_start +
-                       const_uniform_block->u32[0];
+                       nir_src_as_uint(instr->src[src]);
       surf_index = brw_imm_ud(index);
       brw_mark_surface_used(&prog_data->base, index);
    } else {
@@ -415,15 +411,13 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    switch (instr->intrinsic) {
 
    case nir_intrinsic_load_input: {
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[0]);
-
       /* We set EmitNoIndirectInput for VS */
-      assert(const_offset);
+      unsigned load_offset = nir_src_as_uint(instr->src[0]);
 
       dest = get_nir_dest(instr->dest);
       dest.writemask = brw_writemask_for_size(instr->num_components);
 
-      src = src_reg(ATTR, instr->const_index[0] + const_offset->u32[0],
+      src = src_reg(ATTR, instr->const_index[0] + load_offset,
                     glsl_type::uvec4_type);
       src = retype(src, dest.type);
 
@@ -442,10 +436,8 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    }
 
    case nir_intrinsic_store_output: {
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[1]);
-      assert(const_offset);
-
-      int varying = instr->const_index[0] + const_offset->u32[0];
+      unsigned store_offset = nir_src_as_uint(instr->src[1]);
+      int varying = instr->const_index[0] + store_offset;
 
       bool is_64bit = nir_src_bit_size(instr->src[0]) == 64;
       if (is_64bit) {
@@ -480,8 +472,8 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    }
 
    case nir_intrinsic_get_buffer_size: {
-      nir_const_value *const_uniform_block = nir_src_as_const_value(instr->src[0]);
-      unsigned ssbo_index = const_uniform_block ? const_uniform_block->u32[0] : 0;
+      unsigned ssbo_index = nir_src_is_const(instr->src[0]) ?
+                            nir_src_as_uint(instr->src[0]) : 0;
 
       const unsigned index =
          prog_data->base.binding_table.ssbo_start + ssbo_index;
@@ -691,12 +683,12 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
 
    case nir_intrinsic_ssbo_atomic_add: {
       int op = BRW_AOP_ADD;
-      const nir_const_value *const val = nir_src_as_const_value(instr->src[2]);
 
-      if (val != NULL) {
-         if (val->i32[0] == 1)
+      if (nir_src_is_const(instr->src[2])) {
+         int add_val = nir_src_as_int(instr->src[2]);
+         if (add_val == 1)
             op = BRW_AOP_INC;
-         else if (val->i32[0] == -1)
+         else if (add_val == -1)
             op = BRW_AOP_DEC;
       }
 
@@ -763,14 +755,14 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
       unsigned shift = (nir_intrinsic_base(instr) % 16) / type_size;
       assert(shift + instr->num_components <= 4);
 
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[0]);
-      if (const_offset) {
+      if (nir_src_is_const(instr->src[0])) {
+         const unsigned load_offset = nir_src_as_uint(instr->src[0]);
          /* Offsets are in bytes but they should always be multiples of 4 */
-         assert(const_offset->u32[0] % 4 == 0);
+         assert(load_offset % 4 == 0);
 
          src.swizzle = brw_swizzle_for_size(instr->num_components);
          dest.writemask = brw_writemask_for_size(instr->num_components);
-         unsigned offset = const_offset->u32[0] + shift * type_size;
+         unsigned offset = load_offset + shift * type_size;
          src.offset = ROUND_DOWN_TO(offset, 16);
          shift = (offset % 16) / type_size;
          assert(shift + instr->num_components <= 4);
@@ -795,17 +787,16 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    }
 
    case nir_intrinsic_load_ubo: {
-      nir_const_value *const_block_index = nir_src_as_const_value(instr->src[0]);
       src_reg surf_index;
 
       dest = get_nir_dest(instr->dest);
 
-      if (const_block_index) {
+      if (nir_src_is_const(instr->src[0])) {
          /* The block index is a constant, so just emit the binding table entry
           * as an immediate.
           */
          const unsigned index = prog_data->base.binding_table.ubo_start +
-                                const_block_index->u32[0];
+                                nir_src_as_uint(instr->src[0]);
          surf_index = brw_imm_ud(index);
          brw_mark_surface_used(&prog_data->base, index);
       } else {
@@ -828,9 +819,9 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
       }
 
       src_reg offset_reg;
-      nir_const_value *const_offset = nir_src_as_const_value(instr->src[1]);
-      if (const_offset) {
-         offset_reg = brw_imm_ud(const_offset->u32[0] & ~15);
+      if (nir_src_is_const(instr->src[1])) {
+         unsigned load_offset = nir_src_as_uint(instr->src[1]);
+         offset_reg = brw_imm_ud(load_offset & ~15);
       } else {
          offset_reg = src_reg(this, glsl_type::uint_type);
          emit(MOV(dst_reg(offset_reg),
@@ -862,13 +853,14 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
       }
 
       packed_consts.swizzle = brw_swizzle_for_size(instr->num_components);
-      if (const_offset) {
+      if (nir_src_is_const(instr->src[1])) {
+         unsigned load_offset = nir_src_as_uint(instr->src[1]);
          unsigned type_size = type_sz(dest.type);
          packed_consts.swizzle +=
-            BRW_SWIZZLE4(const_offset->u32[0] % 16 / type_size,
-                         const_offset->u32[0] % 16 / type_size,
-                         const_offset->u32[0] % 16 / type_size,
-                         const_offset->u32[0] % 16 / type_size);
+            BRW_SWIZZLE4(load_offset % 16 / type_size,
+                         load_offset % 16 / type_size,
+                         load_offset % 16 / type_size,
+                         load_offset % 16 / type_size);
       }
 
       emit(MOV(dest, retype(packed_consts, dest.type)));
@@ -1199,21 +1191,22 @@ vec4_visitor::nir_emit_alu(nir_alu_instr *instr)
    case nir_op_imul: {
       assert(nir_dest_bit_size(instr->dest.dest) < 64);
       if (devinfo->gen < 8) {
-         nir_const_value *value0 = nir_src_as_const_value(instr->src[0].src);
-         nir_const_value *value1 = nir_src_as_const_value(instr->src[1].src);
-
          /* For integer multiplication, the MUL uses the low 16 bits of one of
           * the operands (src0 through SNB, src1 on IVB and later). The MACH
           * accumulates in the contribution of the upper 16 bits of that
           * operand. If we can determine that one of the args is in the low
           * 16 bits, though, we can just emit a single MUL.
           */
-         if (value0 && value0->u32[0] < (1 << 16)) {
+         if (nir_src_is_const(instr->src[0].src) &&
+             nir_alu_instr_src_read_mask(instr, 0) == 1 &&
+             nir_src_comp_as_uint(instr->src[0].src, 0) < (1 << 16)) {
             if (devinfo->gen < 7)
                emit(MUL(dst, op[0], op[1]));
             else
                emit(MUL(dst, op[1], op[0]));
-         } else if (value1 && value1->u32[0] < (1 << 16)) {
+         } else if (nir_src_is_const(instr->src[1].src) &&
+                    nir_alu_instr_src_read_mask(instr, 1) == 1 &&
+                    nir_src_comp_as_uint(instr->src[1].src, 0) < (1 << 16)) {
             if (devinfo->gen < 7)
                emit(MUL(dst, op[1], op[0]));
             else
@@ -2117,6 +2110,7 @@ vec4_visitor::nir_emit_texture(nir_tex_instr *instr)
       case nir_tex_src_offset: {
          nir_const_value *const_offset =
             nir_src_as_const_value(instr->src[i].src);
+         assert(nir_src_bit_size(instr->src[i].src) == 32);
          if (!const_offset ||
              !brw_texture_offset(const_offset->i32,
                                  nir_tex_instr_src_size(instr, i),
