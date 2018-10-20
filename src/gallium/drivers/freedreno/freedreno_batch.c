@@ -182,8 +182,6 @@ batch_flush_reset_dependencies(struct fd_batch *batch, bool flush)
 static void
 batch_reset_resources_locked(struct fd_batch *batch)
 {
-	struct set_entry *entry;
-
 	pipe_mutex_assert_locked(batch->ctx->screen->lock);
 
 	set_foreach(batch->resources, entry) {

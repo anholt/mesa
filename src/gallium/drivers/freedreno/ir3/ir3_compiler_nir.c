@@ -2987,7 +2987,6 @@ get_block(struct ir3_context *ctx, const nir_block *nblock)
 {
 	struct ir3_block *block;
 	struct hash_entry *hentry;
-	struct set_entry *sentry;
 	unsigned i;
 
 	hentry = _mesa_hash_table_search(ctx->block_ht, nblock);

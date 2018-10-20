@@ -282,7 +282,6 @@ fd_bc_alloc_batch(struct fd_batch_cache *cache, struct fd_context *ctx, bool non
 		for (unsigned i = 0; i < ARRAY_SIZE(cache->batches); i++) {
 			batch = cache->batches[i];
 			debug_printf("%d: needs_flush=%d, depends:", batch->idx, batch->needs_flush);
-			struct set_entry *entry;
 			set_foreach(batch->dependencies, entry) {
 				struct fd_batch *dep = (struct fd_batch *)entry->key;
 				debug_printf(" %d", dep->idx);
