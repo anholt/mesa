@@ -27,8 +27,8 @@
 #ifndef FREEDRENO_UTIL_H_
 #define FREEDRENO_UTIL_H_
 
-#include <freedreno_drmif.h>
-#include <freedreno_ringbuffer.h>
+#include "drm/freedreno_drmif.h"
+#include "drm/freedreno_ringbuffer.h"
 
 #include "pipe/p_format.h"
 #include "pipe/p_state.h"
@@ -84,6 +84,7 @@ enum adreno_stencil_op fd_stencil_op(unsigned op);
 #define FD_DBG_HIPRIO 0x100000
 #define FD_DBG_TTILE  0x200000
 #define FD_DBG_PERFC  0x400000
+#define FD_DBG_SOFTPIN 0x800000
 
 extern int fd_mesa_debug;
 extern bool fd_binning_enabled;
@@ -202,7 +203,7 @@ OUT_RING(struct fd_ringbuffer *ring, uint32_t data)
 {
 	if (LOG_DWORDS) {
 		DBG("ring[%p]: OUT_RING   %04x:  %08x", ring,
-				(uint32_t)(ring->cur - ring->last_start), data);
+				(uint32_t)(ring->cur - ring->start), data);
 	}
 	fd_ringbuffer_emit(ring, data);
 }
@@ -214,7 +215,7 @@ OUT_RINGP(struct fd_ringbuffer *ring, uint32_t data,
 {
 	if (LOG_DWORDS) {
 		DBG("ring[%p]: OUT_RINGP  %04x:  %08x", ring,
-				(uint32_t)(ring->cur - ring->last_start), data);
+				(uint32_t)(ring->cur - ring->start), data);
 	}
 	util_dynarray_append(buf, struct fd_cs_patch, ((struct fd_cs_patch){
 		.cs  = ring->cur++,
@@ -232,10 +233,10 @@ OUT_RELOC(struct fd_ringbuffer *ring, struct fd_bo *bo,
 {
 	if (LOG_DWORDS) {
 		DBG("ring[%p]: OUT_RELOC   %04x:  %p+%u << %d", ring,
-				(uint32_t)(ring->cur - ring->last_start), bo, offset, shift);
+				(uint32_t)(ring->cur - ring->start), bo, offset, shift);
 	}
 	debug_assert(offset < fd_bo_size(bo));
-	fd_ringbuffer_reloc2(ring, &(struct fd_reloc){
+	fd_ringbuffer_reloc(ring, &(struct fd_reloc){
 		.bo = bo,
 		.flags = FD_RELOC_READ,
 		.offset = offset,
@@ -251,10 +252,10 @@ OUT_RELOCW(struct fd_ringbuffer *ring, struct fd_bo *bo,
 {
 	if (LOG_DWORDS) {
 		DBG("ring[%p]: OUT_RELOCW  %04x:  %p+%u << %d", ring,
-				(uint32_t)(ring->cur - ring->last_start), bo, offset, shift);
+				(uint32_t)(ring->cur - ring->start), bo, offset, shift);
 	}
 	debug_assert(offset < fd_bo_size(bo));
-	fd_ringbuffer_reloc2(ring, &(struct fd_reloc){
+	fd_ringbuffer_reloc(ring, &(struct fd_reloc){
 		.bo = bo,
 		.flags = FD_RELOC_READ | FD_RELOC_WRITE,
 		.offset = offset,
@@ -276,18 +277,9 @@ static inline void BEGIN_RING(struct fd_ringbuffer *ring, uint32_t ndwords)
 		fd_ringbuffer_grow(ring, ndwords);
 }
 
-static inline uint32_t
-__gpu_id(struct fd_ringbuffer *ring)
-{
-	uint64_t val;
-	fd_pipe_get_param(ring->pipe, FD_GPU_ID, &val);
-	return val;
-}
-
 static inline void
 OUT_PKT0(struct fd_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
 {
-	debug_assert(__gpu_id(ring) < 500);
 	BEGIN_RING(ring, cnt+1);
 	OUT_RING(ring, CP_TYPE0_PKT | ((cnt-1) << 16) | (regindx & 0x7FFF));
 }
@@ -295,7 +287,6 @@ OUT_PKT0(struct fd_ringbuffer *ring, uint16_t regindx, uint16_t cnt)
 static inline void
 OUT_PKT2(struct fd_ringbuffer *ring)
 {
-	debug_assert(__gpu_id(ring) < 500);
 	BEGIN_RING(ring, 1);
 	OUT_RING(ring, CP_TYPE2_PKT);
 }
@@ -303,7 +294,6 @@ OUT_PKT2(struct fd_ringbuffer *ring)
 static inline void
 OUT_PKT3(struct fd_ringbuffer *ring, uint8_t opcode, uint16_t cnt)
 {
-	debug_assert(__gpu_id(ring) < 500);
 	BEGIN_RING(ring, cnt+1);
 	OUT_RING(ring, CP_TYPE3_PKT | ((cnt-1) << 16) | ((opcode & 0xFF) << 8));
 }
@@ -365,8 +355,6 @@ __OUT_IB(struct fd_ringbuffer *ring, bool prefetch, struct fd_ringbuffer *target
 		return;
 
 	unsigned count = fd_ringbuffer_cmd_count(target);
-
-	debug_assert(__gpu_id(ring) < 500);
 
 	/* for debug after a lock up, write a unique counter value
 	 * to scratch6 for each IB, to make it easier to match up

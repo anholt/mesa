@@ -569,13 +569,20 @@ ir3_shader_outputs(const struct ir3_shader *so)
 
 #include "freedreno_resource.h"
 
+static inline bool
+is_stateobj(struct fd_ringbuffer *ring)
+{
+	/* XXX this is an ugly way to differentiate.. */
+	return !!(ring->flags & FD_RINGBUFFER_STREAMING);
+}
+
 static inline void
 ring_wfi(struct fd_batch *batch, struct fd_ringbuffer *ring)
 {
 	/* when we emit const state via ring (IB2) we need a WFI, but when
 	 * it is emit'd via stateobj, we don't
 	 */
-	if (ring->flags & FD_RINGBUFFER_OBJECT)
+	if (is_stateobj(ring))
 		return;
 
 	fd_wfi(batch, ring);
@@ -836,7 +843,7 @@ emit_common_consts(const struct ir3_shader_variant *v, struct fd_ringbuffer *rin
 	 * Possibly if we split up different parts of the const state to
 	 * different state-objects we could avoid this.
 	 */
-	if (dirty && (ring->flags & FD_RINGBUFFER_OBJECT))
+	if (dirty && is_stateobj(ring))
 		dirty = ~0;
 
 	if (dirty & (FD_DIRTY_SHADER_PROG | FD_DIRTY_SHADER_CONST)) {

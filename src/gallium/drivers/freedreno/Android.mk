@@ -27,6 +27,7 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
 	$(C_SOURCES) \
+	$(drm_SOURCES) \
 	$(a2xx_SOURCES) \
 	$(a3xx_SOURCES)	\
 	$(a4xx_SOURCES) \
@@ -42,7 +43,7 @@ LOCAL_C_INCLUDES := \
 
 LOCAL_GENERATED_SOURCES := $(MESA_GEN_NIR_H)
 
-LOCAL_SHARED_LIBRARIES := libdrm_freedreno
+LOCAL_SHARED_LIBRARIES := libdrm
 LOCAL_STATIC_LIBRARIES := libmesa_glsl libmesa_nir
 LOCAL_MODULE := libmesa_pipe_freedreno
 

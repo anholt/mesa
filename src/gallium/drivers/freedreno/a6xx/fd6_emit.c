@@ -359,8 +359,7 @@ fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
 
 	if (tex->num_samplers > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_flags(pipe, tex->num_samplers * 4 * 4,
-					FD_RINGBUFFER_OBJECT);
+			fd_ringbuffer_new_object(pipe, tex->num_samplers * 4 * 4);
 		for (unsigned i = 0; i < tex->num_samplers; i++) {
 			static const struct fd6_sampler_stateobj dummy_sampler = {};
 			const struct fd6_sampler_stateobj *sampler = tex->samplers[i] ?
@@ -390,8 +389,7 @@ fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
 
 	if (tex->num_textures > 0) {
 		struct fd_ringbuffer *state =
-			fd_ringbuffer_new_flags(pipe, tex->num_textures * 16 * 4,
-					FD_RINGBUFFER_OBJECT);
+			fd_ringbuffer_new_object(pipe, tex->num_textures * 16 * 4);
 		for (unsigned i = 0; i < tex->num_textures; i++) {
 			static const struct fd6_pipe_sampler_view dummy_view = {};
 			const struct fd6_pipe_sampler_view *view = tex->textures[i] ?
@@ -534,9 +532,8 @@ fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp)
 	const struct fd_vertex_state *vtx = emit->vtx;
 	int32_t i, j;
 
-	struct fd_ringbuffer *ring =
-		fd_ringbuffer_new_flags(emit->ctx->pipe, 4 * (10 * vp->inputs_count + 2),
-				FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+	struct fd_ringbuffer *ring = fd_submit_new_ringbuffer(emit->ctx->batch->submit,
+			4 * (10 * vp->inputs_count + 2), FD_RINGBUFFER_STREAMING);
 
 	for (i = 0, j = 0; i <= vp->inputs_count; i++) {
 		if (vp->inputs[i].sysval)
@@ -597,9 +594,8 @@ build_zsa(struct fd6_emit *emit, bool binning_pass)
 	uint32_t gras_lrz_cntl = zsa->gras_lrz_cntl;
 	uint32_t rb_lrz_cntl = zsa->rb_lrz_cntl;
 
-	struct fd_ringbuffer *ring =
-		fd_ringbuffer_new_flags(emit->ctx->pipe, 16,
-				FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+	struct fd_ringbuffer *ring = fd_submit_new_ringbuffer(emit->ctx->batch->submit,
+			16, FD_RINGBUFFER_STREAMING);
 
 	if (emit->no_lrz_write || !rsc->lrz || !rsc->lrz_valid) {
 		gras_lrz_cntl = 0;
@@ -786,9 +782,8 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 					 FD_DIRTY_SHADER_SSBO | FD_DIRTY_SHADER_IMAGE)
 
 	if (ctx->dirty_shader[PIPE_SHADER_VERTEX] & DIRTY_CONST) {
-		struct fd_ringbuffer *vsconstobj =
-			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
-					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+		struct fd_ringbuffer *vsconstobj = fd_submit_new_ringbuffer(
+				ctx->batch->submit, 0x1000, FD_RINGBUFFER_STREAMING);
 
 		ir3_emit_vs_consts(vp, vsconstobj, ctx, emit->info);
 		fd6_emit_add_group(emit, vsconstobj, FD6_GROUP_VS_CONST, 0x7);
@@ -796,9 +791,8 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	}
 
 	if (ctx->dirty_shader[PIPE_SHADER_FRAGMENT] & DIRTY_CONST) {
-		struct fd_ringbuffer *fsconstobj =
-			fd_ringbuffer_new_flags(ctx->pipe, 0x1000,
-					FD_RINGBUFFER_OBJECT | FD_RINGBUFFER_STREAMING);
+		struct fd_ringbuffer *fsconstobj = fd_submit_new_ringbuffer(
+				ctx->batch->submit, 0x1000, FD_RINGBUFFER_STREAMING);
 
 		ir3_emit_fs_consts(fp, fsconstobj, ctx);
 		fd6_emit_add_group(emit, fsconstobj, FD6_GROUP_FS_CONST, 0x6);

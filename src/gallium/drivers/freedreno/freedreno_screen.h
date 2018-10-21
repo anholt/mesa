@@ -27,8 +27,8 @@
 #ifndef FREEDRENO_SCREEN_H_
 #define FREEDRENO_SCREEN_H_
 
-#include <freedreno_drmif.h>
-#include <freedreno_ringbuffer.h>
+#include "drm/freedreno_drmif.h"
+#include "drm/freedreno_ringbuffer.h"
 
 #include "pipe/p_screen.h"
 #include "util/u_memory.h"

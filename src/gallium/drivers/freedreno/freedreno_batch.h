@@ -151,6 +151,8 @@ struct fd_batch {
 
 	struct pipe_framebuffer_state framebuffer;
 
+	struct fd_submit *submit;
+
 	/** draw pass cmdstream: */
 	struct fd_ringbuffer *draw;
 	/** binning pass cmdstream: */

@@ -297,8 +297,7 @@ fd6_clear_lrz(struct fd_batch *batch, struct fd_resource *zsbuf, double depth)
 	// draw
 
 	if (!batch->lrz_clear) {
-		batch->lrz_clear = fd_ringbuffer_new(batch->ctx->pipe, 0x1000);
-		fd_ringbuffer_set_parent(batch->lrz_clear, batch->gmem);
+		batch->lrz_clear = fd_submit_new_ringbuffer(batch->submit, 0x1000, 0);
 	}
 
 	ring = batch->lrz_clear;

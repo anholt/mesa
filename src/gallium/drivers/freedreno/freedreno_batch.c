@@ -48,25 +48,28 @@ batch_init(struct fd_batch *batch)
 	 * have no option but to allocate large worst-case sizes so that
 	 * we don't need to grow the ringbuffer.  Performance is likely to
 	 * suffer, but there is no good alternative.
+	 *
+	 * XXX I think we can just require new enough kernel for this?
 	 */
 	if ((fd_device_version(ctx->screen->dev) < FD_VERSION_UNLIMITED_CMDS) ||
 			(fd_mesa_debug & FD_DBG_NOGROW)){
 		size = 0x100000;
 	}
 
-	batch->draw    = fd_ringbuffer_new(ctx->pipe, size);
-	if (!batch->nondraw) {
-		batch->gmem    = fd_ringbuffer_new(ctx->pipe, size);
-
-		fd_ringbuffer_set_parent(batch->gmem, NULL);
-		fd_ringbuffer_set_parent(batch->draw, batch->gmem);
+	batch->submit = fd_submit_new(ctx->pipe);
+	if (batch->nondraw) {
+		batch->draw = fd_submit_new_ringbuffer(batch->submit, size,
+				FD_RINGBUFFER_PRIMARY | FD_RINGBUFFER_GROWABLE);
+	} else {
+		batch->gmem = fd_submit_new_ringbuffer(batch->submit, size,
+				FD_RINGBUFFER_PRIMARY | FD_RINGBUFFER_GROWABLE);
+		batch->draw = fd_submit_new_ringbuffer(batch->submit, size,
+				FD_RINGBUFFER_GROWABLE);
 
 		if (ctx->screen->gpu_id < 600) {
-			batch->binning = fd_ringbuffer_new(ctx->pipe, size);
-			fd_ringbuffer_set_parent(batch->binning, batch->gmem);
+			batch->binning = fd_submit_new_ringbuffer(batch->submit,
+					size, FD_RINGBUFFER_GROWABLE);
 		}
-	} else {
-		fd_ringbuffer_set_parent(batch->draw, NULL);
 	}
 
 	batch->in_fence_fd = -1;
@@ -145,6 +148,8 @@ batch_fini(struct fd_batch *batch)
 		fd_ringbuffer_del(batch->lrz_clear);
 		batch->lrz_clear = NULL;
 	}
+
+	fd_submit_del(batch->submit);
 
 	util_dynarray_fini(&batch->draw_patches);
 

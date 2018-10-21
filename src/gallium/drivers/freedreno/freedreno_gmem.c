@@ -373,15 +373,13 @@ render_sysmem(struct fd_batch *batch)
 static void
 flush_ring(struct fd_batch *batch)
 {
-	/* for compute/blit batch, there is no batch->gmem, only batch->draw: */
-	struct fd_ringbuffer *ring = batch->nondraw ? batch->draw : batch->gmem;
 	uint32_t timestamp;
 	int out_fence_fd = -1;
 
-	fd_ringbuffer_flush2(ring, batch->in_fence_fd,
-			batch->needs_out_fence_fd ? &out_fence_fd : NULL);
+	fd_submit_flush(batch->submit, batch->in_fence_fd,
+			batch->needs_out_fence_fd ? &out_fence_fd : NULL,
+			&timestamp);
 
-	timestamp = fd_ringbuffer_timestamp(ring);
 	fd_fence_populate(batch->fence, timestamp, out_fence_fd);
 }
 
