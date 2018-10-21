@@ -254,6 +254,7 @@ ir3_nir_scan_driver_consts(nir_shader *shader,
 				case nir_intrinsic_image_deref_atomic_exchange:
 				case nir_intrinsic_image_deref_atomic_comp_swap:
 				case nir_intrinsic_image_deref_store:
+				case nir_intrinsic_image_deref_size:
 					idx = nir_intrinsic_get_var(intr, 0)->data.driver_location;
 					if (layout->image_dims.mask & (1 << idx))
 						break;
