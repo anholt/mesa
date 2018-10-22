@@ -104,6 +104,10 @@ fd6_context_create(struct pipe_screen *pscreen, void *priv, unsigned flags)
 	if (!pctx)
 		return NULL;
 
+	/* fd_context_init overwrites delete_rasterizer_state, so set this
+	 * here. */
+	pctx->delete_rasterizer_state = fd6_rasterizer_state_delete;
+
 	fd6_ctx->vs_pvt_mem = fd_bo_new(screen->dev, 0x2000,
 			DRM_FREEDRENO_GEM_TYPE_KMEM);
 

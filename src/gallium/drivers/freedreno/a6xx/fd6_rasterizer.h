@@ -44,6 +44,8 @@ struct fd6_rasterizer_stateobj {
 	uint32_t gras_cl_clip_cntl;
 	uint32_t pc_primitive_cntl;
 	uint32_t pc_raster_cntl;
+
+	struct fd_ringbuffer *stateobj;
 };
 
 static inline struct fd6_rasterizer_stateobj *
@@ -54,5 +56,6 @@ fd6_rasterizer_stateobj(struct pipe_rasterizer_state *rast)
 
 void * fd6_rasterizer_state_create(struct pipe_context *pctx,
 		const struct pipe_rasterizer_state *cso);
+void fd6_rasterizer_state_delete(struct pipe_context *, void *hwcso);
 
 #endif /* FD6_RASTERIZER_H_ */

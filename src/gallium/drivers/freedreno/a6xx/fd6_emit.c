@@ -715,33 +715,8 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	if (dirty & FD_DIRTY_RASTERIZER) {
 		struct fd6_rasterizer_stateobj *rasterizer =
 				fd6_rasterizer_stateobj(ctx->rasterizer);
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_UNKNOWN_8000, 1);
-		OUT_RING(ring, 0x80);
-		OUT_PKT4(ring, REG_A6XX_GRAS_UNKNOWN_8001, 1);
-		OUT_RING(ring, 0x0);
-		OUT_PKT4(ring, REG_A6XX_GRAS_UNKNOWN_8004, 1);
-		OUT_RING(ring, 0x0);
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_SU_CNTL, 1);
-		OUT_RING(ring, rasterizer->gras_su_cntl);
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_SU_POINT_MINMAX, 2);
-		OUT_RING(ring, rasterizer->gras_su_point_minmax);
-		OUT_RING(ring, rasterizer->gras_su_point_size);
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_SU_POLY_OFFSET_SCALE, 3);
-		OUT_RING(ring, rasterizer->gras_su_poly_offset_scale);
-		OUT_RING(ring, rasterizer->gras_su_poly_offset_offset);
-		OUT_RING(ring, rasterizer->gras_su_poly_offset_clamp);
-
-#if 0
-		OUT_PKT4(ring, REG_A6XX_PC_RASTER_CNTL, 1);
-		OUT_RING(ring, rasterizer->pc_raster_cntl);
-
-		OUT_PKT4(ring, REG_A6XX_GRAS_CL_CNTL, 1);
-		OUT_RING(ring, rasterizer->gras_cl_clip_cntl);
-#endif
+		fd6_emit_add_group(emit, rasterizer->stateobj,
+						   FD6_GROUP_RASTERIZER, 0x7);
 	}
 
 	/* Since the primitive restart state is not part of a tracked object, we
