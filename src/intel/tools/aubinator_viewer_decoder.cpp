@@ -158,15 +158,33 @@ handle_state_base_address(struct aub_viewer_decode_ctx *ctx,
    struct gen_field_iterator iter;
    gen_field_iterator_init(&iter, inst, p, 0, false);
 
+   uint64_t surface_base = 0, dynamic_base = 0, instruction_base = 0;
+   bool surface_modify = 0, dynamic_modify = 0, instruction_modify = 0;
+
    while (gen_field_iterator_next(&iter)) {
       if (strcmp(iter.name, "Surface State Base Address") == 0) {
-         ctx->surface_base = iter.raw_value;
+         surface_base = iter.raw_value;
       } else if (strcmp(iter.name, "Dynamic State Base Address") == 0) {
-         ctx->dynamic_base = iter.raw_value;
+         dynamic_base = iter.raw_value;
       } else if (strcmp(iter.name, "Instruction Base Address") == 0) {
-         ctx->instruction_base = iter.raw_value;
+         instruction_base = iter.raw_value;
+      } else if (strcmp(iter.name, "Surface State Base Address Modify Enable") == 0) {
+         surface_modify = iter.raw_value;
+      } else if (strcmp(iter.name, "Dynamic State Base Address Modify Enable") == 0) {
+         dynamic_modify = iter.raw_value;
+      } else if (strcmp(iter.name, "Insntruction Base Address Modify Enable") == 0) {
+         instruction_modify = iter.raw_value;
       }
    }
+
+   if (dynamic_modify)
+      ctx->dynamic_base = dynamic_base;
+
+   if (surface_modify)
+      ctx->surface_base = surface_base;
+
+   if (instruction_modify)
+      ctx->instruction_base = instruction_base;
 }
 
 static void
