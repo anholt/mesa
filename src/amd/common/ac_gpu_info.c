@@ -186,7 +186,7 @@ bool ac_query_gpu_info(int fd, amdgpu_device_handle dev,
 		}
 	}
 
-	if (info->drm_major == 3 && info->drm_minor >= 17) {
+	if (info->drm_major == 3 && info->drm_minor >= 27) {
 		r = amdgpu_query_hw_ip_info(dev, AMDGPU_HW_IP_VCN_JPEG, 0, &vcn_jpeg);
 		if (r) {
 			fprintf(stderr, "amdgpu: amdgpu_query_hw_ip_info(vcn_jpeg) failed.\n");
