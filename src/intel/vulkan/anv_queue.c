@@ -542,8 +542,6 @@ anv_wait_for_bo_fences(struct anv_device *device,
                        bool waitAll,
                        uint64_t _timeout)
 {
-   int ret;
-
    /* DRM_IOCTL_I915_GEM_WAIT uses a signed 64 bit timeout and is supposed
     * to block indefinitely timeouts <= 0.  Unfortunately, this was broken
     * for a couple of kernel releases.  Since there's no way to know
@@ -647,6 +645,7 @@ anv_wait_for_bo_fences(struct anv_device *device,
             abstime.tv_nsec = abs_nsec;
             abstime.tv_sec = MIN2(abs_sec, INT_TYPE_MAX(abstime.tv_sec));
 
+            MAYBE_UNUSED int ret;
             ret = pthread_cond_timedwait(&device->queue_submit,
                                          &device->mutex, &abstime);
             assert(ret != EINVAL);
