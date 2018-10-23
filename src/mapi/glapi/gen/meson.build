@@ -97,6 +97,7 @@ api_xml_files = files(
   'ARB_viewport_array.xml',
   'AMD_depth_clamp_separate.xml',
   'AMD_draw_buffers_blend.xml',
+  'AMD_gpu_shader_int64.xml',
   'AMD_performance_monitor.xml',
   'ARB_vertex_type_2_10_10_10_rev.xml',
   'APPLE_object_purgeable.xml',
