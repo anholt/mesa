@@ -121,6 +121,9 @@ intel_tiled_memcpy_sse41_FILES = \
 	intel_tiled_memcpy_sse41.c \
 	intel_tiled_memcpy_sse41.h
 
+intel_tiled_memcpy_dep_FILES = \
+	intel_tiled_memcpy.c
+
 i965_gen4_FILES = \
 	genX_blorp_exec.c \
 	genX_state_upload.c

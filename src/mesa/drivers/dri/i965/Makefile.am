@@ -126,6 +126,7 @@ CLEANFILES = $(BUILT_SOURCES)
 EXTRA_DIST = \
 	brw_oa.py \
 	$(i965_oa_xml_FILES) \
+	$(intel_tiled_memcpy_dep_FILES) \
 	meson.build
 
 brw_oa_metrics.c: brw_oa.py $(i965_oa_xml_FILES)
@@ -135,3 +136,6 @@ brw_oa_metrics.c: brw_oa.py $(i965_oa_xml_FILES)
 	$(i965_oa_xml_FILES:%=$(srcdir)/%)
 
 brw_oa_metrics.h: brw_oa_metrics.c
+
+intel_tiled_memcpy_normal.c: $(intel_tiled_memcpy_dep_FILES)
+intel_tiled_memcpy_sse41.c: $(intel_tiled_memcpy_dep_FILES)
