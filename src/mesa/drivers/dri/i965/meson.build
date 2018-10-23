@@ -191,20 +191,22 @@ intel_tiled_memcpy = static_library(
     inc_common, inc_intel, inc_dri_common, inc_drm_uapi,
   ],
   c_args : [c_vis_args, no_override_init_args, '-msse2'],
+  extra_files : ['intel_tiled_memcpy.c']
 )
 
 if with_sse41
-intel_tiled_memcpy_sse41 = static_library(
-  'intel_tiled_memcpy_sse41',
-  [files_intel_tiled_memcpy_sse41],
-  include_directories : [
-    inc_common, inc_intel, inc_dri_common, inc_drm_uapi,
-  ],
-  link_args : [ '-Wl,--exclude-libs=ALL' ],
-  c_args : [c_vis_args, no_override_init_args, '-Wl,--exclude-libs=ALL', '-msse2', sse41_args],
-)
+  intel_tiled_memcpy_sse41 = static_library(
+    'intel_tiled_memcpy_sse41',
+    [files_intel_tiled_memcpy_sse41],
+    include_directories : [
+      inc_common, inc_intel, inc_dri_common, inc_drm_uapi,
+    ],
+    link_args : ['-Wl,--exclude-libs=ALL'],
+    c_args : [c_vis_args, no_override_init_args, '-Wl,--exclude-libs=ALL', '-msse2', sse41_args],
+    extra_files : ['intel_tiled_memcpy.c']
+  )
 else
-intel_tiled_memcpy_sse41 = []
+  intel_tiled_memcpy_sse41 = []
 endif
 
 
