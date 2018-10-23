@@ -699,6 +699,16 @@ emit_image_dims(struct fd_context *ctx, const struct ir3_shader_variant *v,
 				} else {
 					dims[off + 2] = rsc->slices[lvl].size0;
 				}
+			} else {
+				/* For buffer-backed images, the log2 of the format's
+				 * bytes-per-pixel is placed on the 2nd slot. This is useful
+				 * when emitting image_size instructions, for which we need
+				 * to divide by bpp for image buffers. Since the bpp
+				 * can only be power-of-two, the division is implemented
+				 * as a SHR, and for that it is handy to have the log2 of
+				 * bpp as a constant. (log2 = first-set-bit - 1)
+				 */
+				dims[off + 1] = ffs(dims[off + 0]) - 1;
 			}
 		}
 
