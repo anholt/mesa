@@ -2799,6 +2799,7 @@ bool nir_remove_unused_io_vars(nir_shader *shader, struct exec_list *var_list,
                                uint64_t *used_by_other_stage_patches);
 void nir_compact_varyings(nir_shader *producer, nir_shader *consumer,
                           bool default_to_smooth_interp);
+void nir_link_xfb_varyings(nir_shader *producer, nir_shader *consumer);
 
 typedef enum {
    /* If set, this forces all non-flat fragment shader inputs to be
