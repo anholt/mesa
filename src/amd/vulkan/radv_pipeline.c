@@ -1792,6 +1792,10 @@ radv_link_shaders(struct radv_pipeline *pipeline, nir_shader **shaders)
 		unsigned first = ordered_shaders[shader_count - 1]->info.stage;
 		unsigned last = ordered_shaders[0]->info.stage;
 
+		if (ordered_shaders[0]->info.stage == MESA_SHADER_FRAGMENT &&
+		    ordered_shaders[1]->info.has_transform_feedback_varyings)
+			nir_link_xfb_varyings(ordered_shaders[1], ordered_shaders[0]);
+
 		for (int i = 0; i < shader_count; ++i)  {
 			nir_variable_mode mask = 0;
 
