@@ -818,7 +818,7 @@ gen_print_batch(struct gen_batch_decode_ctx *ctx,
                 const uint32_t *batch, uint32_t batch_size,
                 uint64_t batch_addr)
 {
-   const uint32_t *p, *end = batch + batch_size;
+   const uint32_t *p, *end = batch + batch_size / sizeof(uint32_t);
    int length;
    struct gen_group *inst;
 

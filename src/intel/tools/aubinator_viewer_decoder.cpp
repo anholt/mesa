@@ -888,7 +888,7 @@ aub_viewer_render_batch(struct aub_viewer_decode_ctx *ctx,
                         uint64_t batch_addr)
 {
    struct gen_group *inst;
-   const uint32_t *p, *batch = (const uint32_t *) _batch, *end = batch + batch_size;
+   const uint32_t *p, *batch = (const uint32_t *) _batch, *end = batch + batch_size / sizeof(uint32_t);
    int length;
 
    for (p = batch; p < end; p += length) {
