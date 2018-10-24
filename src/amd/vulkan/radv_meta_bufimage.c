@@ -1560,7 +1560,7 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 
 	/* This special btoi path for R32G32B32 formats will write the linear
 	 * image as a buffer with the same underlying memory. The compute
-	 * shader will clear all components separately using a R32 format.
+	 * shader will copy all components separately using a R32 format.
 	 */
 	create_buffer_from_image(cmd_buffer, dst,
 				 VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
