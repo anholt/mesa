@@ -2004,7 +2004,8 @@ genX(upload_wm)(struct brw_context *brw)
       if (wm_prog_data->base.use_alt_mode)
          wm.FloatingPointMode = FLOATING_POINT_MODE_Alternate;
 
-      wm.SamplerCount = GEN_GEN == 5 ?
+      /* WA_1606682166 */
+      wm.SamplerCount = (GEN_GEN == 5 || GEN_GEN == 11) ?
          0 : DIV_ROUND_UP(stage_state->sampler_count, 4);
 
       wm.BindingTableEntryCount =
@@ -2166,7 +2167,10 @@ static const struct brw_tracked_state genX(wm_state) = {
 
 #define INIT_THREAD_DISPATCH_FIELDS(pkt, prefix) \
    pkt.KernelStartPointer = KSP(brw, stage_state->prog_offset);           \
+   /* WA_1606682166 */                                                    \
    pkt.SamplerCount       =                                               \
+      GEN_GEN == 11 ?                                                     \
+      0 :                                                                 \
       DIV_ROUND_UP(CLAMP(stage_state->sampler_count, 0, 16), 4);          \
    /* Gen 11 workarounds table #2056 WABTPPrefetchDisable suggests to     \
     * disable prefetching of binding tables in A0 and B0 steppings.       \
@@ -3997,8 +4001,13 @@ genX(upload_ps)(struct brw_context *brw)
        */
       ps.VectorMaskEnable = GEN_GEN >= 8;
 
-      ps.SamplerCount =
-         DIV_ROUND_UP(CLAMP(stage_state->sampler_count, 0, 16), 4);
+      /* WA_1606682166:
+       * "Incorrect TDL's SSP address shift in SARB for 16:6 & 18:8 modes.
+       * Disable the Sampler state prefetch functionality in the SARB by
+       * programming 0xB000[30] to '1'."
+       */
+      ps.SamplerCount = GEN_GEN == 11 ?
+         0 : DIV_ROUND_UP(CLAMP(stage_state->sampler_count, 0, 16), 4);
 
       /* BRW_NEW_FS_PROG_DATA */
       /* Gen 11 workarounds table #2056 WABTPPrefetchDisable suggests to disable
