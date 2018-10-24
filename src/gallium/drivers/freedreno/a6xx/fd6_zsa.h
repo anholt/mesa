@@ -45,6 +45,9 @@ struct fd6_zsa_stateobj {
 	uint32_t gras_lrz_cntl;
 	uint32_t rb_lrz_cntl;
 	bool lrz_write;
+
+	struct fd_ringbuffer *stateobj;
+	struct fd_ringbuffer *stateobj_no_alpha;
 };
 
 static inline struct fd6_zsa_stateobj *
@@ -56,4 +59,8 @@ fd6_zsa_stateobj(struct pipe_depth_stencil_alpha_state *zsa)
 void * fd6_zsa_state_create(struct pipe_context *pctx,
 		const struct pipe_depth_stencil_alpha_state *cso);
 
+void fd6_depth_stencil_alpha_state_delete(struct pipe_context *pctx,
+		void *hwcso);
+
 #endif /* FD6_ZSA_H_ */
+

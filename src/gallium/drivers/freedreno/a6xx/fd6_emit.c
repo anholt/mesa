@@ -628,23 +628,11 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 
 	if (dirty & FD_DIRTY_ZSA) {
 		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
-		uint32_t rb_alpha_control = zsa->rb_alpha_control;
 
 		if (util_format_is_pure_integer(pipe_surface_format(pfb->cbufs[0])))
-			rb_alpha_control &= ~A6XX_RB_ALPHA_CONTROL_ALPHA_TEST;
-
-		OUT_PKT4(ring, REG_A6XX_RB_ALPHA_CONTROL, 1);
-		OUT_RING(ring, rb_alpha_control);
-
-		OUT_PKT4(ring, REG_A6XX_RB_STENCIL_CONTROL, 1);
-		OUT_RING(ring, zsa->rb_stencil_control);
-
-		OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
-		OUT_RING(ring, zsa->rb_depth_cntl);
-
-		OUT_PKT4(ring, REG_A6XX_RB_STENCILMASK, 2);
-		OUT_RING(ring, zsa->rb_stencilmask);
-		OUT_RING(ring, zsa->rb_stencilwrmask);
+			fd6_emit_add_group(emit, zsa->stateobj_no_alpha, FD6_GROUP_ZSA, 0x7);
+		else
+			fd6_emit_add_group(emit, zsa->stateobj, FD6_GROUP_ZSA, 0x7);
 	}
 
 	if ((dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) && pfb->zsbuf) {

@@ -54,6 +54,7 @@ enum fd6_state_id {
 	FD6_GROUP_VS_TEX,
 	FD6_GROUP_FS_TEX,
 	FD6_GROUP_RASTERIZER,
+	FD6_GROUP_ZSA,
 };
 
 struct fd6_state_group {

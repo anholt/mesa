@@ -38,6 +38,7 @@ void *
 fd6_zsa_state_create(struct pipe_context *pctx,
 		const struct pipe_depth_stencil_alpha_state *cso)
 {
+	struct fd_context *ctx = fd_context(pctx);
 	struct fd6_zsa_stateobj *so;
 
 	so = CALLOC_STRUCT(fd6_zsa_stateobj);
@@ -121,5 +122,47 @@ fd6_zsa_state_create(struct pipe_context *pctx,
 //			A6XX_RB_DEPTH_CONTROL_EARLY_Z_DISABLE;
 	}
 
+	so->stateobj = fd_ringbuffer_new_object(ctx->pipe, 9 * 4);
+	struct fd_ringbuffer *ring = so->stateobj;
+
+	OUT_PKT4(ring, REG_A6XX_RB_ALPHA_CONTROL, 1);
+	OUT_RING(ring, so->rb_alpha_control);
+
+	OUT_PKT4(ring, REG_A6XX_RB_STENCIL_CONTROL, 1);
+	OUT_RING(ring, so->rb_stencil_control);
+
+	OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
+	OUT_RING(ring, so->rb_depth_cntl);
+
+	OUT_PKT4(ring, REG_A6XX_RB_STENCILMASK, 2);
+	OUT_RING(ring, so->rb_stencilmask);
+	OUT_RING(ring, so->rb_stencilwrmask);
+
+	so->stateobj_no_alpha = fd_ringbuffer_new_object(ctx->pipe, 9 * 4);
+	ring = so->stateobj_no_alpha;
+
+	OUT_PKT4(ring, REG_A6XX_RB_ALPHA_CONTROL, 1);
+	OUT_RING(ring, so->rb_alpha_control & ~A6XX_RB_ALPHA_CONTROL_ALPHA_TEST);
+
+	OUT_PKT4(ring, REG_A6XX_RB_STENCIL_CONTROL, 1);
+	OUT_RING(ring, so->rb_stencil_control);
+
+	OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
+	OUT_RING(ring, so->rb_depth_cntl);
+
+	OUT_PKT4(ring, REG_A6XX_RB_STENCILMASK, 2);
+	OUT_RING(ring, so->rb_stencilmask);
+	OUT_RING(ring, so->rb_stencilwrmask);
+
 	return so;
+}
+
+void
+fd6_depth_stencil_alpha_state_delete(struct pipe_context *pctx, void *hwcso)
+{
+	struct fd6_zsa_stateobj *so = hwcso;
+
+	fd_ringbuffer_del(so->stateobj);
+	fd_ringbuffer_del(so->stateobj_no_alpha);
+	FREE(hwcso);
 }
