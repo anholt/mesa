@@ -170,7 +170,7 @@ for lang in args.languages:
         with io.open(filename, 'rb') as f:
             trans = gettext.GNUTranslations(f)
     except (IOError, OSError):
-        sys.stderr.write("Warning: language '%s' not found.\n" % lang)
+        print("Warning: language '%s' not found." % lang, file=sys.stderr)
         continue
     translations.append((lang, trans))
 
@@ -200,9 +200,8 @@ for line in template:
             expandMatches(descMatches, translations, line)
             descMatches = []
         else:
-            sys.stderr.write(
-                "Warning: unexpected line inside description dropped:\n%s\n" \
-                % line)
+            print("Warning: unexpected line inside description dropped:\n", line,
+                  file=sys.stderr)
         continue
     if reLibintl_h.search(line):
         # Ignore (comment out) #include <libintl.h>
@@ -227,5 +226,5 @@ for line in template:
 template.close()
 
 if len(descMatches) > 0:
-    sys.stderr.write("Warning: unterminated description at end of file.\n")
+    print("Warning: unterminated description at end of file.", file=sys.stderr)
     expandMatches(descMatches, translations)
