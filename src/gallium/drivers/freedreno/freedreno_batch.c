@@ -358,7 +358,7 @@ fd_batch_flush(struct fd_batch *batch, bool sync, bool force)
 			 */
 			new_batch = NULL;
 		} else {
-			new_batch = fd_batch_create(ctx, false);
+			new_batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx, false);
 			util_copy_framebuffer_state(&new_batch->framebuffer, &batch->framebuffer);
 		}
 
