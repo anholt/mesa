@@ -1,4 +1,4 @@
-
+# encoding=utf-8
 #
 # Usage:
 #     gen_xmlpool.py /path/to/t_option.h localedir lang lang lang ...
@@ -27,25 +27,24 @@ def escapeCString(s):
     # " -> '' is a hack. Quotes (") aren't possible in XML attributes.
     # Better use Unicode characters for typographic quotes in option
     # descriptions and translations.
+    last_quote = '”'
     i = 0
     r = ''
-    while i < len(s):
-        # Special case: escape double quote with \u201c or \u201d, depending
+    for c in s:
+        # Special case: escape double quote with “ or ”, depending
         # on whether it's an open or close quote. This is needed because plain
         # double quotes are not possible in XML attributes.
-        if s[i] == '"':
-            if i == len(s) - 1 or s[i + 1].isspace():
-                # close quote
-                q = u'\u201c'
+        if c == '"':
+            if last_quote == '”':
+                q = '“'
             else:
-                # open quote
-                q = u'\u201d'
+                q = '”'
+            last_quote = q
             r = r + q
-        elif s[i] in escapeSeqs:
-            r = r + escapeSeqs[s[i]]
+        elif c in escapeSeqs:
+            r = r + escapeSeqs[c]
         else:
-            r = r + s[i]
-        i = i + 1
+            r = r + c
     return r
 
 # Expand escape sequences in C strings (needed for gettext lookup)
@@ -53,24 +52,23 @@ def expandCString(s):
     escapeSeqs = {'a' : '\a', 'b' : '\b', 'f' : '\f', 'n' : '\n',
                   'r' : '\r', 't' : '\t', 'v' : '\v',
                   '"' : '"', '\\' : '\\'}
-    i = 0
     escape = False
     hexa = False
     octa = False
     num = 0
     digits = 0
     r = u''
-    while i < len(s):
+    for c in s:
         if not escape:
-            if s[i] == '\\':
+            if c == '\\':
                 escape = True
             else:
-                r = r + s[i]
+                r = r + c
         elif hexa:
-            if (s[i] >= '0' and s[i] <= '9') or \
-               (s[i] >= 'a' and s[i] <= 'f') or \
-               (s[i] >= 'A' and s[i] <= 'F'):
-                num = num * 16 + int(s[i],16)
+            if (c >= '0' and c <= '9') or \
+               (c >= 'a' and c <= 'f') or \
+               (c >= 'A' and c <= 'F'):
+                num = num * 16 + int(c, 16)
                 digits = digits + 1
             else:
                 digits = 2
@@ -79,8 +77,8 @@ def expandCString(s):
                 escape = False
                 r = r + chr(num)
         elif octa:
-            if s[i] >= '0' and s[i] <= '7':
-                num = num * 8 + int(s[i],8)
+            if c >= '0' and c <= '7':
+                num = num * 8 + int(c, 8)
                 digits = digits + 1
             else:
                 digits = 3
@@ -89,24 +87,23 @@ def expandCString(s):
                 escape = False
                 r = r + chr(num)
         else:
-            if s[i] in escapeSeqs:
-                r = r + escapeSeqs[s[i]]
+            if c in escapeSeqs:
+                r = r + escapeSeqs[c]
                 escape = False
-            elif s[i] >= '0' and s[i] <= '7':
+            elif c >= '0' and c <= '7':
                 octa = True
-                num = int(s[i],8)
+                num = int(c, 8)
                 if num <= 3:
                     digits = 1
                 else:
                     digits = 2
-            elif s[i] == 'x' or s[i] == 'X':
+            elif c == 'x' or c == 'X':
                 hexa = True
                 num = 0
                 digits = 0
             else:
-                r = r + s[i]
+                r = r + c
                 escape = False
-        i = i + 1
     return r
 
 # Expand matches. The first match is always a DESC or DESC_BEGIN match.
