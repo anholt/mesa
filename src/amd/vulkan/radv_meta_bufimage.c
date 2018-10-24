@@ -1420,6 +1420,21 @@ create_bview_for_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 			      });
 }
 
+static unsigned
+get_image_stride_for_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
+			       struct radv_meta_blit2d_surf *surf)
+{
+	unsigned stride;
+
+	if (cmd_buffer->device->physical_device->rad_info.chip_class >= GFX9) {
+		stride = surf->image->surface.u.gfx9.surf_pitch;
+	} else {
+		stride = surf->image->surface.u.legacy.level[0].nblk_x * 3;
+	}
+
+	return stride;
+}
+
 static void
 itob_bind_descriptors(struct radv_cmd_buffer *cmd_buffer,
 		      struct radv_image_view *src,
@@ -1560,11 +1575,7 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer),
 			     VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-	if (cmd_buffer->device->physical_device->rad_info.chip_class >= GFX9) {
-		stride = dst->image->surface.u.gfx9.surf_pitch;
-	} else {
-		stride = dst->image->surface.u.legacy.level[0].nblk_x * 3;
-	}
+	stride = get_image_stride_for_r32g32b32(cmd_buffer, dst);
 
 	for (unsigned r = 0; r < num_rects; ++r) {
 		unsigned push_constants[4] = {
@@ -1802,11 +1813,7 @@ radv_meta_clear_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer),
 			     VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
-	if (cmd_buffer->device->physical_device->rad_info.chip_class >= GFX9) {
-		stride = dst->image->surface.u.gfx9.surf_pitch;
-	} else {
-		stride = dst->image->surface.u.legacy.level[0].nblk_x * 3;
-	}
+	stride = get_image_stride_for_r32g32b32(cmd_buffer, dst);
 
 	unsigned push_constants[4] = {
 		clear_color->uint32[0],
