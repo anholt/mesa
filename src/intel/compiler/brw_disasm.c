@@ -1606,7 +1606,13 @@ brw_disassemble_inst(FILE *file, const struct gen_device_info *devinfo,
          /* show the indirect descriptor source */
          pad(file, 48);
          err |= src1(file, devinfo, inst);
+         pad(file, 64);
+      } else {
+         pad(file, 48);
       }
+
+      /* Print message descriptor as immediate source */
+      fprintf(file, "0x%08"PRIx64, inst->data[1] >> 32);
 
       newline(file);
       pad(file, 16);
@@ -1615,7 +1621,7 @@ brw_disassemble_inst(FILE *file, const struct gen_device_info *devinfo,
       fprintf(file, "            ");
       err |= control(file, "SFID", devinfo->gen >= 6 ? gen6_sfid : gen4_sfid,
                      sfid, &space);
-
+      string(file, " MsgDesc:");
 
       if (brw_inst_src1_reg_file(devinfo, inst) != BRW_IMMEDIATE_VALUE) {
          format(file, " indirect");
