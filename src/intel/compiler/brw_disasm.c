@@ -1283,7 +1283,9 @@ imm(FILE *file, const struct gen_device_info *devinfo, enum brw_reg_type type,
       format(file, "0x%08xUV", brw_inst_imm_ud(devinfo, inst));
       break;
    case BRW_REGISTER_TYPE_VF:
-      format(file, "[%-gF, %-gF, %-gF, %-gF]VF",
+      format(file, "0x%"PRIx64"VF", brw_inst_bits(inst, 127, 96));
+      pad(file, 48);
+      format(file, "/* [%-gF, %-gF, %-gF, %-gF]VF */",
              brw_vf_to_float(brw_inst_imm_ud(devinfo, inst)),
              brw_vf_to_float(brw_inst_imm_ud(devinfo, inst) >> 8),
              brw_vf_to_float(brw_inst_imm_ud(devinfo, inst) >> 16),
@@ -1293,10 +1295,14 @@ imm(FILE *file, const struct gen_device_info *devinfo, enum brw_reg_type type,
       format(file, "0x%08xV", brw_inst_imm_ud(devinfo, inst));
       break;
    case BRW_REGISTER_TYPE_F:
-      format(file, "%-gF", brw_inst_imm_f(devinfo, inst));
+      format(file, "0x%"PRIx64"F", brw_inst_bits(inst, 127, 96));
+      pad(file, 48);
+      format(file, " /* %-gF */", brw_inst_imm_f(devinfo, inst));
       break;
    case BRW_REGISTER_TYPE_DF:
-      format(file, "%-gDF", brw_inst_imm_df(devinfo, inst));
+      format(file, "0x%016"PRIx64"DF", brw_inst_bits(inst, 127, 64));
+      pad(file, 48);
+      format(file, "/* %-gDF */", brw_inst_imm_df(devinfo, inst));
       break;
    case BRW_REGISTER_TYPE_HF:
       string(file, "Half Float IMM");
