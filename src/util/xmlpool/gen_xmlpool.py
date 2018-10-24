@@ -182,7 +182,7 @@ def main():
         with io.open(args.template, mode="rt", encoding='utf-8') as template:
             descMatches = []
             for line in template:
-                if len(descMatches) > 0:
+                if descMatches:
                     matchENUM = reENUM.match(line)
                     matchDESC_END = reDESC_END.match(line)
                     if matchENUM:
@@ -201,16 +201,16 @@ def main():
                 matchDESC = reDESC.match(line)
                 matchDESC_BEGIN = reDESC_BEGIN.match(line)
                 if matchDESC:
-                    assert len(descMatches) == 0
+                    assert not descMatches
                     expandMatches([matchDESC], translations, output)
                 elif matchDESC_BEGIN:
-                    assert len(descMatches) == 0
+                    assert not descMatches
                     descMatches = [matchDESC_BEGIN]
                 else:
 
                     output.write(line)
 
-        if len(descMatches) > 0:
+        if descMatches:
             print("Warning: unterminated description at end of file.", file=sys.stderr)
             expandMatches(descMatches, translations, output)
 
