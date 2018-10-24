@@ -189,42 +189,40 @@ def main():
 
     # Process the options template and generate options.h with all
     # translations.
-    template = io.open(args.template, mode="rt", encoding='utf-8')
-    descMatches = []
-    for line in template:
-        if len(descMatches) > 0:
-            matchENUM = reENUM.match(line)
-            matchDESC_END = reDESC_END.match(line)
-            if matchENUM:
-                descMatches.append(matchENUM)
-            elif matchDESC_END:
-                expandMatches(descMatches, translations, line)
-                descMatches = []
+    with io.open(args.template, mode="rt", encoding='utf-8') as template:
+        descMatches = []
+        for line in template:
+            if len(descMatches) > 0:
+                matchENUM = reENUM.match(line)
+                matchDESC_END = reDESC_END.match(line)
+                if matchENUM:
+                    descMatches.append(matchENUM)
+                elif matchDESC_END:
+                    expandMatches(descMatches, translations, line)
+                    descMatches = []
+                else:
+                    print("Warning: unexpected line inside description dropped:\n",
+                          line, file=sys.stderr)
+                continue
+            if reLibintl_h.search(line):
+                # Ignore (comment out) #include <libintl.h>
+                print("/* %s * commented out by gen_xmlpool.py */" % line)
+                continue
+            matchDESC = reDESC.match(line)
+            matchDESC_BEGIN = reDESC_BEGIN.match(line)
+            if matchDESC:
+                assert len(descMatches) == 0
+                expandMatches([matchDESC], translations)
+            elif matchDESC_BEGIN:
+                assert len(descMatches) == 0
+                descMatches = [matchDESC_BEGIN]
             else:
-                print("Warning: unexpected line inside description dropped:\n", line,
-                      file=sys.stderr)
-            continue
-        if reLibintl_h.search(line):
-            # Ignore (comment out) #include <libintl.h>
-            print("/* %s * commented out by gen_xmlpool.py */" % line)
-            continue
-        matchDESC = reDESC.match(line)
-        matchDESC_BEGIN = reDESC_BEGIN.match(line)
-        if matchDESC:
-            assert len(descMatches) == 0
-            expandMatches([matchDESC], translations)
-        elif matchDESC_BEGIN:
-            assert len(descMatches) == 0
-            descMatches = [matchDESC_BEGIN]
-        else:
-            # In Python 2, stdout expects encoded byte strings, or else it will
-            # encode them with the ascii 'codec'
-            if sys.version_info.major == 2:
-               line = line.encode('utf-8')
+                # In Python 2, stdout expects encoded byte strings, or else it will
+                # encode them with the ascii 'codec'
+                if sys.version_info.major == 2:
+                   line = line.encode('utf-8')
 
-            print(line, end='')
-
-    template.close()
+                print(line, end='')
 
     if len(descMatches) > 0:
         print("Warning: unterminated description at end of file.", file=sys.stderr)
