@@ -7,7 +7,7 @@
 # `{localedir}/{language}/LC_MESSAGES/options.mo`.
 #
 
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 import argparse
 import gettext
 import io
@@ -114,7 +114,7 @@ def expandCString(s):
 #
 # DESC, DESC_BEGIN format: \1 \2=<lang> \3 \4=gettext(" \5=<text> \6=") \7
 # ENUM format:             \1 \2=gettext(" \3=<text> \4=") \5
-def expandMatches(matches, translations, end=None):
+def expandMatches(matches, translations, outfile, end=None):
     assert len(matches) > 0
     nTranslations = len(translations)
     i = 0
@@ -131,12 +131,7 @@ def expandMatches(matches, translations, end=None):
             matches[0].expand (r'\5'))))
         text = (matches[0].expand(r'\1' + lang + r'\3"' + text + r'"\7') + suffix)
 
-        # In Python 2, stdout expects encoded byte strings, or else it will
-        # encode them with the ascii 'codec'
-        if sys.version_info.major == 2:
-            text = text.encode('utf-8')
-
-        print(text)
+        outfile.write(text + '\n')
 
         # Expand any subsequent enum lines
         for match in matches[1:]:
@@ -144,16 +139,11 @@ def expandMatches(matches, translations, end=None):
                 match.expand(r'\3'))))
             text = match.expand(r'\1"' + text + r'"\5')
 
-            # In Python 2, stdout expects encoded byte strings, or else it will
-            # encode them with the ascii 'codec'
-            if sys.version_info.major == 2:
-                text = text.encode('utf-8')
-
-            print(text)
+            outfile.write(text + '\n')
 
         # Expand description end
         if end:
-            print(end, end='')
+            outfile.write(end)
 
 # Regular expressions:
 reLibintl_h = re.compile(r'#\s*include\s*<libintl.h>')
@@ -165,9 +155,10 @@ reDESC_END = re.compile(r'\s*DRI_CONF_DESC_END')
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('template')
-    parser.add_argument('localedir')
-    parser.add_argument('languages', nargs='*')
+    parser.add_argument('--template', required=True)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--localedir', required=True)
+    parser.add_argument('--languages', nargs='*', default=[])
     args = parser.parse_args()
 
     # Compile a list of translation classes to all supported languages.
@@ -183,50 +174,45 @@ def main():
             continue
         translations.append((lang, trans))
 
-    print("/***********************************************************************\n" \
-    " ***        THIS FILE IS GENERATED AUTOMATICALLY. DON'T EDIT!        ***\n" \
-    " ***********************************************************************/")
+    with io.open(args.output, mode='wt', encoding='utf-8') as output:
+        output.write("/* This is file is generated automatically. Don't edit!  */\n")
 
-    # Process the options template and generate options.h with all
-    # translations.
-    with io.open(args.template, mode="rt", encoding='utf-8') as template:
-        descMatches = []
-        for line in template:
-            if len(descMatches) > 0:
-                matchENUM = reENUM.match(line)
-                matchDESC_END = reDESC_END.match(line)
-                if matchENUM:
-                    descMatches.append(matchENUM)
-                elif matchDESC_END:
-                    expandMatches(descMatches, translations, line)
-                    descMatches = []
+        # Process the options template and generate options.h with all
+        # translations.
+        with io.open(args.template, mode="rt", encoding='utf-8') as template:
+            descMatches = []
+            for line in template:
+                if len(descMatches) > 0:
+                    matchENUM = reENUM.match(line)
+                    matchDESC_END = reDESC_END.match(line)
+                    if matchENUM:
+                        descMatches.append(matchENUM)
+                    elif matchDESC_END:
+                        expandMatches(descMatches, translations, output, line)
+                        descMatches = []
+                    else:
+                        print("Warning: unexpected line inside description dropped:\n",
+                              line, file=sys.stderr)
+                    continue
+                if reLibintl_h.search(line):
+                    # Ignore (comment out) #include <libintl.h>
+                    output.write("/* %s * commented out by gen_xmlpool.py */\n" % line)
+                    continue
+                matchDESC = reDESC.match(line)
+                matchDESC_BEGIN = reDESC_BEGIN.match(line)
+                if matchDESC:
+                    assert len(descMatches) == 0
+                    expandMatches([matchDESC], translations, output)
+                elif matchDESC_BEGIN:
+                    assert len(descMatches) == 0
+                    descMatches = [matchDESC_BEGIN]
                 else:
-                    print("Warning: unexpected line inside description dropped:\n",
-                          line, file=sys.stderr)
-                continue
-            if reLibintl_h.search(line):
-                # Ignore (comment out) #include <libintl.h>
-                print("/* %s * commented out by gen_xmlpool.py */" % line)
-                continue
-            matchDESC = reDESC.match(line)
-            matchDESC_BEGIN = reDESC_BEGIN.match(line)
-            if matchDESC:
-                assert len(descMatches) == 0
-                expandMatches([matchDESC], translations)
-            elif matchDESC_BEGIN:
-                assert len(descMatches) == 0
-                descMatches = [matchDESC_BEGIN]
-            else:
-                # In Python 2, stdout expects encoded byte strings, or else it will
-                # encode them with the ascii 'codec'
-                if sys.version_info.major == 2:
-                   line = line.encode('utf-8')
 
-                print(line, end='')
+                    output.write(line)
 
-    if len(descMatches) > 0:
-        print("Warning: unterminated description at end of file.", file=sys.stderr)
-        expandMatches(descMatches, translations)
+        if len(descMatches) > 0:
+            print("Warning: unterminated description at end of file.", file=sys.stderr)
+            expandMatches(descMatches, translations, output)
 
 
 if __name__ == '__main__':
