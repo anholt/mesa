@@ -27,7 +27,7 @@ else:
     gettext_method = 'gettext'
 
 # Escape special characters in C strings
-def escapeCString (s):
+def escapeCString(s):
     escapeSeqs = {'\a' : '\\a', '\b' : '\\b', '\f' : '\\f', '\n' : '\\n',
                   '\r' : '\\r', '\t' : '\\t', '\v' : '\\v', '\\' : '\\\\'}
     # " -> '' is a hack. Quotes (") aren't possible in XML attributes.
@@ -40,7 +40,7 @@ def escapeCString (s):
         # on whether it's an open or close quote. This is needed because plain
         # double quotes are not possible in XML attributes.
         if s[i] == '"':
-            if i == len(s)-1 or s[i+1].isspace():
+            if i == len(s) - 1 or s[i + 1].isspace():
                 # close quote
                 q = u'\u201c'
             else:
@@ -55,7 +55,7 @@ def escapeCString (s):
     return r
 
 # Expand escape sequences in C strings (needed for gettext lookup)
-def expandCString (s):
+def expandCString(s):
     escapeSeqs = {'a' : '\a', 'b' : '\b', 'f' : '\f', 'n' : '\n',
                   'r' : '\r', 't' : '\t', 'v' : '\v',
                   '"' : '"', '\\' : '\\'}
@@ -120,7 +120,7 @@ def expandCString (s):
 #
 # DESC, DESC_BEGIN format: \1 \2=<lang> \3 \4=gettext(" \5=<text> \6=") \7
 # ENUM format:             \1 \2=gettext(" \3=<text> \4=") \5
-def expandMatches (matches, translations, end=None):
+def expandMatches(matches, translations, end=None):
     assert len(matches) > 0
     nTranslations = len(translations)
     i = 0
@@ -131,11 +131,11 @@ def expandMatches (matches, translations, end=None):
         # are extended with a backslash.
         suffix = ''
         if len(matches) == 1 and i < len(translations) and \
-               not matches[0].expand (r'\7').endswith('\\'):
+               not matches[0].expand(r'\7').endswith('\\'):
             suffix = ' \\'
-        text = escapeCString (getattr(trans, gettext_method) (expandCString (
+        text = escapeCString(getattr(trans, gettext_method)(expandCString(
             matches[0].expand (r'\5'))))
-        text = (matches[0].expand (r'\1' + lang + r'\3"' + text + r'"\7') + suffix)
+        text = (matches[0].expand(r'\1' + lang + r'\3"' + text + r'"\7') + suffix)
 
         # In Python 2, stdout expects encoded byte strings, or else it will
         # encode them with the ascii 'codec'
@@ -146,9 +146,9 @@ def expandMatches (matches, translations, end=None):
 
         # Expand any subsequent enum lines
         for match in matches[1:]:
-            text = escapeCString (getattr(trans, gettext_method) (expandCString (
-                match.expand (r'\3'))))
-            text = match.expand (r'\1"' + text + r'"\5')
+            text = escapeCString(getattr(trans, gettext_method)(expandCString(
+                match.expand(r'\3'))))
+            text = match.expand(r'\1"' + text + r'"\5')
 
             # In Python 2, stdout expects encoded byte strings, or else it will
             # encode them with the ascii 'codec'
@@ -170,16 +170,16 @@ for lang in args.languages:
         with io.open(filename, 'rb') as f:
             trans = gettext.GNUTranslations(f)
     except (IOError, OSError):
-        sys.stderr.write ("Warning: language '%s' not found.\n" % lang)
+        sys.stderr.write("Warning: language '%s' not found.\n" % lang)
         continue
-    translations.append ((lang, trans))
+    translations.append((lang, trans))
 
 # Regular expressions:
-reLibintl_h  = re.compile (r'#\s*include\s*<libintl.h>')
-reDESC       = re.compile (r'(\s*DRI_CONF_DESC\s*\(\s*)([a-z]+)(\s*,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
-reDESC_BEGIN = re.compile (r'(\s*DRI_CONF_DESC_BEGIN\s*\(\s*)([a-z]+)(\s*,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
-reENUM       = re.compile (r'(\s*DRI_CONF_ENUM\s*\([^,]+,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
-reDESC_END   = re.compile (r'\s*DRI_CONF_DESC_END')
+reLibintl_h = re.compile(r'#\s*include\s*<libintl.h>')
+reDESC = re.compile(r'(\s*DRI_CONF_DESC\s*\(\s*)([a-z]+)(\s*,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
+reDESC_BEGIN = re.compile(r'(\s*DRI_CONF_DESC_BEGIN\s*\(\s*)([a-z]+)(\s*,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
+reENUM = re.compile(r'(\s*DRI_CONF_ENUM\s*\([^,]+,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
+reDESC_END = re.compile(r'\s*DRI_CONF_DESC_END')
 
 # Print a header
 print("/***********************************************************************\n" \
@@ -188,31 +188,31 @@ print("/***********************************************************************\
 
 # Process the options template and generate options.h with all
 # translations.
-template = io.open (args.template, mode="rt", encoding='utf-8')
+template = io.open(args.template, mode="rt", encoding='utf-8')
 descMatches = []
 for line in template:
     if len(descMatches) > 0:
-        matchENUM     = reENUM    .match (line)
-        matchDESC_END = reDESC_END.match (line)
+        matchENUM = reENUM.match(line)
+        matchDESC_END = reDESC_END.match(line)
         if matchENUM:
-            descMatches.append (matchENUM)
+            descMatches.append(matchENUM)
         elif matchDESC_END:
-            expandMatches (descMatches, translations, line)
+            expandMatches(descMatches, translations, line)
             descMatches = []
         else:
-            sys.stderr.write (
+            sys.stderr.write(
                 "Warning: unexpected line inside description dropped:\n%s\n" \
                 % line)
         continue
-    if reLibintl_h.search (line):
+    if reLibintl_h.search(line):
         # Ignore (comment out) #include <libintl.h>
         print("/* %s * commented out by gen_xmlpool.py */" % line)
         continue
-    matchDESC       = reDESC      .match (line)
-    matchDESC_BEGIN = reDESC_BEGIN.match (line)
+    matchDESC = reDESC.match(line)
+    matchDESC_BEGIN = reDESC_BEGIN.match(line)
     if matchDESC:
         assert len(descMatches) == 0
-        expandMatches ([matchDESC], translations)
+        expandMatches([matchDESC], translations)
     elif matchDESC_BEGIN:
         assert len(descMatches) == 0
         descMatches = [matchDESC_BEGIN]
@@ -227,5 +227,5 @@ for line in template:
 template.close()
 
 if len(descMatches) > 0:
-    sys.stderr.write ("Warning: unterminated description at end of file.\n")
-    expandMatches (descMatches, translations)
+    sys.stderr.write("Warning: unterminated description at end of file.\n")
+    expandMatches(descMatches, translations)
