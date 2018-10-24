@@ -1387,6 +1387,40 @@ create_buffer_from_image(struct radv_cmd_buffer *cmd_buffer,
 }
 
 static void
+create_bview_for_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
+			   struct radv_buffer *buffer,
+			   unsigned offset,
+			   VkFormat src_format,
+			   struct radv_buffer_view *bview)
+{
+	VkFormat format;
+
+	switch (src_format) {
+	case VK_FORMAT_R32G32B32_UINT:
+		format = VK_FORMAT_R32_UINT;
+		break;
+	case VK_FORMAT_R32G32B32_SINT:
+		format = VK_FORMAT_R32_SINT;
+		break;
+	case VK_FORMAT_R32G32B32_SFLOAT:
+		format = VK_FORMAT_R32_SFLOAT;
+		break;
+	default:
+		unreachable("invalid R32G32B32 format");
+	}
+
+	radv_buffer_view_init(bview, cmd_buffer->device,
+			      &(VkBufferViewCreateInfo) {
+				      .sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+				      .flags = 0,
+				      .buffer = radv_buffer_to_handle(buffer),
+				      .format = format,
+				      .offset = offset,
+				      .range = VK_WHOLE_SIZE,
+			      });
+}
+
+static void
 itob_bind_descriptors(struct radv_cmd_buffer *cmd_buffer,
 		      struct radv_image_view *src,
 		      struct radv_buffer_view *dst)
@@ -1507,22 +1541,7 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	struct radv_buffer_view src_view, dst_view;
 	unsigned dst_offset = 0;
 	unsigned stride;
-	VkFormat dst_format;
 	VkBuffer buffer;
-
-	switch (dst->format) {
-	case VK_FORMAT_R32G32B32_UINT:
-		dst_format = VK_FORMAT_R32_UINT;
-		break;
-	case VK_FORMAT_R32G32B32_SINT:
-		dst_format = VK_FORMAT_R32_SINT;
-		break;
-	case VK_FORMAT_R32G32B32_SFLOAT:
-		dst_format = VK_FORMAT_R32_SFLOAT;
-		break;
-	default:
-		unreachable("invalid R32G32B32 format");
-	}
 
 	/* This special btoi path for R32G32B32 formats will write the linear
 	 * image as a buffer with the same underlying memory. The compute
@@ -1534,8 +1553,8 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 
 	create_bview(cmd_buffer, src->buffer, src->offset,
 		     src->format, &src_view);
-	create_bview(cmd_buffer, radv_buffer_from_handle(buffer), dst_offset,
-		     dst_format, &dst_view);
+	create_bview_for_r32g32b32(cmd_buffer, radv_buffer_from_handle(buffer),
+				   dst_offset, dst->format, &dst_view);
 	btoi_r32g32b32_bind_descriptors(cmd_buffer, &src_view, &dst_view);
 
 	radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer),
@@ -1766,22 +1785,7 @@ radv_meta_clear_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	struct radv_device *device = cmd_buffer->device;
 	struct radv_buffer_view dst_view;
 	unsigned stride;
-	VkFormat format;
 	VkBuffer buffer;
-
-	switch (dst->format) {
-	case VK_FORMAT_R32G32B32_UINT:
-		format = VK_FORMAT_R32_UINT;
-		break;
-	case VK_FORMAT_R32G32B32_SINT:
-		format = VK_FORMAT_R32_SINT;
-		break;
-	case VK_FORMAT_R32G32B32_SFLOAT:
-		format = VK_FORMAT_R32_SFLOAT;
-		break;
-	default:
-		unreachable("invalid R32G32B32 format");
-	}
 
 	/* This special clear path for R32G32B32 formats will write the linear
 	 * image as a buffer with the same underlying memory. The compute
@@ -1791,7 +1795,8 @@ radv_meta_clear_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 				 VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
 				 &buffer);
 
-	create_bview(cmd_buffer, radv_buffer_from_handle(buffer), 0, format, &dst_view);
+	create_bview_for_r32g32b32(cmd_buffer, radv_buffer_from_handle(buffer),
+				   0, dst->format, &dst_view);
 	cleari_r32g32b32_bind_descriptors(cmd_buffer, &dst_view);
 
 	radv_CmdBindPipeline(radv_cmd_buffer_to_handle(cmd_buffer),
