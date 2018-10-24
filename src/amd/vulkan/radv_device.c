@@ -50,24 +50,6 @@
 #include "util/debug.h"
 #include "util/mesa-sha1.h"
 
-static bool
-radv_get_build_id(void *ptr, struct mesa_sha1 *ctx)
-{
-	uint32_t timestamp;
-
-#ifdef HAVE_DL_ITERATE_PHDR
-	const struct build_id_note *note = NULL;
-	if ((note = build_id_find_nhdr_for_addr(ptr))) {
-		_mesa_sha1_update(ctx, build_id_data(note), build_id_length(note));
-	} else
-#endif
-	if (disk_cache_get_function_timestamp(ptr, &timestamp)) {
-		_mesa_sha1_update(ctx, &timestamp, sizeof(timestamp));
-	} else
-		return false;
-	return true;
-}
-
 static int
 radv_device_get_cache_uuid(enum radeon_family family, void *uuid)
 {
@@ -78,8 +60,8 @@ radv_device_get_cache_uuid(enum radeon_family family, void *uuid)
 	memset(uuid, 0, VK_UUID_SIZE);
 	_mesa_sha1_init(&ctx);
 
-	if (!radv_get_build_id(radv_device_get_cache_uuid, &ctx) ||
-	    !radv_get_build_id(LLVMInitializeAMDGPUTargetInfo, &ctx))
+	if (!disk_cache_get_function_identifier(radv_device_get_cache_uuid, &ctx) ||
+	    !disk_cache_get_function_identifier(LLVMInitializeAMDGPUTargetInfo, &ctx))
 		return -1;
 
 	_mesa_sha1_update(&ctx, &family, sizeof(family));
