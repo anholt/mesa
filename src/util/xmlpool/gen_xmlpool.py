@@ -15,12 +15,6 @@ import os
 import re
 import sys
 
-parser = argparse.ArgumentParser()
-parser.add_argument('template')
-parser.add_argument('localedir')
-parser.add_argument('languages', nargs='*')
-args = parser.parse_args()
-
 if sys.version_info < (3, 0):
     gettext_method = 'ugettext'
 else:
@@ -161,19 +155,6 @@ def expandMatches(matches, translations, end=None):
         if end:
             print(end, end='')
 
-# Compile a list of translation classes to all supported languages.
-# The first translation is always a NullTranslations.
-translations = [("en", gettext.NullTranslations())]
-for lang in args.languages:
-    try:
-        filename = os.path.join(args.localedir, '{}.gmo'.format(lang))
-        with io.open(filename, 'rb') as f:
-            trans = gettext.GNUTranslations(f)
-    except (IOError, OSError):
-        print("Warning: language '%s' not found." % lang, file=sys.stderr)
-        continue
-    translations.append((lang, trans))
-
 # Regular expressions:
 reLibintl_h = re.compile(r'#\s*include\s*<libintl.h>')
 reDESC = re.compile(r'(\s*DRI_CONF_DESC\s*\(\s*)([a-z]+)(\s*,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
@@ -181,50 +162,74 @@ reDESC_BEGIN = re.compile(r'(\s*DRI_CONF_DESC_BEGIN\s*\(\s*)([a-z]+)(\s*,\s*)(ge
 reENUM = re.compile(r'(\s*DRI_CONF_ENUM\s*\([^,]+,\s*)(gettext\s*\(\s*")(.*)("\s*\))(\s*\)[ \t]*\\?)$')
 reDESC_END = re.compile(r'\s*DRI_CONF_DESC_END')
 
-# Print a header
-print("/***********************************************************************\n" \
-" ***        THIS FILE IS GENERATED AUTOMATICALLY. DON'T EDIT!        ***\n" \
-" ***********************************************************************/")
 
-# Process the options template and generate options.h with all
-# translations.
-template = io.open(args.template, mode="rt", encoding='utf-8')
-descMatches = []
-for line in template:
-    if len(descMatches) > 0:
-        matchENUM = reENUM.match(line)
-        matchDESC_END = reDESC_END.match(line)
-        if matchENUM:
-            descMatches.append(matchENUM)
-        elif matchDESC_END:
-            expandMatches(descMatches, translations, line)
-            descMatches = []
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('template')
+    parser.add_argument('localedir')
+    parser.add_argument('languages', nargs='*')
+    args = parser.parse_args()
+
+    # Compile a list of translation classes to all supported languages.
+    # The first translation is always a NullTranslations.
+    translations = [("en", gettext.NullTranslations())]
+    for lang in args.languages:
+        try:
+            filename = os.path.join(args.localedir, '{}.gmo'.format(lang))
+            with io.open(filename, 'rb') as f:
+                trans = gettext.GNUTranslations(f)
+        except (IOError, OSError):
+            print("Warning: language '%s' not found." % lang, file=sys.stderr)
+            continue
+        translations.append((lang, trans))
+
+    print("/***********************************************************************\n" \
+    " ***        THIS FILE IS GENERATED AUTOMATICALLY. DON'T EDIT!        ***\n" \
+    " ***********************************************************************/")
+
+    # Process the options template and generate options.h with all
+    # translations.
+    template = io.open(args.template, mode="rt", encoding='utf-8')
+    descMatches = []
+    for line in template:
+        if len(descMatches) > 0:
+            matchENUM = reENUM.match(line)
+            matchDESC_END = reDESC_END.match(line)
+            if matchENUM:
+                descMatches.append(matchENUM)
+            elif matchDESC_END:
+                expandMatches(descMatches, translations, line)
+                descMatches = []
+            else:
+                print("Warning: unexpected line inside description dropped:\n", line,
+                      file=sys.stderr)
+            continue
+        if reLibintl_h.search(line):
+            # Ignore (comment out) #include <libintl.h>
+            print("/* %s * commented out by gen_xmlpool.py */" % line)
+            continue
+        matchDESC = reDESC.match(line)
+        matchDESC_BEGIN = reDESC_BEGIN.match(line)
+        if matchDESC:
+            assert len(descMatches) == 0
+            expandMatches([matchDESC], translations)
+        elif matchDESC_BEGIN:
+            assert len(descMatches) == 0
+            descMatches = [matchDESC_BEGIN]
         else:
-            print("Warning: unexpected line inside description dropped:\n", line,
-                  file=sys.stderr)
-        continue
-    if reLibintl_h.search(line):
-        # Ignore (comment out) #include <libintl.h>
-        print("/* %s * commented out by gen_xmlpool.py */" % line)
-        continue
-    matchDESC = reDESC.match(line)
-    matchDESC_BEGIN = reDESC_BEGIN.match(line)
-    if matchDESC:
-        assert len(descMatches) == 0
-        expandMatches([matchDESC], translations)
-    elif matchDESC_BEGIN:
-        assert len(descMatches) == 0
-        descMatches = [matchDESC_BEGIN]
-    else:
-        # In Python 2, stdout expects encoded byte strings, or else it will
-        # encode them with the ascii 'codec'
-        if sys.version_info.major == 2:
-           line = line.encode('utf-8')
+            # In Python 2, stdout expects encoded byte strings, or else it will
+            # encode them with the ascii 'codec'
+            if sys.version_info.major == 2:
+               line = line.encode('utf-8')
 
-        print(line, end='')
+            print(line, end='')
 
-template.close()
+    template.close()
 
-if len(descMatches) > 0:
-    print("Warning: unterminated description at end of file.", file=sys.stderr)
-    expandMatches(descMatches, translations)
+    if len(descMatches) > 0:
+        print("Warning: unterminated description at end of file.", file=sys.stderr)
+        expandMatches(descMatches, translations)
+
+
+if __name__ == '__main__':
+    main()
