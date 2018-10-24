@@ -1358,6 +1358,35 @@ create_bview(struct radv_cmd_buffer *cmd_buffer,
 }
 
 static void
+create_buffer_from_image(struct radv_cmd_buffer *cmd_buffer,
+			 struct radv_meta_blit2d_surf *surf,
+			 VkBufferUsageFlagBits usage,
+			 VkBuffer *buffer)
+{
+	struct radv_device *device = cmd_buffer->device;
+	struct radv_device_memory mem = { .bo = surf->image->bo };
+
+	radv_CreateBuffer(radv_device_to_handle(device),
+			  &(VkBufferCreateInfo) {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.flags = 0,
+				.size = surf->image->size,
+				.usage = usage,
+				.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			  }, NULL, buffer);
+
+	radv_BindBufferMemory2(radv_device_to_handle(device), 1,
+			       (VkBindBufferMemoryInfoKHR[]) {
+				    {
+					.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
+					.buffer = *buffer,
+					.memory = radv_device_memory_to_handle(&mem),
+					.memoryOffset = surf->image->offset,
+				    }
+			       });
+}
+
+static void
 itob_bind_descriptors(struct radv_cmd_buffer *cmd_buffer,
 		      struct radv_image_view *src,
 		      struct radv_buffer_view *dst)
@@ -1474,7 +1503,6 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 				       struct radv_meta_blit2d_rect *rects)
 {
 	VkPipeline pipeline = cmd_buffer->device->meta_state.btoi_r32g32b32.pipeline;
-	struct radv_device_memory mem = { .bo = dst->image->bo };
 	struct radv_device *device = cmd_buffer->device;
 	struct radv_buffer_view src_view, dst_view;
 	unsigned dst_offset = 0;
@@ -1500,24 +1528,9 @@ radv_meta_buffer_to_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	 * image as a buffer with the same underlying memory. The compute
 	 * shader will clear all components separately using a R32 format.
 	 */
-	radv_CreateBuffer(radv_device_to_handle(device),
-			  &(VkBufferCreateInfo) {
-				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-				.flags = 0,
-				.size = dst->image->size,
-				.usage = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
-				.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			  }, NULL, &buffer);
-
-	radv_BindBufferMemory2(radv_device_to_handle(device), 1,
-			       (VkBindBufferMemoryInfoKHR[]) {
-				    {
-					.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-					.buffer = buffer,
-					.memory = radv_device_memory_to_handle(&mem),
-					.memoryOffset = dst->image->offset,
-				    }
-			       });
+	create_buffer_from_image(cmd_buffer, dst,
+				 VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
+				 &buffer);
 
 	create_bview(cmd_buffer, src->buffer, src->offset,
 		     src->format, &src_view);
@@ -1750,7 +1763,6 @@ radv_meta_clear_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 				   const VkClearColorValue *clear_color)
 {
 	VkPipeline pipeline = cmd_buffer->device->meta_state.cleari_r32g32b32.pipeline;
-	struct radv_device_memory mem = { .bo = dst->image->bo };
 	struct radv_device *device = cmd_buffer->device;
 	struct radv_buffer_view dst_view;
 	unsigned stride;
@@ -1775,24 +1787,9 @@ radv_meta_clear_image_cs_r32g32b32(struct radv_cmd_buffer *cmd_buffer,
 	 * image as a buffer with the same underlying memory. The compute
 	 * shader will clear all components separately using a R32 format.
 	 */
-	radv_CreateBuffer(radv_device_to_handle(device),
-			  &(VkBufferCreateInfo) {
-				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-				.flags = 0,
-				.size = dst->image->size,
-				.usage = VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
-				.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			  }, NULL, &buffer);
-
-	radv_BindBufferMemory2(radv_device_to_handle(device), 1,
-			       (VkBindBufferMemoryInfoKHR[]) {
-			            {
-					.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-					.buffer = buffer,
-					.memory = radv_device_memory_to_handle(&mem),
-					.memoryOffset = dst->image->offset,
-				    }
-			       });
+	create_buffer_from_image(cmd_buffer, dst,
+				 VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT,
+				 &buffer);
 
 	create_bview(cmd_buffer, radv_buffer_from_handle(buffer), 0, format, &dst_view);
 	cleari_r32g32b32_bind_descriptors(cmd_buffer, &dst_view);
