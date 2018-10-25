@@ -586,7 +586,7 @@ fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp)
 }
 
 static struct fd_ringbuffer *
-build_zsa(struct fd6_emit *emit, bool binning_pass)
+build_lrz(struct fd6_emit *emit, bool binning_pass)
 {
 	struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(emit->ctx->zsa);
 	struct pipe_framebuffer_state *pfb = &emit->ctx->batch->framebuffer;
@@ -646,12 +646,12 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	if ((dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) && pfb->zsbuf) {
 		struct fd_ringbuffer *state;
 
-		state = build_zsa(emit, false);
-		fd6_emit_add_group(emit, state, FD6_GROUP_ZSA, 0x6);
+		state = build_lrz(emit, false);
+		fd6_emit_add_group(emit, state, FD6_GROUP_LRZ, 0x6);
 		fd_ringbuffer_del(state);
 
-		state = build_zsa(emit, true);
-		fd6_emit_add_group(emit, state, FD6_GROUP_ZSA_BINNING, 0x1);
+		state = build_lrz(emit, true);
+		fd6_emit_add_group(emit, state, FD6_GROUP_LRZ_BINNING, 0x1);
 		fd_ringbuffer_del(state);
 	}
 
