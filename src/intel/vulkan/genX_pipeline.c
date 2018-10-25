@@ -755,14 +755,14 @@ sanitize_ds_state(VkPipelineDepthStencilStateCreateInfo *state,
 {
    *stencilWriteEnable = state->stencilTestEnable;
 
-   /* If the depth test is disabled, we won't be writing anything. */
-   if (!state->depthTestEnable)
-      state->depthWriteEnable = false;
-
-   /* The Vulkan spec requires that if either depth or stencil is not present,
-    * the pipeline is to act as if the test silently passes.
+   /* If the depth test is disabled, we won't be writing anything. Make sure we
+    * treat the test as always passing later on as well.
+    *
+    * Also, the Vulkan spec requires that if either depth or stencil is not
+    * present, the pipeline is to act as if the test silently passes. In that
+    * case we won't write either.
     */
-   if (!(ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT)) {
+   if (!state->depthTestEnable || !(ds_aspects & VK_IMAGE_ASPECT_DEPTH_BIT)) {
       state->depthWriteEnable = false;
       state->depthCompareOp = VK_COMPARE_OP_ALWAYS;
    }
