@@ -349,6 +349,13 @@ struct _mesa_glsl_parse_state {
       return is_version(120, 0);
    }
 
+   bool has_implicit_uint_to_int_conversion() const
+   {
+      return ARB_gpu_shader5_enable ||
+             MESA_shader_integer_functions_enable ||
+             is_version(400, 0);
+   }
+
    void process_version_directive(YYLTYPE *locp, int version,
                                   const char *ident);
 
