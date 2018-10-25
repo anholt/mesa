@@ -344,6 +344,11 @@ struct _mesa_glsl_parse_state {
       return ARB_bindless_texture_enable;
    }
 
+   bool has_implicit_conversions() const
+   {
+      return is_version(120, 0);
+   }
+
    void process_version_directive(YYLTYPE *locp, int version,
                                   const char *ident);
 
