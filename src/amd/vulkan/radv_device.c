@@ -1200,7 +1200,7 @@ void radv_GetPhysicalDeviceProperties2(
 
 			memset(driver_props->driverInfo, 0, VK_MAX_DRIVER_INFO_SIZE_KHR);
 			snprintf(driver_props->driverInfo, VK_MAX_DRIVER_INFO_SIZE_KHR,
-				"Mesa " PACKAGE_VERSION	" (" MESA_GIT_SHA1 ")"
+				"Mesa " PACKAGE_VERSION MESA_GIT_SHA1
 				" (LLVM %d.%d.%d)",
 				 (HAVE_LLVM >> 8) & 0xff, HAVE_LLVM & 0xff,
 				 MESA_LLVM_VERSION_PATCH);
