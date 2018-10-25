@@ -7470,24 +7470,16 @@ st_link_shader(struct gl_context *ctx, struct gl_shader_program *prog)
 }
 
 void
-st_translate_stream_output_info(glsl_to_tgsi_visitor *glsl_to_tgsi,
-                                const ubyte outputMapping[],
-                                struct pipe_stream_output_info *so)
-{
-   if (!glsl_to_tgsi->shader_program->last_vert_prog)
-      return;
-
-   struct gl_transform_feedback_info *info =
-      glsl_to_tgsi->shader_program->last_vert_prog->sh.LinkedTransformFeedback;
-   st_translate_stream_output_info2(info, outputMapping, so);
-}
-
-void
-st_translate_stream_output_info2(struct gl_transform_feedback_info *info,
+st_translate_stream_output_info(struct gl_transform_feedback_info *info,
                                 const ubyte outputMapping[],
                                 struct pipe_stream_output_info *so)
 {
    unsigned i;
+
+   if (!info) {
+      so->num_outputs = 0;
+      return;
+   }
 
    for (i = 0; i < info->NumOutputs; i++) {
       so->output[i].register_index =
