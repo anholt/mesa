@@ -319,8 +319,10 @@ vc4_resource_get_handle(struct pipe_screen *pscreen,
 
                 return vc4_bo_flink(rsc->bo, &whandle->handle);
         case WINSYS_HANDLE_TYPE_KMS:
-                if (screen->ro && renderonly_get_handle(rsc->scanout, whandle))
-                        return TRUE;
+                if (screen->ro) {
+                        assert(rsc->scanout);
+                        return renderonly_get_handle(rsc->scanout, whandle);
+                }
                 whandle->handle = rsc->bo->handle;
                 return TRUE;
         case WINSYS_HANDLE_TYPE_FD:
