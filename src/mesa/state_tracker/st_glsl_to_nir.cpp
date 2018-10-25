@@ -240,7 +240,6 @@ st_nir_lookup_parameter_index(const struct gl_program_parameter_list *params,
 static void
 st_nir_assign_uniform_locations(struct gl_context *ctx,
                                 struct gl_program *prog,
-                                struct gl_shader_program *shader_program,
                                 struct exec_list *uniform_list, unsigned *size)
 {
    int max = 0;
@@ -848,7 +847,7 @@ st_finalize_nir(struct st_context *st, struct gl_program *prog,
    NIR_PASS_V(nir, nir_lower_atomics_to_ssbo,
          st->ctx->Const.Program[nir->info.stage].MaxAtomicBuffers);
 
-   st_nir_assign_uniform_locations(st->ctx, prog, shader_program,
+   st_nir_assign_uniform_locations(st->ctx, prog,
                                    &nir->uniforms, &nir->num_uniforms);
 
    if (st->ctx->Const.PackedDriverUniformStorage) {
