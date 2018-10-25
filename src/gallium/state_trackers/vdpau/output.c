@@ -811,7 +811,7 @@ VdpStatus vlVdpOutputSurfaceDMABuf(VdpOutputSurface surface,
    pscreen = vlsurface->surface->texture->screen;
    if (!pscreen->resource_get_handle(pscreen, vlsurface->device->context,
                                      vlsurface->surface->texture, &whandle,
-                                     PIPE_HANDLE_USAGE_READ_WRITE)) {
+                                     PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE)) {
       mtx_unlock(&vlsurface->device->mutex);
       return VDP_STATUS_NO_IMPLEMENTATION;
    }

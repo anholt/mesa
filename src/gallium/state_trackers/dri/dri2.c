@@ -651,7 +651,7 @@ dri2_allocate_buffer(__DRIscreen *sPriv,
 
    screen->base.screen->resource_get_handle(screen->base.screen, NULL,
          buffer->resource, &whandle,
-         PIPE_HANDLE_USAGE_EXPLICIT_FLUSH | PIPE_HANDLE_USAGE_READ);
+         PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
 
    buffer->base.attachment = attachment;
    buffer->base.name = whandle.handle;
@@ -839,7 +839,7 @@ dri2_allocate_textures(struct dri_context *ctx,
          drawable->textures[statt] =
             screen->base.screen->resource_from_handle(screen->base.screen,
                   &templ, &whandle,
-                  PIPE_HANDLE_USAGE_EXPLICIT_FLUSH | PIPE_HANDLE_USAGE_READ);
+                  PIPE_HANDLE_USAGE_EXPLICIT_FLUSH);
          assert(drawable->textures[statt]);
       }
    }
@@ -1067,7 +1067,7 @@ dri2_create_image_from_winsys(__DRIscreen *_screen,
       }
 
       tex = pscreen->resource_from_handle(pscreen,
-            &templ, &whandle[i], PIPE_HANDLE_USAGE_READ_WRITE);
+            &templ, &whandle[i], PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE);
       if (!tex) {
          pipe_resource_reference(&img->texture, NULL);
          FREE(img);
@@ -1287,9 +1287,9 @@ dri2_query_image(__DRIimage *image, int attrib, int *value)
    unsigned usage;
 
    if (image->use & __DRI_IMAGE_USE_BACKBUFFER)
-      usage = PIPE_HANDLE_USAGE_EXPLICIT_FLUSH | PIPE_HANDLE_USAGE_READ;
+      usage = PIPE_HANDLE_USAGE_EXPLICIT_FLUSH;
    else
-      usage = PIPE_HANDLE_USAGE_READ_WRITE;
+      usage = PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE;
 
    memset(&whandle, 0, sizeof(whandle));
 
@@ -1966,14 +1966,12 @@ dri2_interop_export_object(__DRIcontext *_ctx,
 
    /* Get the handle. */
    switch (in->access) {
-   case MESA_GLINTEROP_ACCESS_READ_WRITE:
-      usage = PIPE_HANDLE_USAGE_READ_WRITE;
-      break;
    case MESA_GLINTEROP_ACCESS_READ_ONLY:
-      usage = PIPE_HANDLE_USAGE_READ;
+      usage = 0;
       break;
+   case MESA_GLINTEROP_ACCESS_READ_WRITE:
    case MESA_GLINTEROP_ACCESS_WRITE_ONLY:
-      usage = PIPE_HANDLE_USAGE_WRITE;
+      usage = PIPE_HANDLE_USAGE_SHADER_WRITE;
       break;
    default:
       usage = 0;

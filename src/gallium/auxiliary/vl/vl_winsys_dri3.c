@@ -272,7 +272,7 @@ dri3_alloc_back_buffer(struct vl_dri3_screen *scrn)
    }
    memset(&whandle, 0, sizeof(whandle));
    whandle.type= WINSYS_HANDLE_TYPE_FD;
-   usage = PIPE_HANDLE_USAGE_EXPLICIT_FLUSH | PIPE_HANDLE_USAGE_READ;
+   usage = PIPE_HANDLE_USAGE_EXPLICIT_FLUSH;
    scrn->base.pscreen->resource_get_handle(scrn->base.pscreen, NULL,
                                            pixmap_buffer_texture, &whandle,
                                            usage);
@@ -507,7 +507,7 @@ dri3_get_front_buffer(struct vl_dri3_screen *scrn)
    scrn->front_buffer->texture =
       scrn->base.pscreen->resource_from_handle(scrn->base.pscreen,
                                                &templ, &whandle,
-                                               PIPE_HANDLE_USAGE_READ_WRITE);
+                                               PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE);
    close(fds[0]);
    if (!scrn->front_buffer->texture)
       goto free_reply;

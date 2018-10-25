@@ -167,7 +167,6 @@ tegra_screen_can_create_resource(struct pipe_screen *pscreen,
 static int tegra_screen_import_resource(struct tegra_screen *screen,
                                         struct tegra_resource *resource)
 {
-   unsigned usage = PIPE_HANDLE_USAGE_READ;
    struct winsys_handle handle;
    boolean status;
    int fd, err;
@@ -177,7 +176,7 @@ static int tegra_screen_import_resource(struct tegra_screen *screen,
    handle.type = WINSYS_HANDLE_TYPE_FD;
 
    status = screen->gpu->resource_get_handle(screen->gpu, NULL, resource->gpu,
-                                             &handle, usage);
+                                             &handle, 0);
    if (!status)
       return -EINVAL;
 

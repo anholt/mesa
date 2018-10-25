@@ -129,7 +129,7 @@ get_image_shm(__DRIdrawable *dPriv, int x, int y, int width, int height,
    if (loader->base.version < 4 || !loader->getImageShm)
       return FALSE;
 
-   if (!res->screen->resource_get_handle(res->screen, NULL, res, &whandle, PIPE_HANDLE_USAGE_WRITE))
+   if (!res->screen->resource_get_handle(res->screen, NULL, res, &whandle, PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE))
       return FALSE;
 
    loader->getImageShm(dPriv, x, y, width, height, whandle.handle, dPriv->loaderPrivate);

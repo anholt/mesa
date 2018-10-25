@@ -358,7 +358,7 @@ surface_create(struct xa_tracker *xa,
 
     if (whandle)
 	srf->tex = xa->screen->resource_from_handle(xa->screen, template, whandle,
-                                                    PIPE_HANDLE_USAGE_READ_WRITE);
+                                                    PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE);
     else
 	srf->tex = xa->screen->resource_create(xa->screen, template);
     if (!srf->tex)
@@ -546,7 +546,7 @@ xa_surface_handle(struct xa_surface *srf,
     whandle.type = handle_type(type);
     res = screen->resource_get_handle(screen, srf->xa->default_ctx->pipe,
                                       srf->tex, &whandle,
-                                      PIPE_HANDLE_USAGE_READ_WRITE);
+                                      PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE);
     if (!res)
 	return -XA_ERR_INVAL;
 

@@ -249,7 +249,7 @@ vl_dri2_screen_texture_from_drawable(struct vl_screen *vscreen, void *drawable)
 
    tex = scrn->base.pscreen->resource_from_handle(scrn->base.pscreen, &templ,
                                                   &dri2_handle,
-                                                  PIPE_HANDLE_USAGE_READ_WRITE);
+                                                  PIPE_HANDLE_USAGE_FRAMEBUFFER_WRITE);
    free(reply);
 
    return tex;
