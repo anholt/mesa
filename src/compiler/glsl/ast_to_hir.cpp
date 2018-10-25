@@ -891,7 +891,8 @@ validate_assignment(struct _mesa_glsl_parse_state *state,
    }
    if (unsized_array) {
       if (is_initializer) {
-         return rhs;
+         if (rhs->type->get_scalar_type() == lhs->type->get_scalar_type())
+            return rhs;
       } else {
          _mesa_glsl_error(&loc, state,
                           "implicitly sized arrays cannot be assigned");
