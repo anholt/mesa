@@ -2864,8 +2864,7 @@ anv_image_get_fast_clear_type_addr(const struct anv_device *device,
    const unsigned clear_color_state_size = device->info.gen >= 10 ?
       device->isl_dev.ss.clear_color_state_size :
       device->isl_dev.ss.clear_value_size;
-   addr.offset += clear_color_state_size;
-   return addr;
+   return anv_address_add(addr, clear_color_state_size);
 }
 
 static inline struct anv_address
