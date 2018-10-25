@@ -954,10 +954,19 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 			struct fd6_state_group *g = &emit->groups[i];
 			unsigned n = fd_ringbuffer_size(g->stateobj) / 4;
 
-			OUT_RING(ring, CP_SET_DRAW_STATE__0_COUNT(n) |
-					CP_SET_DRAW_STATE__0_ENABLE_MASK(g->enable_mask) |
-					CP_SET_DRAW_STATE__0_GROUP_ID(g->group_id));
-			OUT_RB(ring, g->stateobj);
+			if (n == 0) {
+				OUT_RING(ring, CP_SET_DRAW_STATE__0_COUNT(0) |
+						CP_SET_DRAW_STATE__0_DISABLE |
+						CP_SET_DRAW_STATE__0_ENABLE_MASK(g->enable_mask) |
+						CP_SET_DRAW_STATE__0_GROUP_ID(g->group_id));
+				OUT_RING(ring, 0x00000000);
+				OUT_RING(ring, 0x00000000);
+			} else {
+				OUT_RING(ring, CP_SET_DRAW_STATE__0_COUNT(n) |
+						CP_SET_DRAW_STATE__0_ENABLE_MASK(g->enable_mask) |
+						CP_SET_DRAW_STATE__0_GROUP_ID(g->group_id));
+				OUT_RB(ring, g->stateobj);
+			}
 
 			fd_ringbuffer_del(g->stateobj);
 		}
