@@ -95,12 +95,13 @@ struct ir3_register {
 		IR3_REG_ARRAY  = 0x8000,
 
 	} flags;
+
+	/* normal registers:
+	 * the component is in the low two bits of the reg #, so
+	 * rN.x becomes: (N << 2) | x
+	 */
+	int   num;
 	union {
-		/* normal registers:
-		 * the component is in the low two bits of the reg #, so
-		 * rN.x becomes: (N << 2) | x
-		 */
-		int   num;
 		/* immediate: */
 		int32_t  iim_val;
 		uint32_t uim_val;
