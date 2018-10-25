@@ -641,6 +641,10 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 
 		OUT_PKT4(ring, REG_A6XX_RB_DEPTH_CNTL, 1);
 		OUT_RING(ring, zsa->rb_depth_cntl);
+
+		OUT_PKT4(ring, REG_A6XX_RB_STENCILMASK, 2);
+		OUT_RING(ring, zsa->rb_stencilmask);
+		OUT_RING(ring, zsa->rb_stencilwrmask);
 	}
 
 	if ((dirty & (FD_DIRTY_ZSA | FD_DIRTY_PROG)) && pfb->zsbuf) {
@@ -655,15 +659,12 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 		fd_ringbuffer_del(state);
 	}
 
-	if (dirty & (FD_DIRTY_ZSA | FD_DIRTY_STENCIL_REF)) {
-		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);
+	if (dirty & FD_DIRTY_STENCIL_REF) {
 		struct pipe_stencil_ref *sr = &ctx->stencil_ref;
 
-		OUT_PKT4(ring, REG_A6XX_RB_STENCILREF, 3);
+		OUT_PKT4(ring, REG_A6XX_RB_STENCILREF, 1);
 		OUT_RING(ring, A6XX_RB_STENCILREF_REF(sr->ref_value[0]) |
 				A6XX_RB_STENCILREF_BFREF(sr->ref_value[1]));
-		OUT_RING(ring, zsa->rb_stencilmask);
-		OUT_RING(ring, zsa->rb_stencilwrmask);
 	}
 
 	/* NOTE: scissor enabled bit is part of rasterizer state: */
