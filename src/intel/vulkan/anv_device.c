@@ -3095,7 +3095,8 @@ VkResult anv_GetCalibratedTimestampsEXT(
 
          if (ret != 0) {
             device->lost = TRUE;
-            return VK_ERROR_DEVICE_LOST;
+            return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
+                             "Failed to read the TIMESTAMP register: %m");
          }
          uint64_t device_period = DIV_ROUND_UP(1000000000, timestamp_frequency);
          max_clock_period = MAX2(max_clock_period, device_period);
