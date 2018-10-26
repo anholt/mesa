@@ -327,6 +327,16 @@ main(int argc, char *argv[])
 
    aub_write_exec(&aub, batch_addr, aub_gtt_size(&aub), I915_EXEC_RENDER);
 
+   free(out_filename);
+   free(line);
+   if(err_file) {
+      fclose(err_file);
+   }
+   if(aub.file) {
+      aub_file_finish(&aub);
+   } else if(aub_file) {
+      fclose(aub_file);
+   }
    return EXIT_SUCCESS;
 }
 
