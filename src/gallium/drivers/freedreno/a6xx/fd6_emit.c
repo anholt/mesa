@@ -526,8 +526,8 @@ emit_ssbos(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 }
 
-struct fd_ringbuffer *
-fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp)
+static struct fd_ringbuffer *
+build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp)
 {
 	const struct fd_vertex_state *vtx = emit->vtx;
 	int32_t i, j;
@@ -625,6 +625,18 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 	bool needs_border = false;
 
 	emit_marker6(ring, 5);
+
+	if (emit->dirty & (FD_DIRTY_VTXBUF | FD_DIRTY_VTXSTATE)) {
+		struct fd_ringbuffer *state;
+
+		state = build_vbo_state(emit, emit->vs);
+		fd6_emit_add_group(emit, state, FD6_GROUP_VBO, 0x6);
+		fd_ringbuffer_del(state);
+
+		state = build_vbo_state(emit, emit->bs);
+		fd6_emit_add_group(emit, state, FD6_GROUP_VBO_BINNING, 0x1);
+		fd_ringbuffer_del(state);
+	}
 
 	if (dirty & FD_DIRTY_ZSA) {
 		struct fd6_zsa_stateobj *zsa = fd6_zsa_stateobj(ctx->zsa);

@@ -174,8 +174,6 @@ bool fd6_emit_textures(struct fd_pipe *pipe, struct fd_ringbuffer *ring,
 		enum a6xx_state_block sb, struct fd_texture_stateobj *tex,
 		unsigned bcolor_offset);
 
-struct fd_ringbuffer * fd6_build_vbo_state(struct fd6_emit *emit, const struct ir3_shader_variant *vp);
-
 void fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit);
 
 void fd6_emit_cs_state(struct fd_context *ctx, struct fd_ringbuffer *ring,

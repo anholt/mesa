@@ -123,18 +123,6 @@ draw_impl(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	const struct pipe_draw_info *info = emit->info;
 	enum pc_di_primtype primtype = ctx->primtypes[info->mode];
 
-	if (emit->dirty & (FD_DIRTY_VTXBUF | FD_DIRTY_VTXSTATE)) {
-		struct fd_ringbuffer *state;
-
-		state = fd6_build_vbo_state(emit, emit->vs);
-		fd6_emit_add_group(emit, state, FD6_GROUP_VBO, 0x6);
-		fd_ringbuffer_del(state);
-
-		state = fd6_build_vbo_state(emit, emit->bs);
-		fd6_emit_add_group(emit, state, FD6_GROUP_VBO_BINNING, 0x1);
-		fd_ringbuffer_del(state);
-	}
-
 	fd6_emit_state(ring, emit);
 
 	OUT_PKT4(ring, REG_A6XX_VFD_INDEX_OFFSET, 2);
