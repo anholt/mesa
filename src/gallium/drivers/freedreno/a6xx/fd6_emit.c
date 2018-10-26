@@ -841,7 +841,7 @@ fd6_emit_state(struct fd_ringbuffer *ring, struct fd6_emit *emit)
 		}
 	}
 
-	if ((dirty & FD_DIRTY_BLEND)) {
+	if (dirty & FD_DIRTY_BLEND) {
 		struct fd6_blend_stateobj *blend = fd6_blend_stateobj(ctx->blend);
 		uint32_t i;
 
