@@ -449,7 +449,7 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
 
    b->cursor = nir_before_src(alu_use, is_if_condition);
 
-   nir_ssa_def *def[2] = { };
+   nir_ssa_def *def[2] = {0};
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
       if (alu->src[i].src.ssa == use_src->ssa) {
          def[i] = nir_imm_bool(b, bool_value);
