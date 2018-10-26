@@ -381,6 +381,11 @@ vk_to_isl_color(VkClearColorValue color)
  * propagating errors. Might be useful to plug in a stack trace here.
  */
 
+VkResult __vk_errorv(struct anv_instance *instance, const void *object,
+                     VkDebugReportObjectTypeEXT type, VkResult error,
+                     const char *file, int line, const char *format,
+                     va_list args);
+
 VkResult __vk_errorf(struct anv_instance *instance, const void *object,
                      VkDebugReportObjectTypeEXT type, VkResult error,
                      const char *file, int line, const char *format, ...);
@@ -389,6 +394,9 @@ VkResult __vk_errorf(struct anv_instance *instance, const void *object,
 #define vk_error(error) __vk_errorf(NULL, NULL,\
                                     VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT,\
                                     error, __FILE__, __LINE__, NULL)
+#define vk_errorv(instance, obj, error, format, args)\
+    __vk_errorv(instance, obj, REPORT_OBJECT_TYPE(obj), error,\
+                __FILE__, __LINE__, format, args)
 #define vk_errorf(instance, obj, error, format, ...)\
     __vk_errorf(instance, obj, REPORT_OBJECT_TYPE(obj), error,\
                 __FILE__, __LINE__, format, ## __VA_ARGS__)

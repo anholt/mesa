@@ -77,20 +77,17 @@ __anv_perf_warn(struct anv_instance *instance, const void *object,
 }
 
 VkResult
-__vk_errorf(struct anv_instance *instance, const void *object,
-                     VkDebugReportObjectTypeEXT type, VkResult error,
-                     const char *file, int line, const char *format, ...)
+__vk_errorv(struct anv_instance *instance, const void *object,
+            VkDebugReportObjectTypeEXT type, VkResult error,
+            const char *file, int line, const char *format, va_list ap)
 {
-   va_list ap;
    char buffer[256];
    char report[512];
 
    const char *error_str = vk_Result_to_str(error);
 
    if (format) {
-      va_start(ap, format);
       vsnprintf(buffer, sizeof(buffer), format, ap);
-      va_end(ap);
 
       snprintf(report, sizeof(report), "%s:%d: %s (%s)", file, line, buffer,
                error_str);
@@ -110,6 +107,20 @@ __vk_errorf(struct anv_instance *instance, const void *object,
    }
 
    intel_loge("%s", report);
+
+   return error;
+}
+
+VkResult
+__vk_errorf(struct anv_instance *instance, const void *object,
+            VkDebugReportObjectTypeEXT type, VkResult error,
+            const char *file, int line, const char *format, ...)
+{
+   va_list ap;
+
+   va_start(ap, format);
+   __vk_errorv(instance, object, type, error, file, line, format, ap);
+   va_end(ap);
 
    return error;
 }
