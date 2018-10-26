@@ -373,11 +373,11 @@ try_lower_tex_ycbcr(struct anv_pipeline_layout *layout,
    uint8_t y_bpc = y_isl_layout->channels_array[0].bits;
 
    /* |ycbcr_comp| holds components in the order : Cr-Y-Cb */
-   nir_ssa_def *ycbcr_comp[5] = { NULL, NULL, NULL,
-                                  /* Use extra 2 channels for following swizzle */
-                                  nir_imm_float(builder, 1.0f),
-                                  nir_imm_float(builder, 0.0f),
-   };
+   nir_ssa_def *zero = nir_imm_float(builder, 0.0f);
+   nir_ssa_def *one = nir_imm_float(builder, 1.0f);
+   /* Use extra 2 channels for following swizzle */
+   nir_ssa_def *ycbcr_comp[5] = { zero, zero, zero, one, zero };
+
    uint8_t ycbcr_bpcs[5];
    memset(ycbcr_bpcs, y_bpc, sizeof(ycbcr_bpcs));
 
