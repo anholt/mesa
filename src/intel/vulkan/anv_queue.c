@@ -42,9 +42,7 @@ anv_device_execbuf(struct anv_device *device,
    int ret = device->no_hw ? 0 : anv_gem_execbuffer(device, execbuf);
    if (ret != 0) {
       /* We don't know the real error. */
-      anv_device_set_lost(device, "execbuf2 failed: %m");
-      return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
-                       "execbuf2 failed: %m");
+      return anv_device_set_lost(device, "execbuf2 failed: %m");
    }
 
    struct drm_i915_gem_exec_object2 *objects =
@@ -243,9 +241,7 @@ out:
        * VK_ERROR_DEVICE_LOST to ensure that clients do not attempt to
        * submit the same job again to this device.
        */
-      result = vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
-                         "vkQueueSubmit() failed");
-      anv_device_set_lost(device, "vkQueueSubmit() failed");
+      result = anv_device_set_lost(device, "vkQueueSubmit() failed");
    }
 
    pthread_mutex_unlock(&device->mutex);
@@ -438,9 +434,7 @@ VkResult anv_GetFenceStatus(
             return VK_NOT_READY;
          } else {
             /* We don't know the real error. */
-            anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
-            return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
-                             "drm_syncobj_wait failed: %m");
+            return anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
          }
       } else {
          return VK_SUCCESS;
@@ -526,9 +520,7 @@ anv_wait_for_syncobj_fences(struct anv_device *device,
          return VK_TIMEOUT;
       } else {
          /* We don't know the real error. */
-         anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
-         return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
-                          "drm_syncobj_wait failed: %m");
+         return anv_device_set_lost(device, "drm_syncobj_wait failed: %m");
       }
    } else {
       return VK_SUCCESS;

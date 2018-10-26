@@ -1083,8 +1083,11 @@ anv_state_flush(struct anv_device *device, struct anv_state state)
 void anv_device_init_blorp(struct anv_device *device);
 void anv_device_finish_blorp(struct anv_device *device);
 
-void anv_device_set_lost(struct anv_device *device,
-                         const char *msg, ...);
+VkResult _anv_device_set_lost(struct anv_device *device,
+                              const char *file, int line,
+                              const char *msg, ...);
+#define anv_device_set_lost(dev, ...) \
+   _anv_device_set_lost(dev, __FILE__, __LINE__, __VA_ARGS__)
 
 static inline bool
 anv_device_is_lost(struct anv_device *device)

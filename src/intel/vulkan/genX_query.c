@@ -181,9 +181,7 @@ wait_for_available(struct anv_device *device,
          continue;
       } else if (ret == -1) {
          /* We don't know the real error. */
-         anv_device_set_lost(device, "gem wait failed: %m");
-         return vk_errorf(device->instance, device, VK_ERROR_DEVICE_LOST,
-                          "gem wait failed: %m");
+         return anv_device_set_lost(device, "gem wait failed: %m");
       } else {
          assert(ret == 0);
          /* The BO is no longer busy. */
