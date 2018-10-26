@@ -41,7 +41,6 @@ struct vl_screen *
 vl_drm_screen_create(int fd)
 {
    struct vl_screen *vscreen;
-   int new_fd;
 
    vscreen = CALLOC_STRUCT(vl_screen);
    if (!vscreen)
