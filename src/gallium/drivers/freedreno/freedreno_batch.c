@@ -369,6 +369,7 @@ fd_batch_flush(struct fd_batch *batch, bool sync, bool force)
 
 		fd_batch_reference(&batch, NULL);
 		ctx->batch = new_batch;
+		fd_context_all_dirty(ctx);
 	}
 
 	if (sync)

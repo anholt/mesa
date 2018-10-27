@@ -490,6 +490,7 @@ fd_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
 	batch = fd_bc_alloc_batch(&ctx->screen->batch_cache, ctx, true);
 	fd_batch_reference(&save_batch, ctx->batch);
 	fd_batch_reference(&ctx->batch, batch);
+	fd_context_all_dirty(ctx);
 
 	mtx_lock(&ctx->screen->lock);
 
@@ -533,6 +534,7 @@ fd_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
 	fd_batch_flush(batch, false, false);
 
 	fd_batch_reference(&ctx->batch, save_batch);
+	fd_context_all_dirty(ctx);
 	fd_batch_reference(&save_batch, NULL);
 	fd_batch_reference(&batch, NULL);
 }
