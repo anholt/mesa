@@ -215,6 +215,9 @@ fd_set_framebuffer_state(struct pipe_context *pctx,
 
 	cso = &ctx->framebuffer;
 
+	if (util_framebuffer_state_equal(cso, framebuffer))
+		return;
+
 	util_copy_framebuffer_state(cso, framebuffer);
 
 	cso->samples = util_framebuffer_get_num_samples(cso);
