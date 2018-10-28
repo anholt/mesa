@@ -5594,7 +5594,7 @@ glsl_to_tgsi_visitor::split_arrays(void)
 void
 glsl_to_tgsi_visitor::merge_registers(void)
 {
-   struct array_live_range *arr_live_ranges = NULL;
+   class array_live_range *arr_live_ranges = NULL;
 
    struct register_live_range *reg_live_ranges =
 	 rzalloc_array(mem_ctx, struct register_live_range, this->next_temp);
