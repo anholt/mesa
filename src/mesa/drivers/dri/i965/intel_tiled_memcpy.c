@@ -603,9 +603,10 @@ choose_copy_function(mem_copy_fn_type copy_type)
    case INTEL_COPY_STREAMING_LOAD:
       return _memcpy_streaming_load;
 #endif
-   default:
-      assert(!"unreachable");
+   case INTEL_COPY_INVALID:
+      unreachable("invalid copy_type");
    }
+   unreachable("unhandled copy_type");
    return NULL;
 }
 
