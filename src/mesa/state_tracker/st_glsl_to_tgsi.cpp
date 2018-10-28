@@ -2084,7 +2084,7 @@ glsl_to_tgsi_visitor::visit_expression(ir_expression* ir, st_src_reg *op)
             emit_asm(ir, TGSI_OPCODE_USHR, st_dst_reg(index_reg), offset,
                  st_src_reg_for_int(4));
             cbuf.reladdr = ralloc(mem_ctx, st_src_reg);
-            memcpy(cbuf.reladdr, &index_reg, sizeof(index_reg));
+            *cbuf.reladdr = index_reg;
          }
 
          if (const_uniform_block) {
@@ -2093,7 +2093,7 @@ glsl_to_tgsi_visitor::visit_expression(ir_expression* ir, st_src_reg *op)
          } else {
             /* Relative/variable constant buffer */
             cbuf.reladdr2 = ralloc(mem_ctx, st_src_reg);
-            memcpy(cbuf.reladdr2, &op[0], sizeof(st_src_reg));
+            *cbuf.reladdr2 = op[0];
          }
          cbuf.has_index2 = true;
 
@@ -2804,12 +2804,12 @@ glsl_to_tgsi_visitor::visit(ir_dereference_array *ir)
 
       if (is_2D) {
          src.reladdr2 = ralloc(mem_ctx, st_src_reg);
-         memcpy(src.reladdr2, &index_reg, sizeof(index_reg));
+         *src.reladdr2 = index_reg;
          src.index2D = 0;
          src.has_index2 = true;
       } else {
          src.reladdr = ralloc(mem_ctx, st_src_reg);
-         memcpy(src.reladdr, &index_reg, sizeof(index_reg));
+         *src.reladdr = index_reg;
       }
    }
 
@@ -4146,8 +4146,7 @@ glsl_to_tgsi_visitor::get_deref_offsets(ir_dereference *ir,
    unsigned location = 0;
    ir_variable *var = ir->variable_referenced();
 
-   memset(reladdr, 0, sizeof(*reladdr));
-   reladdr->file = PROGRAM_UNDEFINED;
+   reladdr->reset();
 
    *base = 0;
    *array_size = 1;
