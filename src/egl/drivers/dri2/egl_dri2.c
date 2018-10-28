@@ -341,7 +341,7 @@ dri2_add_config(_EGLDisplay *disp, const __DRIconfig *dri_config, int id,
       _eglLinkConfig(&conf->base);
    }
    else {
-      assert(0);
+      unreachable("duplicates should not be possible");
       return NULL;
    }
 
@@ -1108,7 +1108,7 @@ dri2_create_context_attribs_error(int dri_error)
       break;
 
    default:
-      assert(0);
+      assert(!"unknown dri_error code");
       egl_error = EGL_BAD_MATCH;
       break;
    }
@@ -1815,7 +1815,7 @@ dri2_release_tex_image(_EGLDriver *drv,
       target = GL_TEXTURE_2D;
       break;
    default:
-      assert(0);
+      assert(!"missing texture target");
    }
 
    if (dri2_dpy->tex_buffer->base.version >= 3 &&
@@ -1878,7 +1878,7 @@ egl_error_from_dri_image_error(int dri_error)
    case __DRI_IMAGE_ERROR_BAD_ACCESS:
       return EGL_BAD_ACCESS;
    default:
-      assert(0);
+      assert(!"unknown dri_error code");
       return EGL_BAD_ALLOC;
    }
 }

@@ -327,7 +327,7 @@ _eglValidateConfig(const _EGLConfig *conf, EGLBoolean for_matching)
                valid = EGL_FALSE;
             break;
          default:
-            assert(0);
+            unreachable("check _eglValidationTable[]");
             break;
          }
          break;
@@ -353,7 +353,7 @@ _eglValidateConfig(const _EGLConfig *conf, EGLBoolean for_matching)
                    EGL_OPENGL_BIT;
             break;
          default:
-            assert(0);
+            unreachable("check _eglValidationTable[]");
             mask = 0;
             break;
          }
