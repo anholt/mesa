@@ -792,27 +792,6 @@ struct custom_decoder {
    { "MI_LOAD_REGISTER_IMM", decode_load_register_imm }
 };
 
-static inline uint64_t
-get_address(struct gen_spec *spec, const uint32_t *p)
-{
-   /* Addresses are always guaranteed to be page-aligned and sometimes
-    * hardware packets have extra stuff stuffed in the bottom 12 bits.
-    */
-   uint64_t addr = p[0] & ~0xfffu;
-
-   if (gen_spec_get_gen(spec) >= gen_make_gen(8,0)) {
-      /* On Broadwell and above, we have 48-bit addresses which consume two
-       * dwords.  Some packets require that these get stored in a "canonical
-       * form" which means that bit 47 is sign-extended through the upper
-       * bits. In order to correctly handle those aub dumps, we need to mask
-       * off the top 16 bits.
-       */
-      addr |= ((uint64_t)p[1] & 0xffff) << 32;
-   }
-
-   return addr;
-}
-
 void
 gen_print_batch(struct gen_batch_decode_ctx *ctx,
                 const uint32_t *batch, uint32_t batch_size,
