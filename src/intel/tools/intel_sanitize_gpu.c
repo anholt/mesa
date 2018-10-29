@@ -39,6 +39,7 @@
 #include <i915_drm.h>
 
 #include "util/hash_table.h"
+#include "util/u_math.h"
 
 #define INTEL_LOG_TAG "INTEL-SANITIZE-GPU"
 #include "common/intel_log.h"
@@ -165,7 +166,7 @@ padding_is_good(int fd, uint32_t handle)
 {
    struct drm_i915_gem_mmap mmap_arg = {
       .handle = handle,
-      .offset = bo_size(fd, handle),
+      .offset = align64(bo_size(fd, handle), 4096),
       .size = PADDING_SIZE,
       .flags = 0,
    };
@@ -207,9 +208,11 @@ padding_is_good(int fd, uint32_t handle)
 static int
 create_with_padding(int fd, struct drm_i915_gem_create *create)
 {
-   create->size += PADDING_SIZE;
+   uint64_t original_size = create->size;
+
+   create->size = align64(original_size, 4096) + PADDING_SIZE;
    int ret = libc_ioctl(fd, DRM_IOCTL_I915_GEM_CREATE, create);
-   create->size -= PADDING_SIZE;
+   create->size = original_size;
 
    if (ret != 0)
       return ret;
@@ -217,7 +220,7 @@ create_with_padding(int fd, struct drm_i915_gem_create *create)
    uint8_t *noise_values;
    struct drm_i915_gem_mmap mmap_arg = {
       .handle = create->handle,
-      .offset = create->size,
+      .offset = align64(create->size, 4096),
       .size = PADDING_SIZE,
       .flags = 0,
    };
