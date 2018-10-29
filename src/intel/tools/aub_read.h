@@ -35,7 +35,8 @@ extern "C" {
 
 enum gen_engine {
    GEN_ENGINE_RENDER = 1,
-   GEN_ENGINE_BLITTER = 2,
+   GEN_ENGINE_VIDEO = 2,
+   GEN_ENGINE_BLITTER = 3,
 };
 
 struct aub_read {
@@ -62,6 +63,8 @@ struct aub_read {
    /* Reader's data */
    uint32_t render_elsp[4];
    int render_elsp_index;
+   uint32_t video_elsp[4];
+   int video_elsp_index;
    uint32_t blitter_elsp[4];
    int blitter_elsp_index;
 

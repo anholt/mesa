@@ -153,6 +153,9 @@ handle_trace_block(struct aub_read *read, const uint32_t *p)
       case AUB_TRACE_TYPE_RING_PRB0:
          engine = GEN_ENGINE_RENDER;
          break;
+      case AUB_TRACE_TYPE_RING_PRB1:
+         engine = GEN_ENGINE_VIDEO;
+         break;
       case AUB_TRACE_TYPE_RING_PRB2:
          engine = GEN_ENGINE_BLITTER;
          break;
@@ -193,6 +196,16 @@ handle_memtrace_reg_write(struct aub_read *read, const uint32_t *p)
       context_descriptor = (uint64_t)read->render_elsp[2] << 32 |
          read->render_elsp[3];
       break;
+   case 0x12230: /* video elsp */
+      read->video_elsp[read->video_elsp_index++] = value;
+      if (read->video_elsp_index < 4)
+         return;
+
+      read->video_elsp_index = 0;
+      engine = GEN_ENGINE_VIDEO;
+      context_descriptor = (uint64_t)read->video_elsp[2] << 32 |
+         read->video_elsp[3];
+      break;
    case 0x22230: /* blitter elsp */
       read->blitter_elsp[read->blitter_elsp_index++] = value;
       if (read->blitter_elsp_index < 4)
@@ -211,6 +224,14 @@ handle_memtrace_reg_write(struct aub_read *read, const uint32_t *p)
       read->render_elsp[2] = value;
       return;
       break;
+   case 0x12510: /* video elsq0 lo */
+      read->video_elsp[3] = value;
+      return;
+      break;
+   case 0x12514: /* video elsq0 hi */
+      read->video_elsp[2] = value;
+      return;
+      break;
    case 0x22510: /* blitter elsq0 lo */
       read->blitter_elsp[3] = value;
       return;
@@ -223,6 +244,11 @@ handle_memtrace_reg_write(struct aub_read *read, const uint32_t *p)
       engine = GEN_ENGINE_RENDER;
       context_descriptor = (uint64_t)read->render_elsp[2] << 32 |
          read->render_elsp[3];
+      break;
+   case 0x12550: /* video_elsc */
+      engine = GEN_ENGINE_VIDEO;
+      context_descriptor = (uint64_t)read->video_elsp[2] << 32 |
+         read->video_elsp[3];
       break;
    case 0x22550: /* blitter elsc */
       engine = GEN_ENGINE_BLITTER;
