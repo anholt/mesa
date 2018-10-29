@@ -6811,9 +6811,6 @@ fs_visitor::run_fs(bool allow_spilling, bool do_rep_send)
                  retype(dispatch_mask, BRW_REGISTER_TYPE_UW));
       }
 
-      /* Generate FS IR for main().  (the visitor only descends into
-       * functions called "main").
-       */
       emit_nir_code();
 
       if (failed)

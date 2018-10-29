@@ -37,12 +37,7 @@ vec4_visitor::emit_nir_code()
    if (nir->num_uniforms > 0)
       nir_setup_uniforms();
 
-   /* get the main function and emit it */
-   nir_foreach_function(function, nir) {
-      assert(strcmp(function->name, "main") == 0);
-      assert(function->impl);
-      nir_emit_impl(function->impl);
-   }
+   nir_emit_impl(nir_shader_get_entrypoint((nir_shader *)nir));
 }
 
 void

@@ -40,12 +40,7 @@ fs_visitor::emit_nir_code()
    nir_setup_uniforms();
    nir_emit_system_values();
 
-   /* get the main function and emit it */
-   nir_foreach_function(function, nir) {
-      assert(strcmp(function->name, "main") == 0);
-      assert(function->impl);
-      nir_emit_impl(function->impl);
-   }
+   nir_emit_impl(nir_shader_get_entrypoint((nir_shader *)nir));
 }
 
 void
@@ -267,13 +262,9 @@ fs_visitor::nir_emit_system_values()
       }
    }
 
-   nir_foreach_function(function, nir) {
-      assert(strcmp(function->name, "main") == 0);
-      assert(function->impl);
-      nir_foreach_block(block, function->impl) {
-         emit_system_values_block(block, this);
-      }
-   }
+   nir_function_impl *impl = nir_shader_get_entrypoint((nir_shader *)nir);
+   nir_foreach_block(block, impl)
+      emit_system_values_block(block, this);
 }
 
 /*
