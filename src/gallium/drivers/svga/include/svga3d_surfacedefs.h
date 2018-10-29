@@ -31,6 +31,9 @@
  *       Surface/format/image helper code.
  */
 
+#ifndef SVGA3D_SURFACEDEFS_H
+#define SVGA3D_SURFACEDEFS_H
+
 #include "svga3d_reg.h"
 
 #define max_t(type, x, y)  ((x) > (y) ? (x) : (y))
@@ -1145,3 +1148,5 @@ svga3dsurface_get_pixel_offset(SVGA3dSurfaceFormat format,
                           x / bw * desc->bytes_per_block);
    return offset;
 }
+
+#endif
