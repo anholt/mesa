@@ -85,16 +85,6 @@ vbo_save_EndCallList(struct gl_context *ctx);
 
 
 void
-_vbo_draw_indirect(struct gl_context *ctx, GLuint mode,
-                        struct gl_buffer_object *indirect_data,
-                        GLsizeiptr indirect_offset, unsigned draw_count,
-                        unsigned stride,
-                        struct gl_buffer_object *indirect_draw_count_buffer,
-                        GLsizeiptr indirect_draw_count_offset,
-                        const struct _mesa_index_buffer *ib);
-
-
-void
 vbo_delete_minmax_cache(struct gl_buffer_object *bufferObj);
 
 void
