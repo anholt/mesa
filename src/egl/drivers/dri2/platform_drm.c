@@ -664,8 +664,9 @@ drm_add_configs_for_visuals(_EGLDriver *drv, _EGLDisplay *disp)
 
    for (unsigned i = 0; i < ARRAY_SIZE(format_count); i++) {
       if (!format_count[i]) {
-         _eglLog(_EGL_DEBUG, "No DRI config supports native format 0x%x",
-                 visuals[i].gbm_format);
+         struct gbm_format_name_desc desc;
+         _eglLog(_EGL_DEBUG, "No DRI config supports native format %s",
+                 gbm_format_get_name(visuals[i].gbm_format, &desc));
       }
    }
 
