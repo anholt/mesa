@@ -87,6 +87,71 @@ _mesa_draw_indirect(struct gl_context *ctx, GLuint mode,
                     const struct _mesa_index_buffer *ib);
 
 
+void GLAPIENTRY
+_mesa_DrawArrays(GLenum mode, GLint first, GLsizei count);
+
+
+void GLAPIENTRY
+_mesa_DrawArraysInstanced(GLenum mode, GLint first, GLsizei count,
+                          GLsizei primcount);
+
+
+void GLAPIENTRY
+_mesa_DrawElements(GLenum mode, GLsizei count, GLenum type,
+                   const GLvoid *indices);
+
+
+void GLAPIENTRY
+_mesa_DrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count,
+                        GLenum type, const GLvoid *indices);
+
+
+void GLAPIENTRY
+_mesa_DrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type,
+                             const GLvoid *indices, GLint basevertex);
+
+
+void GLAPIENTRY
+_mesa_DrawRangeElementsBaseVertex(GLenum mode, GLuint start, GLuint end,
+                                  GLsizei count, GLenum type,
+                                  const GLvoid *indices,
+                                  GLint basevertex);
+
+
+void GLAPIENTRY
+_mesa_DrawTransformFeedback(GLenum mode, GLuint name);
+
+
+
+void GLAPIENTRY
+_mesa_MultiDrawArrays(GLenum mode, const GLint *first,
+                      const GLsizei *count, GLsizei primcount);
+
+
+void GLAPIENTRY
+_mesa_MultiDrawElementsEXT(GLenum mode, const GLsizei *count, GLenum type,
+                           const GLvoid **indices, GLsizei primcount);
+
+
+void GLAPIENTRY
+_mesa_MultiDrawElementsBaseVertex(GLenum mode,
+                                  const GLsizei *count, GLenum type,
+                                  const GLvoid **indices, GLsizei primcount,
+                                  const GLint *basevertex);
+
+
+void GLAPIENTRY
+_mesa_MultiModeDrawArraysIBM(const GLenum * mode, const GLint * first,
+                             const GLsizei * count,
+                             GLsizei primcount, GLint modestride);
+
+
+void GLAPIENTRY
+_mesa_MultiModeDrawElementsIBM(const GLenum * mode, const GLsizei * count,
+                               GLenum type, const GLvoid * const * indices,
+                               GLsizei primcount, GLint modestride);
+
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
