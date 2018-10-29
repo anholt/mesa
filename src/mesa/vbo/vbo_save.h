@@ -137,7 +137,6 @@ _vbo_save_get_vertex_count(const struct vbo_save_vertex_list *node)
 #define VBO_SAVE_BUFFER_SIZE (256*1024) /* dwords */
 #define VBO_SAVE_PRIM_SIZE   128
 #define VBO_SAVE_PRIM_MODE_MASK         0x3f
-#define VBO_SAVE_PRIM_WEAK              0x40
 #define VBO_SAVE_PRIM_NO_CURRENT_UPDATE 0x80
 
 struct vbo_save_vertex_store {
