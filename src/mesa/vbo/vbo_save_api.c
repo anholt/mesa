@@ -1296,7 +1296,7 @@ static void GLAPIENTRY
 _save_OBE_Rectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
    GET_CURRENT_CONTEXT(ctx);
-   vbo_save_NotifyBegin(ctx, GL_QUADS | VBO_SAVE_PRIM_WEAK);
+   vbo_save_NotifyBegin(ctx, GL_QUADS);
    CALL_Vertex2f(GET_DISPATCH(), (x1, y1));
    CALL_Vertex2f(GET_DISPATCH(), (x2, y1));
    CALL_Vertex2f(GET_DISPATCH(), (x2, y2));
@@ -1329,8 +1329,7 @@ _save_OBE_DrawArrays(GLenum mode, GLint start, GLsizei count)
 
    _ae_map_vbos(ctx);
 
-   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_WEAK
-                              | VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
+   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
 
    for (i = 0; i < count; i++)
       CALL_ArrayElement(GET_DISPATCH(), (start + i));
@@ -1413,8 +1412,7 @@ _save_OBE_DrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type,
       indices =
          ADD_POINTERS(indexbuf->Mappings[MAP_INTERNAL].Pointer, indices);
 
-   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_WEAK |
-                              VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
+   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
 
    switch (type) {
    case GL_UNSIGNED_BYTE:
