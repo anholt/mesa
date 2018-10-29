@@ -720,7 +720,6 @@ wrap_buffers(struct gl_context *ctx)
    struct vbo_save_context *save = &vbo_context(ctx)->save;
    GLint i = save->prim_count - 1;
    GLenum mode;
-   GLboolean weak;
    GLboolean no_current_update;
 
    assert(i < (GLint) save->prim_max);
@@ -730,7 +729,6 @@ wrap_buffers(struct gl_context *ctx)
     */
    save->prims[i].count = (save->vert_count - save->prims[i].start);
    mode = save->prims[i].mode;
-   weak = save->prims[i].weak;
    no_current_update = save->prims[i].no_current_update;
 
    /* store the copied vertices, and allocate a new list.
@@ -740,7 +738,6 @@ wrap_buffers(struct gl_context *ctx)
    /* Restart interrupted primitive
     */
    save->prims[0].mode = mode;
-   save->prims[0].weak = weak;
    save->prims[0].no_current_update = no_current_update;
    save->prims[0].begin = 0;
    save->prims[0].end = 0;
@@ -1208,7 +1205,6 @@ vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode)
    save->prims[i].mode = mode & VBO_SAVE_PRIM_MODE_MASK;
    save->prims[i].begin = 1;
    save->prims[i].end = 0;
-   save->prims[i].weak = (mode & VBO_SAVE_PRIM_WEAK) ? 1 : 0;
    save->prims[i].no_current_update =
       (mode & VBO_SAVE_PRIM_NO_CURRENT_UPDATE) ? 1 : 0;
    save->prims[i].pad = 0;
@@ -1844,10 +1840,9 @@ vbo_print_vertex_list(struct gl_context *ctx, void *data, FILE *f)
 
    for (i = 0; i < node->prim_count; i++) {
       struct _mesa_prim *prim = &node->prims[i];
-      fprintf(f, "   prim %d: %s%s %d..%d %s %s\n",
+      fprintf(f, "   prim %d: %s %d..%d %s %s\n",
              i,
              _mesa_lookup_prim_by_nr(prim->mode),
-             prim->weak ? " (weak)" : "",
              prim->start,
              prim->start + prim->count,
              (prim->begin) ? "BEGIN" : "(wrap)",

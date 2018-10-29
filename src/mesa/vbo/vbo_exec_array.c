@@ -811,7 +811,6 @@ vbo_validated_drawrangeelements(struct gl_context *ctx, GLenum mode,
 
    prim.begin = 1;
    prim.end = 1;
-   prim.weak = 0;
    prim.pad = 0;
    prim.mode = mode;
    prim.start = 0;
@@ -1285,7 +1284,6 @@ vbo_validated_multidrawelements(struct gl_context *ctx, GLenum mode,
       for (i = 0; i < primcount; i++) {
          prim[i].begin = (i == 0);
          prim[i].end = (i == primcount - 1);
-         prim[i].weak = 0;
          prim[i].pad = 0;
          prim[i].mode = mode;
          prim[i].start =
@@ -1317,7 +1315,6 @@ vbo_validated_multidrawelements(struct gl_context *ctx, GLenum mode,
 
          prim[0].begin = 1;
          prim[0].end = 1;
-         prim[0].weak = 0;
          prim[0].pad = 0;
          prim[0].mode = mode;
          prim[0].start = 0;
