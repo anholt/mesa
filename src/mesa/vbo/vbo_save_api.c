@@ -1804,12 +1804,8 @@ vbo_save_EndCallList(struct gl_context *ctx)
 {
    struct vbo_save_context *save = &vbo_context(ctx)->save;
 
-   if (ctx->ListState.CallDepth == 1) {
-      /* This is correct: want to keep only the VBO_SAVE_FALLBACK
-       * flag, if it is set:
-       */
-      save->replay_flags &= VBO_SAVE_FALLBACK;
-   }
+   if (ctx->ListState.CallDepth == 1)
+      save->replay_flags = 0;
 }
 
 
