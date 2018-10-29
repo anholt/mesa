@@ -1193,7 +1193,8 @@ _save_CallLists(GLsizei n, GLenum type, const GLvoid * v)
  * Updating of ctx->Driver.CurrentSavePrimitive is already taken care of.
  */
 void
-vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode)
+vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode,
+                     bool no_current_update)
 {
    struct vbo_save_context *save = &vbo_context(ctx)->save;
    const GLuint i = save->prim_count++;
@@ -1209,8 +1210,7 @@ vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode)
    save->prims[i].base_instance = 0;
    save->prims[i].is_indirect = 0;
 
-   save->no_current_update =
-      (mode & VBO_SAVE_PRIM_NO_CURRENT_UPDATE) ? 1 : 0;
+   save->no_current_update = no_current_update;
 
    if (save->out_of_memory) {
       _mesa_install_save_vtxfmt(ctx, &save->vtxfmt_noop);
@@ -1280,7 +1280,7 @@ _save_PrimitiveRestartNV(void)
 
       /* restart primitive */
       CALL_End(GET_DISPATCH(), ());
-      vbo_save_NotifyBegin(ctx, curPrim);
+      vbo_save_NotifyBegin(ctx, curPrim, false);
    }
 }
 
@@ -1294,7 +1294,7 @@ static void GLAPIENTRY
 _save_OBE_Rectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
    GET_CURRENT_CONTEXT(ctx);
-   vbo_save_NotifyBegin(ctx, GL_QUADS);
+   vbo_save_NotifyBegin(ctx, GL_QUADS, false);
    CALL_Vertex2f(GET_DISPATCH(), (x1, y1));
    CALL_Vertex2f(GET_DISPATCH(), (x2, y1));
    CALL_Vertex2f(GET_DISPATCH(), (x2, y2));
@@ -1327,7 +1327,7 @@ _save_OBE_DrawArrays(GLenum mode, GLint start, GLsizei count)
 
    _ae_map_vbos(ctx);
 
-   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
+   vbo_save_NotifyBegin(ctx, mode, true);
 
    for (i = 0; i < count; i++)
       CALL_ArrayElement(GET_DISPATCH(), (start + i));
@@ -1410,7 +1410,7 @@ _save_OBE_DrawElementsBaseVertex(GLenum mode, GLsizei count, GLenum type,
       indices =
          ADD_POINTERS(indexbuf->Mappings[MAP_INTERNAL].Pointer, indices);
 
-   vbo_save_NotifyBegin(ctx, (mode | VBO_SAVE_PRIM_NO_CURRENT_UPDATE));
+   vbo_save_NotifyBegin(ctx, mode, true);
 
    switch (type) {
    case GL_UNSIGNED_BYTE:

@@ -100,7 +100,8 @@ void
 vbo_save_SaveFlushVertices(struct gl_context *ctx);
 
 void
-vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode);
+vbo_save_NotifyBegin(struct gl_context *ctx, GLenum mode,
+                     bool no_current_update);
 
 void
 vbo_save_NewList(struct gl_context *ctx, GLuint list, GLenum mode);
