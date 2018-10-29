@@ -1591,7 +1591,7 @@ calculate_gs_ring_sizes(struct radv_pipeline *pipeline, const struct radv_gs_sta
 	unsigned esgs_ring_size = max_gs_waves * 2 * wave_size *
 		gs->vgt_esgs_ring_itemsize * 4 * gs_info->gs.vertices_in;
 	unsigned gsvs_ring_size = max_gs_waves * 2 * wave_size *
-		gs_info->gs.max_gsvs_emit_size * 1; // no streams in VK (gs->max_gs_stream + 1);
+		gs_info->gs.max_gsvs_emit_size;
 
 	min_esgs_ring_size = align(min_esgs_ring_size, alignment);
 	esgs_ring_size = align(esgs_ring_size, alignment);
