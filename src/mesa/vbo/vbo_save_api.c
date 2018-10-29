@@ -1277,10 +1277,11 @@ _save_PrimitiveRestartNV(void)
    } else {
       /* get current primitive mode */
       GLenum curPrim = save->prims[save->prim_count - 1].mode;
+      bool no_current_update = save->no_current_update;
 
       /* restart primitive */
       CALL_End(GET_DISPATCH(), ());
-      vbo_save_NotifyBegin(ctx, curPrim, false);
+      vbo_save_NotifyBegin(ctx, curPrim, no_current_update);
    }
 }
 
