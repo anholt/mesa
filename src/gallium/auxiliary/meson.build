@@ -126,8 +126,6 @@ files_libgallium = files(
   'os/os_memory_debug.h',
   'os/os_memory_stdc.h',
   'os/os_memory.h',
-  'os/os_misc.c',
-  'os/os_misc.h',
   'os/os_mman.h',
   'os/os_process.c',
   'os/os_process.h',

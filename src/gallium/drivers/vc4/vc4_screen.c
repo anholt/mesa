@@ -22,7 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "os/os_misc.h"
+#include "util/os_misc.h"
 #include "pipe/p_defines.h"
 #include "pipe/p_screen.h"
 #include "pipe/p_state.h"

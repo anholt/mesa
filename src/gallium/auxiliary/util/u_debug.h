@@ -39,7 +39,7 @@
 #define U_DEBUG_H_
 
 
-#include "os/os_misc.h"
+#include "util/os_misc.h"
 
 #if defined(PIPE_OS_HAIKU)
 /* Haiku provides debug_printf in libroot with OS.h */

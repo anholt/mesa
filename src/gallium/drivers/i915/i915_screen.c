@@ -27,7 +27,7 @@
 
 
 #include "draw/draw_context.h"
-#include "os/os_misc.h"
+#include "util/os_misc.h"
 #include "util/u_format.h"
 #include "util/u_format_s3tc.h"
 #include "util/u_inlines.h"
