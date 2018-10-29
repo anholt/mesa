@@ -227,7 +227,7 @@ _vbo_loopback_vertex_list(struct gl_context *ctx,
    const struct _mesa_prim *prims = node->prims;
    const GLuint prim_count = node->prim_count;
    for (GLuint i = 0; i < prim_count; i++) {
-      if ((prims[i].mode & VBO_SAVE_PRIM_WEAK) && _mesa_inside_begin_end(ctx)) {
+      if ((0) && _mesa_inside_begin_end(ctx)) {
          loopback_weak_prim(ctx, &prims[i]);
       } else {
          loopback_prim(ctx, buffer, &prims[i], wrap_count, stride, la, nr);
