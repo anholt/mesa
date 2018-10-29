@@ -2782,6 +2782,15 @@ radv_pipeline_generate_multisample_state(struct radeon_cmdbuf *cs,
 
 	radeon_set_context_reg(cs, R_028804_DB_EQAA, ms->db_eqaa);
 	radeon_set_context_reg(cs, R_028A4C_PA_SC_MODE_CNTL_1, ms->pa_sc_mode_cntl_1);
+
+	/* The exclusion bits can be set to improve rasterization efficiency
+	 * if no sample lies on the pixel boundary (-8 sample offset). It's
+	 * currently always TRUE because the driver doesn't support 16 samples.
+	 */
+	bool exclusion = pipeline->device->physical_device->rad_info.chip_class >= CIK;
+	radeon_set_context_reg(cs, R_02882C_PA_SU_PRIM_FILTER_CNTL,
+			       S_02882C_XMAX_RIGHT_EXCLUSION(exclusion) |
+			       S_02882C_YMAX_BOTTOM_EXCLUSION(exclusion));
 }
 
 static void
