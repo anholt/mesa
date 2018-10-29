@@ -46,9 +46,8 @@ struct _mesa_prim
    GLuint indexed:1;
    GLuint begin:1;
    GLuint end:1;
-   GLuint no_current_update:1;
    GLuint is_indirect:1;
-   GLuint pad:19;
+   GLuint pad:20;
 
    GLuint start;
    GLuint count;
