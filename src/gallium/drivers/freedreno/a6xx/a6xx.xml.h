@@ -8,17 +8,17 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /work/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-10 14:59:32)
-- /work/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-10 14:59:32)
-- /work/envytools/rnndb/adreno/a2xx.xml          (  37936 bytes, from 2018-10-08 20:10:47)
-- /work/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-10-08 20:10:47)
-- /work/envytools/rnndb/adreno/adreno_pm4.xml    (  42864 bytes, from 2018-10-08 20:14:26)
-- /work/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-10 14:59:32)
-- /work/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-10 14:59:32)
-- /work/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-09-28 22:41:49)
-- /work/envytools/rnndb/adreno/a6xx.xml          ( 140642 bytes, from 2018-10-12 21:46:25)
-- /work/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-28 22:41:49)
-- /work/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-10 14:59:32)
+- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  37936 bytes, from 2018-10-08 11:43:51)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-10-08 11:43:51)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-10-29 18:02:00)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-10-29 18:01:45)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-10-29 18:02:00)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
 Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
@@ -3472,6 +3472,7 @@ static inline uint32_t A6XX_RB_BLEND_CNTL_ENABLE_BLEND(uint32_t val)
 	return ((val) << A6XX_RB_BLEND_CNTL_ENABLE_BLEND__SHIFT) & A6XX_RB_BLEND_CNTL_ENABLE_BLEND__MASK;
 }
 #define A6XX_RB_BLEND_CNTL_INDEPENDENT_BLEND			0x00000100
+#define A6XX_RB_BLEND_CNTL_ALPHA_TO_COVERAGE			0x00000400
 #define A6XX_RB_BLEND_CNTL_SAMPLE_MASK__MASK			0xffff0000
 #define A6XX_RB_BLEND_CNTL_SAMPLE_MASK__SHIFT			16
 static inline uint32_t A6XX_RB_BLEND_CNTL_SAMPLE_MASK(uint32_t val)
@@ -3704,6 +3705,14 @@ static inline uint32_t A6XX_RB_BLIT_SCISSOR_BR_Y(uint32_t val)
 	return ((val) << A6XX_RB_BLIT_SCISSOR_BR_Y__SHIFT) & A6XX_RB_BLIT_SCISSOR_BR_Y__MASK;
 }
 
+#define REG_A6XX_RB_MSAA_CNTL					0x000088d5
+#define A6XX_RB_MSAA_CNTL_SAMPLES__MASK				0x00000018
+#define A6XX_RB_MSAA_CNTL_SAMPLES__SHIFT			3
+static inline uint32_t A6XX_RB_MSAA_CNTL_SAMPLES(enum a3xx_msaa_samples val)
+{
+	return ((val) << A6XX_RB_MSAA_CNTL_SAMPLES__SHIFT) & A6XX_RB_MSAA_CNTL_SAMPLES__MASK;
+}
+
 #define REG_A6XX_RB_BLIT_BASE_GMEM				0x000088d6
 
 #define REG_A6XX_RB_BLIT_DST_INFO				0x000088d7
@@ -3714,6 +3723,12 @@ static inline uint32_t A6XX_RB_BLIT_DST_INFO_TILE_MODE(enum a6xx_tile_mode val)
 	return ((val) << A6XX_RB_BLIT_DST_INFO_TILE_MODE__SHIFT) & A6XX_RB_BLIT_DST_INFO_TILE_MODE__MASK;
 }
 #define A6XX_RB_BLIT_DST_INFO_FLAGS				0x00000004
+#define A6XX_RB_BLIT_DST_INFO_SAMPLES__MASK			0x00000018
+#define A6XX_RB_BLIT_DST_INFO_SAMPLES__SHIFT			3
+static inline uint32_t A6XX_RB_BLIT_DST_INFO_SAMPLES(enum a3xx_msaa_samples val)
+{
+	return ((val) << A6XX_RB_BLIT_DST_INFO_SAMPLES__SHIFT) & A6XX_RB_BLIT_DST_INFO_SAMPLES__MASK;
+}
 #define A6XX_RB_BLIT_DST_INFO_COLOR_FORMAT__MASK		0x00007f80
 #define A6XX_RB_BLIT_DST_INFO_COLOR_FORMAT__SHIFT		7
 static inline uint32_t A6XX_RB_BLIT_DST_INFO_COLOR_FORMAT(enum a6xx_color_fmt val)
@@ -4505,6 +4520,7 @@ static inline uint32_t A6XX_SP_FS_CTRL_REG0_THREADSIZE(enum a3xx_threadsize val)
 #define REG_A6XX_SP_BLEND_CNTL					0x0000a989
 #define A6XX_SP_BLEND_CNTL_ENABLED				0x00000001
 #define A6XX_SP_BLEND_CNTL_UNK8					0x00000100
+#define A6XX_SP_BLEND_CNTL_ALPHA_TO_COVERAGE			0x00000400
 
 #define REG_A6XX_SP_SRGB_CNTL					0x0000a98a
 #define A6XX_SP_SRGB_CNTL_SRGB_MRT0				0x00000001
@@ -5103,6 +5119,12 @@ static inline uint32_t A6XX_TEX_CONST_0_SWIZ_W(enum a6xx_tex_swiz val)
 static inline uint32_t A6XX_TEX_CONST_0_MIPLVLS(uint32_t val)
 {
 	return ((val) << A6XX_TEX_CONST_0_MIPLVLS__SHIFT) & A6XX_TEX_CONST_0_MIPLVLS__MASK;
+}
+#define A6XX_TEX_CONST_0_SAMPLES__MASK				0x00300000
+#define A6XX_TEX_CONST_0_SAMPLES__SHIFT				20
+static inline uint32_t A6XX_TEX_CONST_0_SAMPLES(enum a3xx_msaa_samples val)
+{
+	return ((val) << A6XX_TEX_CONST_0_SAMPLES__SHIFT) & A6XX_TEX_CONST_0_SAMPLES__MASK;
 }
 #define A6XX_TEX_CONST_0_FMT__MASK				0x3fc00000
 #define A6XX_TEX_CONST_0_FMT__SHIFT				22
