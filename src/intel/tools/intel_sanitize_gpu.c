@@ -226,8 +226,10 @@ create_with_padding(int fd, struct drm_i915_gem_create *create)
    };
 
    ret = libc_ioctl(fd, DRM_IOCTL_I915_GEM_MMAP, &mmap_arg);
-   if (ret != 0)
+   if (ret != 0) {
+      intel_logd("Unable to map buffer %d for pad creation.\n", create->handle);
       return 0;
+   }
 
    noise_values = (uint8_t*) (uintptr_t) mmap_arg.addr_ptr;
    fill_noise_buffer(noise_values, create->handle & 0xFF,
