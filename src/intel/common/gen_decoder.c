@@ -163,11 +163,16 @@ create_group(struct parser_context *ctx,
    group->spec = ctx->spec;
    group->variable = false;
    group->fixed_length = fixed_length;
+   group->dword_length_field = NULL;
+   group->dw_length = 0;
+   group->bias = 1;
 
    for (int i = 0; atts[i]; i += 2) {
       char *p;
       if (strcmp(atts[i], "length") == 0) {
          group->dw_length = strtoul(atts[i + 1], &p, 0);
+      } else if (strcmp(atts[i], "bias") == 0) {
+         group->bias = strtoul(atts[i + 1], &p, 0);
       }
    }
 
@@ -288,15 +293,18 @@ create_field(struct parser_context *ctx, const char **atts)
    for (int i = 0; atts[i]; i += 2) {
       char *p;
 
-      if (strcmp(atts[i], "name") == 0)
+      if (strcmp(atts[i], "name") == 0) {
          field->name = ralloc_strdup(field, atts[i + 1]);
-      else if (strcmp(atts[i], "start") == 0)
+         if (strcmp(field->name, "DWord Length") == 0) {
+            field->parent->dword_length_field = field;
+         }
+      } else if (strcmp(atts[i], "start") == 0) {
          field->start = strtoul(atts[i + 1], &p, 0);
-      else if (strcmp(atts[i], "end") == 0) {
+      } else if (strcmp(atts[i], "end") == 0) {
          field->end = strtoul(atts[i + 1], &p, 0);
-      } else if (strcmp(atts[i], "type") == 0)
+      } else if (strcmp(atts[i], "type") == 0) {
          field->type = string_to_type(ctx, atts[i + 1]);
-      else if (strcmp(atts[i], "default") == 0 &&
+      } else if (strcmp(atts[i], "default") == 0 &&
                field->start >= 16 && field->end <= 31) {
          field->has_default = true;
          field->default_value = strtoul(atts[i + 1], &p, 0);
@@ -741,8 +749,16 @@ gen_group_find_field(struct gen_group *group, const char *name)
 int
 gen_group_get_length(struct gen_group *group, const uint32_t *p)
 {
-   if (group && group->fixed_length)
-      return group->dw_length;
+   if (group) {
+      if (group->fixed_length)
+         return group->dw_length;
+      else {
+         struct gen_field *field = group->dword_length_field;
+         if (field) {
+            return field_value(p[0], field->start, field->end) + group->bias;
+         }
+      }
+   }
 
    uint32_t h = p[0];
    uint32_t type = field_value(h, 29, 31);
