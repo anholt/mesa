@@ -376,7 +376,7 @@ handle_3dstate_vertex_buffers(struct aub_viewer_decode_ctx *ctx,
          if (!ready)
             continue;
 
-         ImGui::Text("vertex buffer %d, size %d", index, vb_size);
+         ImGui::Text("vertex buffer %d, size %d, pitch %d", index, vb_size, pitch);
 
          if (vb.map == NULL) {
             ImGui::TextColored(ctx->cfg->missing_color,
