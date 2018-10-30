@@ -292,14 +292,13 @@ update_vsc_pipe(struct fd_batch *batch)
 	struct fd6_context *fd6_ctx = fd6_context(ctx);
 	struct fd_gmem_stateobj *gmem = &ctx->gmem;
 	struct fd_ringbuffer *ring = batch->gmem;
-	unsigned n = gmem->nbins_x * gmem->nbins_y;
 	int i;
 
 	OUT_PKT4(ring, REG_A6XX_VSC_BIN_SIZE, 3);
 	OUT_RING(ring, A6XX_VSC_BIN_SIZE_WIDTH(gmem->bin_w) |
 			A6XX_VSC_BIN_SIZE_HEIGHT(gmem->bin_h));
 	OUT_RELOCW(ring, fd6_ctx->vsc_data,
-			n * A6XX_VSC_DATA_PITCH, 0, 0); /* VSC_SIZE_ADDRESS_LO/HI */
+			32 * A6XX_VSC_DATA_PITCH, 0, 0); /* VSC_SIZE_ADDRESS_LO/HI */
 
 	OUT_PKT4(ring, REG_A6XX_VSC_BIN_COUNT, 1);
 	OUT_RING(ring, A6XX_VSC_BIN_COUNT_NX(gmem->nbins_x) |
@@ -552,9 +551,7 @@ fd6_emit_tile_prep(struct fd_batch *batch, struct fd_tile *tile)
 	OUT_RING(ring, A6XX_VPC_SO_OVERRIDE_SO_DISABLE);
 
 	if (use_hw_binning(batch)) {
-		struct fd_gmem_stateobj *gmem = &ctx->gmem;
 		struct fd_vsc_pipe *pipe = &ctx->vsc_pipe[tile->p];
-		unsigned n = gmem->nbins_x * gmem->nbins_y;
 
 		OUT_PKT7(ring, CP_WAIT_FOR_ME, 0);
 
@@ -570,7 +567,7 @@ fd6_emit_tile_prep(struct fd_batch *batch, struct fd_tile *tile)
 		OUT_RELOC(ring, fd6_ctx->vsc_data,       /* VSC_PIPE[p].DATA_ADDRESS */
 				(tile->p * A6XX_VSC_DATA_PITCH), 0, 0);
 		OUT_RELOC(ring, fd6_ctx->vsc_data,       /* VSC_SIZE_ADDRESS + (p * 4) */
-				(tile->p * 4) + (n * A6XX_VSC_DATA_PITCH), 0, 0);
+				(tile->p * 4) + (32 * A6XX_VSC_DATA_PITCH), 0, 0);
 		OUT_RELOC(ring, fd6_ctx->vsc_data2,
 				(tile->p * A6XX_VSC_DATA2_PITCH), 0, 0);
 	} else {
