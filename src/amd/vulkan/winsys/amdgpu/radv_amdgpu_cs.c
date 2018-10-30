@@ -1094,9 +1094,10 @@ static int radv_amdgpu_winsys_cs_submit_sysmem(struct radeon_winsys_ctx *_ctx,
 
 		for (unsigned j = 0; j < number_of_ibs; j++) {
 			ws->buffer_destroy(bos[j]);
-			if (r)
-				return r;
 		}
+
+		if (r)
+			return r;
 
 		i += cnt;
 	}
