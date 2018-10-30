@@ -896,6 +896,8 @@ ntq_emit_alu(struct v3d_compile *c, nir_alu_instr *instr)
 #define TLB_TYPE_DEPTH             ((2 << 6) | (0 << 4))
 #define TLB_DEPTH_TYPE_INVARIANT   (0 << 2) /* Unmodified sideband input used */
 #define TLB_DEPTH_TYPE_PER_PIXEL   (1 << 2) /* QPU result used */
+#define TLB_V42_DEPTH_TYPE_INVARIANT   (0 << 3) /* Unmodified sideband input used */
+#define TLB_V42_DEPTH_TYPE_PER_PIXEL   (1 << 3) /* QPU result used */
 
 /* Stencil is a single 32-bit write. */
 #define TLB_TYPE_STENCIL_ALPHA     ((2 << 6) | (1 << 4))
@@ -929,12 +931,16 @@ emit_frag_end(struct v3d_compile *c)
                 struct qinst *inst = vir_MOV_dest(c,
                                                   vir_reg(QFILE_TLBU, 0),
                                                   c->outputs[c->output_position_index]);
+                uint8_t tlb_specifier = TLB_TYPE_DEPTH;
+
+                if (c->devinfo->ver >= 42) {
+                        tlb_specifier |= (TLB_V42_DEPTH_TYPE_PER_PIXEL |
+                                          TLB_SAMPLE_MODE_PER_PIXEL);
+                } else
+                        tlb_specifier |= TLB_DEPTH_TYPE_PER_PIXEL;
 
                 inst->src[vir_get_implicit_uniform_src(inst)] =
-                        vir_uniform_ui(c,
-                                       TLB_TYPE_DEPTH |
-                                       TLB_DEPTH_TYPE_PER_PIXEL |
-                                       0xffffff00);
+                        vir_uniform_ui(c, tlb_specifier | 0xffffff00);
         } else if (c->s->info.fs.uses_discard ||
                    c->fs_key->sample_alpha_to_coverage ||
                    !has_any_tlb_color_write) {
@@ -951,12 +957,20 @@ emit_frag_end(struct v3d_compile *c)
                 struct qinst *inst = vir_MOV_dest(c,
                                                   vir_reg(QFILE_TLBU, 0),
                                                   vir_reg(QFILE_NULL, 0));
+                uint8_t tlb_specifier = TLB_TYPE_DEPTH;
+
+                if (c->devinfo->ver >= 42) {
+                        /* The spec says the PER_PIXEL flag is ignored for
+                         * invariant writes, but the simulator demands it.
+                         */
+                        tlb_specifier |= (TLB_V42_DEPTH_TYPE_INVARIANT |
+                                          TLB_SAMPLE_MODE_PER_PIXEL);
+                } else {
+                        tlb_specifier |= TLB_DEPTH_TYPE_INVARIANT;
+                }
 
                 inst->src[vir_get_implicit_uniform_src(inst)] =
-                        vir_uniform_ui(c,
-                                       TLB_TYPE_DEPTH |
-                                       TLB_DEPTH_TYPE_INVARIANT |
-                                       0xffffff00);
+                        vir_uniform_ui(c, tlb_specifier | 0xffffff00);
         }
 
         /* XXX: Performance improvement: Merge Z write and color writes TLB
