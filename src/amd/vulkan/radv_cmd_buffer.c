@@ -4732,8 +4732,8 @@ static void radv_flush_vgt_streamout(struct radv_cmd_buffer *cmd_buffer)
 
 void radv_CmdBeginTransformFeedbackEXT(
     VkCommandBuffer                             commandBuffer,
-    uint32_t                                    firstBuffer,
-    uint32_t                                    bufferCount,
+    uint32_t                                    firstCounterBuffer,
+    uint32_t                                    counterBufferCount,
     const VkBuffer*                             pCounterBuffers,
     const VkDeviceSize*                         pCounterBufferOffsets)
 {
@@ -4744,8 +4744,8 @@ void radv_CmdBeginTransformFeedbackEXT(
 
 	radv_flush_vgt_streamout(cmd_buffer);
 
-	assert(firstBuffer + bufferCount <= MAX_SO_BUFFERS);
-	for (uint32_t i = firstBuffer; i < bufferCount; i++) {
+	assert(firstCounterBuffer + counterBufferCount <= MAX_SO_BUFFERS);
+	for (uint32_t i = firstCounterBuffer; i < counterBufferCount; i++) {
 		if (!(so->enabled_mask & (1 << i)))
 			continue;
 
@@ -4793,8 +4793,8 @@ void radv_CmdBeginTransformFeedbackEXT(
 
 void radv_CmdEndTransformFeedbackEXT(
     VkCommandBuffer                             commandBuffer,
-    uint32_t                                    firstBuffer,
-    uint32_t                                    bufferCount,
+    uint32_t                                    firstCounterBuffer,
+    uint32_t                                    counterBufferCount,
     const VkBuffer*                             pCounterBuffers,
     const VkDeviceSize*                         pCounterBufferOffsets)
 {
@@ -4804,8 +4804,8 @@ void radv_CmdEndTransformFeedbackEXT(
 
 	radv_flush_vgt_streamout(cmd_buffer);
 
-	assert(firstBuffer + bufferCount <= MAX_SO_BUFFERS);
-	for (uint32_t i = firstBuffer; i < bufferCount; i++) {
+	assert(firstCounterBuffer + counterBufferCount <= MAX_SO_BUFFERS);
+	for (uint32_t i = firstCounterBuffer; i < counterBufferCount; i++) {
 		if (!(so->enabled_mask & (1 << i)))
 			continue;
 
