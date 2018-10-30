@@ -1039,7 +1039,7 @@ void radv_CmdCopyQueryPoolResults(
 
 				/* Waits on the upper word of the last DB entry */
 				radeon_emit(cs, PKT3(PKT3_WAIT_REG_MEM, 5, 0));
-				radeon_emit(cs, 5 | WAIT_REG_MEM_MEM_SPACE(1));
+				radeon_emit(cs, WAIT_REG_MEM_GREATER_OR_EQUAL | WAIT_REG_MEM_MEM_SPACE(1));
 				radeon_emit(cs, src_va);
 				radeon_emit(cs, src_va >> 32);
 				radeon_emit(cs, 0x80000000); /* reference value */

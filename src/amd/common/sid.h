@@ -146,6 +146,7 @@
 #define PKT3_WAIT_REG_MEM                      0x3C
 #define		WAIT_REG_MEM_EQUAL		3
 #define		WAIT_REG_MEM_NOT_EQUAL		4
+#define		WAIT_REG_MEM_GREATER_OR_EQUAL   5
 #define         WAIT_REG_MEM_MEM_SPACE(x)       (((unsigned)(x) & 0x3) << 4)
 #define         WAIT_REG_MEM_PFP		(1 << 8)
 #define PKT3_MEM_WRITE                         0x3D /* not on CIK */
