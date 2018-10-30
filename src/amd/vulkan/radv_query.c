@@ -1050,7 +1050,7 @@ void radv_CmdCopyQueryPoolResults(
 		radv_query_shader(cmd_buffer, &cmd_buffer->device->meta_state.query.occlusion_query_pipeline,
 		                  pool->bo, dst_buffer->bo, firstQuery * pool->stride,
 		                  dst_buffer->offset + dstOffset,
-		                  get_max_db(cmd_buffer->device) * 16, stride,
+		                  pool->stride, stride,
 		                  queryCount, flags, 0, 0);
 		break;
 	case VK_QUERY_TYPE_PIPELINE_STATISTICS:
@@ -1069,7 +1069,7 @@ void radv_CmdCopyQueryPoolResults(
 		radv_query_shader(cmd_buffer, &cmd_buffer->device->meta_state.query.pipeline_statistics_query_pipeline,
 		                  pool->bo, dst_buffer->bo, firstQuery * pool->stride,
 		                  dst_buffer->offset + dstOffset,
-		                  pipelinestat_block_size * 2, stride, queryCount, flags,
+		                  pool->stride, stride, queryCount, flags,
 		                  pool->pipeline_stats_mask,
 		                  pool->availability_offset + 4 * firstQuery);
 		break;
