@@ -840,12 +840,15 @@ static int radv_amdgpu_winsys_cs_submit_chained(struct radeon_winsys_ctx *_ctx,
 	if (bo_list)
 		amdgpu_bo_list_destroy(bo_list);
 
+	if (r)
+		return r;
+
 	if (fence)
 		radv_amdgpu_request_to_fence(ctx, fence, &request);
 
 	radv_assign_last_submit(ctx, &request);
 
-	return r;
+	return 0;
 }
 
 static int radv_amdgpu_winsys_cs_submit_fallback(struct radeon_winsys_ctx *_ctx,
