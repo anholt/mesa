@@ -113,6 +113,7 @@ radv_get_device_name(enum radeon_family family, char *name, size_t name_len)
 	case CHIP_VEGA10: chip_string = "AMD RADV VEGA10"; break;
 	case CHIP_VEGA12: chip_string = "AMD RADV VEGA12"; break;
 	case CHIP_RAVEN: chip_string = "AMD RADV RAVEN"; break;
+	case CHIP_RAVEN2: chip_string = "AMD RADV RAVEN2"; break;
 	default: chip_string = "AMD RADV unknown"; break;
 	}
 
@@ -336,7 +337,8 @@ radv_physical_device_init(struct radv_physical_device *device,
 		device->has_rbplus = true;
 		device->rbplus_allowed = device->rad_info.family == CHIP_STONEY ||
 					 device->rad_info.family == CHIP_VEGA12 ||
-		                         device->rad_info.family == CHIP_RAVEN;
+		                         device->rad_info.family == CHIP_RAVEN ||
+		                         device->rad_info.family == CHIP_RAVEN2;
 	}
 
 	/* The mere presence of CLEAR_STATE in the IB causes random GPU hangs
@@ -1635,11 +1637,13 @@ VkResult radv_CreateDevice(
 
 	device->pbb_allowed = device->physical_device->rad_info.chip_class >= GFX9 &&
 			((device->instance->perftest_flags & RADV_PERFTEST_BINNING) ||
-			 device->physical_device->rad_info.family == CHIP_RAVEN);
+			 device->physical_device->rad_info.family == CHIP_RAVEN ||
+			 device->physical_device->rad_info.family == CHIP_RAVEN2);
 
 	/* Disabled and not implemented for now. */
 	device->dfsm_allowed = device->pbb_allowed &&
-	                       device->physical_device->rad_info.family == CHIP_RAVEN;
+	                       (device->physical_device->rad_info.family == CHIP_RAVEN ||
+	                        device->physical_device->rad_info.family == CHIP_RAVEN2);
 
 #ifdef ANDROID
 	device->always_use_syncobj = device->physical_device->rad_info.has_syncobj_wait_for_submit;

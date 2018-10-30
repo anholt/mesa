@@ -2544,6 +2544,7 @@ radv_pipeline_generate_binning_state(struct radeon_cmdbuf *cs,
 		fpovs_per_batch = 63;
 		break;
 	case CHIP_RAVEN:
+	case CHIP_RAVEN2:
 		context_states_per_bin = 6;
 		persistent_states_per_bin = 32;
 		fpovs_per_batch = 63;

@@ -337,6 +337,7 @@ si_emit_graphics(struct radv_physical_device *physical_device,
 			pc_lines = 4096;
 			break;
 		case CHIP_RAVEN:
+		case CHIP_RAVEN2:
 			pc_lines = 1024;
 			break;
 		default:
