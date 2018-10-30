@@ -1321,7 +1321,7 @@ anv_CreateImageView(VkDevice _device,
    uint32_t iaspect_bit, vplane = 0;
    anv_foreach_image_aspect_bit(iaspect_bit, image, expanded_aspects) {
       uint32_t iplane =
-         anv_image_aspect_to_plane(expanded_aspects, 1UL << iaspect_bit);
+         anv_image_aspect_to_plane(image->aspects, 1UL << iaspect_bit);
       VkImageAspectFlags vplane_aspect =
          anv_plane_to_aspect(iview->aspect_mask, vplane);
       struct anv_format_plane format =
