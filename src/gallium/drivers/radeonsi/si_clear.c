@@ -212,8 +212,8 @@ static bool vi_get_fast_clear_parameters(enum pipe_format base_format,
 	}
 
 	/* This doesn't need ELIMINATE_FAST_CLEAR.
-	 * CB uses both the DCC clear codes and the CB clear color registers,
-	 * so they must match.
+	 * On chips predating Raven2, the DCC clear codes and the CB clear
+	 * color registers must match.
 	 */
 	*eliminate_needed = false;
 
@@ -547,6 +547,12 @@ static void si_do_fast_color_clear(struct si_context *sctx,
 		si_set_optimal_micro_tile_mode(sctx->screen, tex);
 
 		*buffers &= ~clear_bit;
+
+		/* Chips with DCC constant encoding don't need to set the clear
+		 * color registers for DCC clear values 0 and 1.
+		 */
+		if (sctx->screen->has_dcc_constant_encode && !eliminate_needed)
+			continue;
 
 		if (si_set_clear_color(tex, fb->cbufs[i]->format, color)) {
 			sctx->framebuffer.dirty_cbufs |= 1 << i;

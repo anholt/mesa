@@ -1029,6 +1029,7 @@ struct pipe_screen *radeonsi_screen_create(struct radeon_winsys *ws,
 					   sscreen->info.family == CHIP_RAVEN;
 	sscreen->has_ls_vgpr_init_bug = sscreen->info.family == CHIP_VEGA10 ||
 					sscreen->info.family == CHIP_RAVEN;
+	sscreen->has_dcc_constant_encode = sscreen->info.family == CHIP_RAVEN2;
 
 	if (sscreen->debug_flags & DBG(DPBB)) {
 		sscreen->dpbb_allowed = true;
