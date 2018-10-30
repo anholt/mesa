@@ -1,6 +1,7 @@
 libintel_imgui_core = static_library(
   'intel_imgui_core',
   files('imgui.cpp', 'imgui_demo.cpp', 'imgui_draw.cpp'),
+  cpp_args : ['-w'],
   install: false
 )
 
@@ -13,7 +14,7 @@ libintel_imgui_gtk = static_library(
   'intel_imgui_gtk',
   files('imgui_impl_gtk3.cpp', 'imgui_impl_opengl3.cpp'),
   dependencies : libintel_imgui_gtk_deps,
-  cpp_args : ['-Wno-deprecated-declarations', '-Wno-parentheses'],
+  cpp_args : ['-w'],
   install: false
 )
 
