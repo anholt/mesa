@@ -72,6 +72,7 @@ F: src/loader/
 
 EGL
 R: Eric Engestrom <eric@engestrom.ch>
+R: Emil Velikov <emil.l.velikov@gmail.com>
 F: src/egl/
 F: include/EGL/
 
