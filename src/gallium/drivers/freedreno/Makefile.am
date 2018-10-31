@@ -47,7 +47,6 @@ ir3_compiler_LDADD = \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(top_builddir)/src/mesa/libmesagallium.la \
 	$(GALLIUM_COMMON_LIB_DEPS) \
-	$(LIBDRM_LIBS) \
-	$(VALGRIND_LIBS)
+	$(LIBDRM_LIBS)
 
 EXTRA_DIST += meson.build
