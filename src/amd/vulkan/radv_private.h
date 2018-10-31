@@ -595,6 +595,7 @@ struct radv_meta_state {
 		VkPipelineLayout p_layout;
 		VkPipeline occlusion_query_pipeline;
 		VkPipeline pipeline_statistics_query_pipeline;
+		VkPipeline tfb_query_pipeline;
 	} query;
 };
 
