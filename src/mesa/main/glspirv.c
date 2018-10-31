@@ -253,7 +253,6 @@ _mesa_spirv_to_nir(struct gl_context *ctx,
          exec_node_remove(&func->node);
    }
    assert(exec_list_length(&nir->functions) == 1);
-   entry_point->name = ralloc_strdup(entry_point, "main");
 
    /* Split member structs.  We do this before lower_io_to_temporaries so that
     * it doesn't lower system values to temporaries by accident.
