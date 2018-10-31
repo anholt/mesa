@@ -1309,7 +1309,8 @@ void radv_CmdCopyQueryPoolResults(
 				uint64_t avail_va = va + pool->availability_offset + 4 * query;
 
 				/* This waits on the ME. All copies below are done on the ME */
-				si_emit_wait_fence(cs, avail_va, 1, 0xffffffff);
+				radv_cp_wait_mem(cs, WAIT_REG_MEM_EQUAL,
+						 avail_va, 1, 0xffffffff);
 			}
 		}
 		radv_query_shader(cmd_buffer, &cmd_buffer->device->meta_state.query.pipeline_statistics_query_pipeline,

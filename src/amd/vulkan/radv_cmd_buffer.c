@@ -4406,7 +4406,7 @@ radv_barrier(struct radv_cmd_buffer *cmd_buffer,
 
 		MAYBE_UNUSED unsigned cdw_max = radeon_check_space(cmd_buffer->device->ws, cs, 7);
 
-		si_emit_wait_fence(cs, va, 1, 0xffffffff);
+		radv_cp_wait_mem(cs, WAIT_REG_MEM_EQUAL, va, 1, 0xffffffff);
 		assert(cmd_buffer->cs->cdw <= cdw_max);
 	}
 
