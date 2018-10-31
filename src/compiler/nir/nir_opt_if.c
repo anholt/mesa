@@ -444,10 +444,9 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
                          bool is_if_condition)
 {
    bool bool_value;
+   b->cursor = nir_before_src(alu_use, is_if_condition);
    if (!evaluate_if_condition(nif, b->cursor, &bool_value))
       return false;
-
-   b->cursor = nir_before_src(alu_use, is_if_condition);
 
    nir_ssa_def *def[2] = {0};
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
