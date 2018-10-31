@@ -1950,6 +1950,8 @@ radv_flush_streamout_descriptors(struct radv_cmd_buffer *cmd_buffer)
 
 			va = radv_buffer_get_va(buffer->bo) + buffer->offset;
 
+			va += sb[i].offset;
+
 			/* Set the descriptor.
 			 *
 			 * On VI, the format must be non-INVALID, otherwise
@@ -4754,7 +4756,7 @@ void radv_CmdBeginTransformFeedbackEXT(
 		 * SGPRs what to do.
 		 */
 		radeon_set_context_reg_seq(cs, R_028AD0_VGT_STRMOUT_BUFFER_SIZE_0 + 16*i, 2);
-		radeon_emit(cs, (sb[i].offset + sb[i].size) >> 2);	/* BUFFER_SIZE (in DW) */
+		radeon_emit(cs, sb[i].size >> 2);	/* BUFFER_SIZE (in DW) */
 		radeon_emit(cs, so->stride_in_dw[i]);			/* VTX_STRIDE (in DW) */
 
 		if (pCounterBuffers && pCounterBuffers[i]) {
@@ -4783,7 +4785,7 @@ void radv_CmdBeginTransformFeedbackEXT(
 					STRMOUT_OFFSET_SOURCE(STRMOUT_OFFSET_FROM_PACKET)); /* control */
 			radeon_emit(cs, 0); /* unused */
 			radeon_emit(cs, 0); /* unused */
-			radeon_emit(cs, sb[i].offset >> 2); /* buffer offset in DW */
+			radeon_emit(cs, 0); /* unused */
 			radeon_emit(cs, 0); /* unused */
 		}
 	}
