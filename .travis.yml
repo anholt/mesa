@@ -541,7 +541,7 @@ install:
 
   # Install autotools build dependencies
   - if test "x$BUILD" = xmake; then
-      pip3 install --user mako;
+      pip2 install --user mako;
     fi
 
   # Install a more modern scons from pip.
