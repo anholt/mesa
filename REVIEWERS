@@ -138,3 +138,8 @@ F:	src/gallium/drivers/freedreno/
 GLX
 R: Adam Jackson <ajax@redhat.com>
 F: src/glx/
+
+VULKAN
+R: Eric Engestrom <eric@engestrom.ch>
+F: src/vulkan/
+F: include/vulkan/
