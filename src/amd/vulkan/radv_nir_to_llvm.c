@@ -2512,9 +2512,6 @@ radv_emit_stream_output(struct radv_shader_context *ctx,
 	/* Get the first component. */
 	start = ffs(output->component_mask) - 1;
 
-	/* Adjust the destination offset. */
-	offset += start * 4;
-
 	/* Load the output as int. */
 	for (int i = 0; i < num_comps; i++) {
 		out[i] = ac_to_integer(&ctx->ac,
