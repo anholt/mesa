@@ -73,6 +73,7 @@ F: src/loader/
 EGL
 R: Eric Engestrom <eric@engestrom.ch>
 F: src/egl/
+F: include/EGL/
 
 HAIKU
 R: Alexander von Gluck IV <kallisti5@unixzen.com>
