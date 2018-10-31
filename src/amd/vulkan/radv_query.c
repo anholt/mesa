@@ -1284,13 +1284,8 @@ void radv_CmdCopyQueryPoolResults(
 				uint64_t src_va = va + query * pool->stride + pool->stride - 4;
 
 				/* Waits on the upper word of the last DB entry */
-				radeon_emit(cs, PKT3(PKT3_WAIT_REG_MEM, 5, 0));
-				radeon_emit(cs, WAIT_REG_MEM_GREATER_OR_EQUAL | WAIT_REG_MEM_MEM_SPACE(1));
-				radeon_emit(cs, src_va);
-				radeon_emit(cs, src_va >> 32);
-				radeon_emit(cs, 0x80000000); /* reference value */
-				radeon_emit(cs, 0xffffffff); /* mask */
-				radeon_emit(cs, 4); /* poll interval */
+				radv_cp_wait_mem(cs, WAIT_REG_MEM_GREATER_OR_EQUAL,
+						 src_va, 0x80000000, 0xffffffff);
 			}
 		}
 		radv_query_shader(cmd_buffer, &cmd_buffer->device->meta_state.query.occlusion_query_pipeline,
@@ -1329,13 +1324,10 @@ void radv_CmdCopyQueryPoolResults(
 
 
 			if (flags & VK_QUERY_RESULT_WAIT_BIT) {
-				radeon_emit(cs, PKT3(PKT3_WAIT_REG_MEM, 5, false));
-				radeon_emit(cs, WAIT_REG_MEM_NOT_EQUAL | WAIT_REG_MEM_MEM_SPACE(1));
-				radeon_emit(cs, local_src_va);
-				radeon_emit(cs, local_src_va >> 32);
-				radeon_emit(cs, TIMESTAMP_NOT_READY >> 32);
-				radeon_emit(cs, 0xffffffff);
-				radeon_emit(cs, 4);
+				radv_cp_wait_mem(cs, WAIT_REG_MEM_NOT_EQUAL,
+						 local_src_va,
+						 TIMESTAMP_NOT_READY >> 32,
+						 0xffffffff);
 			}
 			if (flags & VK_QUERY_RESULT_WITH_AVAILABILITY_BIT) {
 				uint64_t avail_dest_va = dest_va + elem_size;
@@ -1370,14 +1362,9 @@ void radv_CmdCopyQueryPoolResults(
 
 				/* Wait on the upper word of all results. */
 				for (unsigned j = 0; j < 4; j++, src_va += 8) {
-					radeon_emit(cs, PKT3(PKT3_WAIT_REG_MEM, 5, 0));
-					radeon_emit(cs, WAIT_REG_MEM_GREATER_OR_EQUAL |
-							WAIT_REG_MEM_MEM_SPACE(1));
-					radeon_emit(cs, (src_va + 4));
-					radeon_emit(cs, (src_va + 4) >> 32);
-					radeon_emit(cs, 0x80000000); /* reference value */
-					radeon_emit(cs, 0xffffffff); /* mask */
-					radeon_emit(cs, 4); /* poll interval */
+					radv_cp_wait_mem(cs, WAIT_REG_MEM_GREATER_OR_EQUAL,
+							 src_va + 4, 0x80000000,
+							 0xffffffff);
 				}
 			}
 		}
