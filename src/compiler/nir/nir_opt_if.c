@@ -448,7 +448,7 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
    if (!evaluate_if_condition(nif, b->cursor, &bool_value))
       return false;
 
-   nir_ssa_def *def[2] = {0};
+   nir_ssa_def *def[4] = {0};
    for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
       if (alu->src[i].src.ssa == use_src->ssa) {
          def[i] = nir_imm_bool(b, bool_value);
@@ -456,7 +456,7 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
          def[i] = alu->src[i].src.ssa;
       }
    }
-   nir_ssa_def *nalu = nir_build_alu(b, alu->op, def[0], def[1], NULL, NULL);
+   nir_ssa_def *nalu = nir_build_alu(b, alu->op, def[0], def[1], def[2], def[3]);
 
    /* Rewrite use to use new alu instruction */
    nir_src new_src = nir_src_for_ssa(nalu);
@@ -472,14 +472,21 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
 static bool
 can_propagate_through_alu(nir_src *src)
 {
-   if (src->parent_instr->type == nir_instr_type_alu &&
-       (nir_instr_as_alu(src->parent_instr)->op == nir_op_ior ||
-        nir_instr_as_alu(src->parent_instr)->op == nir_op_iand ||
-        nir_instr_as_alu(src->parent_instr)->op == nir_op_inot ||
-        nir_instr_as_alu(src->parent_instr)->op == nir_op_b2i))
-      return true;
+   if (src->parent_instr->type != nir_instr_type_alu)
+      return false;
 
-   return false;
+   nir_alu_instr *alu = nir_instr_as_alu(src->parent_instr);
+   switch (alu->op) {
+      case nir_op_ior:
+      case nir_op_iand:
+      case nir_op_inot:
+      case nir_op_b2i:
+         return true;
+      case nir_op_bcsel:
+         return src == &alu->src[0].src;
+      default:
+         return false;
+   }
 }
 
 static bool
