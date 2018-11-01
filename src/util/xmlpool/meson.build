@@ -37,4 +37,4 @@ xmlpool_options_h = custom_target(
 )
 
 i18n = import('i18n')
-i18n.gettext('xmlpool')
+i18n.gettext('xmlpool', install : false)
