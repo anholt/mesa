@@ -267,95 +267,6 @@ v3d_simulator_unpin_bos(int fd, struct v3d_job *job)
         return 0;
 }
 
-#if 0
-static void
-v3d_dump_to_file(struct v3d_exec_info *exec)
-{
-        static int dumpno = 0;
-        struct drm_v3d_get_hang_state *state;
-        struct drm_v3d_get_hang_state_bo *bo_state;
-        unsigned int dump_version = 0;
-
-        if (!(v3d_debug & VC5_DEBUG_DUMP))
-                return;
-
-        state = calloc(1, sizeof(*state));
-
-        int unref_count = 0;
-        list_for_each_entry_safe(struct drm_v3d_bo, bo, &exec->unref_list,
-                                 unref_head) {
-                unref_count++;
-        }
-
-        /* Add one more for the overflow area that isn't wrapped in a BO. */
-        state->bo_count = exec->bo_count + unref_count + 1;
-        bo_state = calloc(state->bo_count, sizeof(*bo_state));
-
-        char *filename = NULL;
-        asprintf(&filename, "v3d-dri-%d.dump", dumpno++);
-        FILE *f = fopen(filename, "w+");
-        if (!f) {
-                fprintf(stderr, "Couldn't open %s: %s", filename,
-                        strerror(errno));
-                return;
-        }
-
-        fwrite(&dump_version, sizeof(dump_version), 1, f);
-
-        state->ct0ca = exec->ct0ca;
-        state->ct0ea = exec->ct0ea;
-        state->ct1ca = exec->ct1ca;
-        state->ct1ea = exec->ct1ea;
-        state->start_bin = exec->ct0ca;
-        state->start_render = exec->ct1ca;
-        fwrite(state, sizeof(*state), 1, f);
-
-        int i;
-        for (i = 0; i < exec->bo_count; i++) {
-                struct drm_gem_cma_object *cma_bo = exec->bo[i];
-                bo_state[i].handle = i; /* Not used by the parser. */
-                bo_state[i].paddr = cma_bo->paddr;
-                bo_state[i].size = cma_bo->base.size;
-        }
-
-        list_for_each_entry_safe(struct drm_v3d_bo, bo, &exec->unref_list,
-                                 unref_head) {
-                struct drm_gem_cma_object *cma_bo = &bo->base;
-                bo_state[i].handle = 0;
-                bo_state[i].paddr = cma_bo->paddr;
-                bo_state[i].size = cma_bo->base.size;
-                i++;
-        }
-
-        /* Add the static overflow memory area. */
-        bo_state[i].handle = exec->bo_count;
-        bo_state[i].paddr = sim_state.overflow->ofs;
-        bo_state[i].size = sim_state.overflow->size;
-        i++;
-
-        fwrite(bo_state, sizeof(*bo_state), state->bo_count, f);
-
-        for (int i = 0; i < exec->bo_count; i++) {
-                struct drm_gem_cma_object *cma_bo = exec->bo[i];
-                fwrite(cma_bo->vaddr, cma_bo->base.size, 1, f);
-        }
-
-        list_for_each_entry_safe(struct drm_v3d_bo, bo, &exec->unref_list,
-                                 unref_head) {
-                struct drm_gem_cma_object *cma_bo = &bo->base;
-                fwrite(cma_bo->vaddr, cma_bo->base.size, 1, f);
-        }
-
-        void *overflow = calloc(1, sim_state.overflow->size);
-        fwrite(overflow, 1, sim_state.overflow->size, f);
-        free(overflow);
-
-        free(state);
-        free(bo_state);
-        fclose(f);
-}
-#endif
-
 int
 v3d_simulator_flush(struct v3d_context *v3d,
                     struct drm_v3d_submit_cl *submit, struct v3d_job *job)
@@ -390,8 +301,6 @@ v3d_simulator_flush(struct v3d_context *v3d,
         ret = v3d_simulator_pin_bos(fd, job);
         if (ret)
                 return ret;
-
-        //v3d_dump_to_file(&exec);
 
         if (sim_state.ver >= 41)
                 v3d41_simulator_flush(sim_state.v3d, submit, file->gmp->ofs);
