@@ -245,7 +245,6 @@ all_formats_ccs_e_compatible(const struct gen_device_info *devinfo,
  */
 static void
 add_aux_state_tracking_buffer(struct anv_image *image,
-                              VkImageAspectFlagBits aspect,
                               uint32_t plane,
                               const struct anv_device *device)
 {
@@ -463,7 +462,7 @@ make_surface(const struct anv_device *dev,
             }
 
             add_surface(image, &image->planes[plane].aux_surface, plane);
-            add_aux_state_tracking_buffer(image, aspect, plane, dev);
+            add_aux_state_tracking_buffer(image, plane, dev);
 
             /* For images created without MUTABLE_FORMAT_BIT set, we know that
              * they will always be used with the original format.  In
@@ -487,7 +486,7 @@ make_surface(const struct anv_device *dev,
                                  &image->planes[plane].aux_surface.isl);
       if (ok) {
          add_surface(image, &image->planes[plane].aux_surface, plane);
-         add_aux_state_tracking_buffer(image, aspect, plane, dev);
+         add_aux_state_tracking_buffer(image, plane, dev);
          image->planes[plane].aux_usage = ISL_AUX_USAGE_MCS;
       }
    }
