@@ -448,14 +448,14 @@ gbm_bo_destroy(struct gbm_bo *bo)
  * \param gbm The gbm device returned from gbm_create_device()
  * \param width The width for the buffer
  * \param height The height for the buffer
- * \param format The format to use for the buffer
+ * \param format The format to use for the buffer, from GBM_FORMAT_* or
+ * GBM_BO_FORMAT_* tokens
  * \param usage The union of the usage flags for this buffer
  *
  * \return A newly allocated buffer that should be freed with gbm_bo_destroy()
  * when no longer needed. If an error occurs during allocation %NULL will be
  * returned and errno set.
  *
- * \sa enum gbm_bo_format for the list of formats
  * \sa enum gbm_bo_flags for the list of usage flags
  */
 GBM_EXPORT struct gbm_bo *
