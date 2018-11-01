@@ -104,9 +104,6 @@ struct v3d_simulator_bo {
         uint32_t size;
         void *vaddr;
 
-        void *winsys_map;
-        uint32_t winsys_stride;
-
         int handle;
 };
 
@@ -200,9 +197,6 @@ v3d_free_simulator_bo(struct v3d_simulator_bo *sim_bo)
 {
         struct v3d_simulator_file *sim_file = sim_bo->file;
 
-        if (sim_bo->winsys_map)
-                munmap(sim_bo->winsys_map, sim_bo->size);
-
         set_gmp_flags(sim_file, sim_bo->block->ofs, sim_bo->size, 0x0);
 
         mtx_lock(&sim_state.mutex);
@@ -274,29 +268,7 @@ v3d_simulator_flush(struct v3d_context *v3d,
         struct v3d_screen *screen = v3d->screen;
         int fd = screen->fd;
         struct v3d_simulator_file *file = v3d_get_simulator_file_for_fd(fd);
-        struct v3d_surface *csurf = v3d_surface(v3d->framebuffer.cbufs[0]);
-        struct v3d_resource *ctex = csurf ? v3d_resource(csurf->base.texture) : NULL;
-        struct v3d_simulator_bo *csim_bo = ctex ? v3d_get_simulator_bo(file, ctex->bo->handle) : NULL;
-        uint32_t winsys_stride = ctex ? csim_bo->winsys_stride : 0;
-        uint32_t sim_stride = ctex ? ctex->slices[0].stride : 0;
-        uint32_t row_len = MIN2(sim_stride, winsys_stride);
         int ret;
-
-        if (ctex && csim_bo->winsys_map) {
-#if 0
-                fprintf(stderr, "%dx%d %d %d %d\n",
-                        ctex->base.b.width0, ctex->base.b.height0,
-                        winsys_stride,
-                        sim_stride,
-                        ctex->bo->size);
-#endif
-
-                for (int y = 0; y < ctex->base.height0; y++) {
-                        memcpy(ctex->bo->map + y * sim_stride,
-                               csim_bo->winsys_map + y * winsys_stride,
-                               row_len);
-                }
-        }
 
         ret = v3d_simulator_pin_bos(fd, job);
         if (ret)
@@ -311,46 +283,7 @@ v3d_simulator_flush(struct v3d_context *v3d,
         if (ret)
                 return ret;
 
-        if (ctex && csim_bo->winsys_map) {
-                for (int y = 0; y < ctex->base.height0; y++) {
-                        memcpy(csim_bo->winsys_map + y * winsys_stride,
-                               ctex->bo->map + y * sim_stride,
-                               row_len);
-                }
-        }
-
         return 0;
-}
-
-/**
- * Map the underlying GEM object from the real hardware GEM handle.
- */
-static void *
-v3d_simulator_map_winsys_bo(int fd, struct v3d_simulator_bo *sim_bo)
-{
-        int ret;
-        void *map;
-
-        struct drm_mode_map_dumb map_dumb = {
-                .handle = sim_bo->handle,
-        };
-        ret = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &map_dumb);
-        if (ret != 0) {
-                fprintf(stderr, "map ioctl failure\n");
-                abort();
-        }
-
-        map = mmap(NULL, sim_bo->size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                   fd, map_dumb.offset);
-        if (map == MAP_FAILED) {
-                fprintf(stderr,
-                        "mmap of bo %d (offset 0x%016llx, size %d) failed\n",
-                        sim_bo->handle, (long long)map_dumb.offset,
-                        (int)sim_bo->size);
-                abort();
-        }
-
-        return map;
 }
 
 /**
@@ -360,14 +293,9 @@ v3d_simulator_map_winsys_bo(int fd, struct v3d_simulator_bo *sim_bo)
  * time, but we're still using drmPrimeFDToHandle() so we have this helper to
  * be called afterward instead.
  */
-void v3d_simulator_open_from_handle(int fd, uint32_t winsys_stride,
-                                    int handle, uint32_t size)
+void v3d_simulator_open_from_handle(int fd, int handle, uint32_t size)
 {
-        struct v3d_simulator_bo *sim_bo =
-                v3d_create_simulator_bo(fd, handle, size);
-
-        sim_bo->winsys_stride = winsys_stride;
-        sim_bo->winsys_map = v3d_simulator_map_winsys_bo(fd, sim_bo);
+        v3d_create_simulator_bo(fd, handle, size);
 }
 
 /**

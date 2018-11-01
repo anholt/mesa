@@ -480,8 +480,7 @@ int v3d_simulator_flush(struct v3d_context *v3d,
                         struct drm_v3d_submit_cl *args,
                         struct v3d_job *job);
 int v3d_simulator_ioctl(int fd, unsigned long request, void *arg);
-void v3d_simulator_open_from_handle(int fd, uint32_t winsys_stride,
-                                    int handle, uint32_t size);
+void v3d_simulator_open_from_handle(int fd, int handle, uint32_t size);
 
 static inline int
 v3d_ioctl(int fd, unsigned long request, void *arg)
