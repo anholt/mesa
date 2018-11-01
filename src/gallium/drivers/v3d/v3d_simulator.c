@@ -76,7 +76,7 @@ static struct v3d_simulator_state {
         struct mem_block *heap;
         struct mem_block *overflow;
 
-        /** Mapping from GEM handle to struct v3d_simulator_bo * */
+        /** Mapping from GEM fd to struct v3d_simulator_file * */
         struct hash_table *fd_map;
 
         int refcount;
