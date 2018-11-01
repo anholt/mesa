@@ -614,12 +614,10 @@ vc4_resource_from_handle(struct pipe_screen *pscreen,
 
         switch (whandle->type) {
         case WINSYS_HANDLE_TYPE_SHARED:
-                rsc->bo = vc4_bo_open_name(screen,
-                                           whandle->handle, whandle->stride);
+                rsc->bo = vc4_bo_open_name(screen, whandle->handle);
                 break;
         case WINSYS_HANDLE_TYPE_FD:
-                rsc->bo = vc4_bo_open_dmabuf(screen,
-                                             whandle->handle, whandle->stride);
+                rsc->bo = vc4_bo_open_dmabuf(screen, whandle->handle);
                 break;
         default:
                 fprintf(stderr,
