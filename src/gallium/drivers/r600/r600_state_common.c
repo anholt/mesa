@@ -2917,6 +2917,7 @@ uint32_t r600_translate_texformat(struct pipe_screen *screen,
 			switch (desc->nr_channels) {
 			case 1:
 				result = FMT_8;
+				is_srgb_valid = TRUE;
 				goto out_word4;
 			case 2:
 				result = FMT_8_8;
