@@ -486,7 +486,7 @@ static struct amdgpu_winsys_bo *amdgpu_create_bo(struct amdgpu_winsys *ws,
    else if (initial_domain & RADEON_DOMAIN_GTT)
       ws->allocated_gtt += align64(size, ws->info.gart_page_size);
 
-   amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms_noimport, &bo->u.real.kms_handle);
+   amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms, &bo->u.real.kms_handle);
 
    amdgpu_add_buffer_to_global_list(bo);
 
@@ -1355,7 +1355,7 @@ static struct pb_buffer *amdgpu_bo_from_handle(struct radeon_winsys *rws,
    else if (bo->initial_domain & RADEON_DOMAIN_GTT)
       ws->allocated_gtt += align64(bo->base.size, ws->info.gart_page_size);
 
-   amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms_noimport, &bo->u.real.kms_handle);
+   amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms, &bo->u.real.kms_handle);
 
    amdgpu_add_buffer_to_global_list(bo);
 
@@ -1463,7 +1463,7 @@ static struct pb_buffer *amdgpu_bo_from_ptr(struct radeon_winsys *rws,
 
     amdgpu_add_buffer_to_global_list(bo);
 
-    amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms_noimport, &bo->u.real.kms_handle);
+    amdgpu_bo_export(bo->bo, amdgpu_bo_handle_type_kms, &bo->u.real.kms_handle);
 
     return (struct pb_buffer*)bo;
 
