@@ -222,7 +222,7 @@ v3d_job_set_tile_buffer_size(struct v3d_job *job)
 /**
  * Returns a v3d_job struture for tracking V3D rendering to a particular FBO.
  *
- * If we've already started rendering to this FBO, then return old same job,
+ * If we've already started rendering to this FBO, then return the same job,
  * otherwise make a new one.  If we're beginning rendering to an FBO, make
  * sure that any previous reads of the FBO (or writes to its color/Z surfaces)
  * have been flushed.
