@@ -268,7 +268,7 @@ genX(blorp_exec)(struct blorp_batch *batch,
    assert(batch->blorp->driver_ctx == batch->driver_batch);
    struct brw_context *brw = batch->driver_batch;
    struct gl_context *ctx = &brw->ctx;
-   bool check_aperture_failed_once;
+   bool check_aperture_failed_once = false;
 
 #if GEN_GEN >= 11
    /* The PIPE_CONTROL command description says:
@@ -309,7 +309,6 @@ retry:
    intel_batchbuffer_require_space(brw, 1400);
    brw_require_statebuffer_space(brw, 600);
    intel_batchbuffer_save_state(brw);
-   check_aperture_failed_once = intel_batchbuffer_saved_state_is_empty(brw);
    brw->batch.no_wrap = true;
 
 #if GEN_GEN == 6
