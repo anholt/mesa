@@ -173,10 +173,8 @@ vc4_free_simulator_bo(struct vc4_simulator_bo *sim_bo)
         mtx_lock(&sim_state.mutex);
         u_mmFreeMem(sim_bo->block);
         if (sim_bo->handle) {
-                struct hash_entry *entry =
-                        _mesa_hash_table_search(sim_file->bo_map,
-                                                int_to_key(sim_bo->handle));
-                _mesa_hash_table_remove(sim_file->bo_map, entry);
+                _mesa_hash_table_remove_key(sim_file->bo_map,
+                                            int_to_key(sim_bo->handle));
         }
         mtx_unlock(&sim_state.mutex);
         ralloc_free(sim_bo);
