@@ -2584,28 +2584,6 @@ anv_image_aspect_to_plane(VkImageAspectFlags image_aspects,
    }
 }
 
-static inline uint32_t
-anv_image_aspect_get_planes(VkImageAspectFlags aspect_mask)
-{
-   uint32_t planes = 0;
-
-   if (aspect_mask & (VK_IMAGE_ASPECT_COLOR_BIT |
-                      VK_IMAGE_ASPECT_DEPTH_BIT |
-                      VK_IMAGE_ASPECT_STENCIL_BIT |
-                      VK_IMAGE_ASPECT_PLANE_0_BIT))
-      planes++;
-   if (aspect_mask & VK_IMAGE_ASPECT_PLANE_1_BIT)
-      planes++;
-   if (aspect_mask & VK_IMAGE_ASPECT_PLANE_2_BIT)
-      planes++;
-
-   if ((aspect_mask & VK_IMAGE_ASPECT_DEPTH_BIT) != 0 &&
-       (aspect_mask & VK_IMAGE_ASPECT_STENCIL_BIT) != 0)
-      planes++;
-
-   return planes;
-}
-
 static inline VkImageAspectFlags
 anv_plane_to_aspect(VkImageAspectFlags image_aspects,
                     uint32_t plane)
