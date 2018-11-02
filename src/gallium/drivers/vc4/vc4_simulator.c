@@ -364,12 +364,9 @@ vc4_dump_to_file(struct vc4_exec_info *exec)
         fclose(f);
 }
 
-int
-vc4_simulator_flush(struct vc4_context *vc4,
-                    struct drm_vc4_submit_cl *args, struct vc4_job *job)
+static int
+vc4_simulator_submit_cl_ioctl(int fd, struct drm_vc4_submit_cl *args)
 {
-        struct vc4_screen *screen = vc4->screen;
-        int fd = screen->fd;
         struct vc4_simulator_file *file = vc4_get_simulator_file_for_fd(fd);
         struct vc4_exec_info exec;
         struct drm_device *dev = &file->dev;
@@ -583,6 +580,8 @@ int
 vc4_simulator_ioctl(int fd, unsigned long request, void *args)
 {
         switch (request) {
+        case DRM_IOCTL_VC4_SUBMIT_CL:
+                return vc4_simulator_submit_cl_ioctl(fd, args);
         case DRM_IOCTL_VC4_CREATE_BO:
                 return vc4_simulator_create_bo_ioctl(fd, args);
         case DRM_IOCTL_VC4_CREATE_SHADER_BO:
