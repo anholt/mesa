@@ -373,6 +373,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 	struct si_screen* sscreen = (struct si_screen *)screen;
 	struct radeon_winsys *ws = sscreen->ws;
 	int shader, i;
+	bool stop_exec_on_failure = (flags & PIPE_CONTEXT_LOSE_CONTEXT_ON_RESET) != 0;
 
 	if (!sctx)
 		return NULL;
@@ -450,8 +451,8 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 
 	if (sscreen->info.num_sdma_rings && !(sscreen->debug_flags & DBG(NO_ASYNC_DMA))) {
 		sctx->dma_cs = sctx->ws->cs_create(sctx->ctx, RING_DMA,
-						       (void*)si_flush_dma_cs,
-						       sctx);
+						   (void*)si_flush_dma_cs,
+						   sctx, stop_exec_on_failure);
 	}
 
 	si_init_buffer_functions(sctx);
@@ -472,7 +473,7 @@ static struct pipe_context *si_create_context(struct pipe_screen *screen,
 	}
 
 	sctx->gfx_cs = ws->cs_create(sctx->ctx, RING_GFX,
-				       (void*)si_flush_gfx_cs, sctx);
+				     (void*)si_flush_gfx_cs, sctx, stop_exec_on_failure);
 
 	/* Border colors. */
 	sctx->border_color_table = malloc(SI_MAX_BORDER_COLORS *

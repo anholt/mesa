@@ -923,7 +923,8 @@ amdgpu_cs_create(struct radeon_winsys_ctx *rwctx,
                  enum ring_type ring_type,
                  void (*flush)(void *ctx, unsigned flags,
                                struct pipe_fence_handle **fence),
-                 void *flush_ctx)
+                 void *flush_ctx,
+                 bool stop_exec_on_failure)
 {
    struct amdgpu_ctx *ctx = (struct amdgpu_ctx*)rwctx;
    struct amdgpu_cs *cs;
@@ -939,6 +940,7 @@ amdgpu_cs_create(struct radeon_winsys_ctx *rwctx,
    cs->flush_cs = flush;
    cs->flush_data = flush_ctx;
    cs->ring_type = ring_type;
+   cs->stop_exec_on_failure = stop_exec_on_failure;
 
    struct amdgpu_cs_fence_info fence_info;
    fence_info.handle = cs->ctx->user_fence_bo;
@@ -1395,7 +1397,7 @@ void amdgpu_cs_submit_ib(void *job, int thread_index)
    if (acs->ring_type == RING_GFX)
       ws->gfx_bo_list_counter += cs->num_real_buffers;
 
-   if (acs->ctx->num_rejected_cs) {
+   if (acs->stop_exec_on_failure && acs->ctx->num_rejected_cs) {
       r = -ECANCELED;
    } else {
       struct drm_amdgpu_cs_chunk chunks[6];

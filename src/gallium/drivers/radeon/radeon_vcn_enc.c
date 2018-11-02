@@ -286,7 +286,8 @@ struct pipe_video_codec *radeon_create_encoder(struct pipe_context *context,
 	enc->bits_in_shifter = 0;
 	enc->screen = context->screen;
 	enc->ws = ws;
-	enc->cs = ws->cs_create(sctx->ctx, RING_VCN_ENC, radeon_enc_cs_flush, enc);
+	enc->cs = ws->cs_create(sctx->ctx, RING_VCN_ENC, radeon_enc_cs_flush,
+				enc, false);
 
 	if (!enc->cs) {
 		RVID_ERR("Can't get command submission context.\n");

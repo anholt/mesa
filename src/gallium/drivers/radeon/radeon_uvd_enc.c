@@ -314,7 +314,7 @@ radeon_uvd_create_encoder(struct pipe_context *context,
    enc->screen = context->screen;
    enc->ws = ws;
    enc->cs =
-      ws->cs_create(sctx->ctx, RING_UVD_ENC, radeon_uvd_enc_cs_flush, enc);
+      ws->cs_create(sctx->ctx, RING_UVD_ENC, radeon_uvd_enc_cs_flush, enc, false);
 
    if (!enc->cs) {
       RVID_ERR("Can't get command submission context.\n");

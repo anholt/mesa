@@ -129,6 +129,7 @@ struct amdgpu_cs {
    /* Flush CS. */
    void (*flush_cs)(void *ctx, unsigned flags, struct pipe_fence_handle **fence);
    void *flush_data;
+   bool stop_exec_on_failure;
 
    struct util_queue_fence flush_completed;
    struct pipe_fence_handle *next_fence;
