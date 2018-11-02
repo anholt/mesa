@@ -102,7 +102,8 @@ struct v3d_simulator_bo {
         /** Area for this BO within sim_state->mem */
         struct mem_block *block;
         uint32_t size;
-        void *vaddr;
+        void *sim_vaddr;
+        void *gem_vaddr;
 
         int handle;
 };
@@ -174,10 +175,30 @@ v3d_create_simulator_bo(int fd, int handle, unsigned size)
         set_gmp_flags(file, sim_bo->block->ofs, size, 0x3);
 
         sim_bo->size = size;
-        sim_bo->vaddr = sim_state.mem + sim_bo->block->ofs - sim_state.mem_base;
-        memset(sim_bo->vaddr, 0xd0, size);
 
-        *(uint32_t *)(sim_bo->vaddr + sim_bo->size) = BO_SENTINEL;
+        /* Allocate space for the buffer in simulator memory. */
+        sim_bo->sim_vaddr = sim_state.mem + sim_bo->block->ofs - sim_state.mem_base;
+        memset(sim_bo->sim_vaddr, 0xd0, size);
+
+        *(uint32_t *)(sim_bo->sim_vaddr + sim_bo->size) = BO_SENTINEL;
+
+        /* Map the GEM buffer for copy in/out to the simulator. */
+        struct drm_mode_map_dumb map = {
+                .handle = handle,
+        };
+        int ret = drmIoctl(fd, DRM_IOCTL_MODE_MAP_DUMB, &map);
+        if (ret) {
+                fprintf(stderr, "Failed to get MMAP offset: %d\n", ret);
+                abort();
+        }
+        sim_bo->gem_vaddr = mmap(NULL, sim_bo->size,
+                                 PROT_READ | PROT_WRITE, MAP_SHARED,
+                                 fd, map.offset);
+        if (sim_bo->gem_vaddr == MAP_FAILED) {
+                fprintf(stderr, "mmap of bo %d (offset 0x%016llx, size %d) failed\n",
+                        handle, (long long)map.offset, sim_bo->size);
+                abort();
+        }
 
         /* A handle of 0 is used for v3d_gem.c internal allocations that
          * don't need to go in the lookup table.
@@ -198,6 +219,9 @@ v3d_free_simulator_bo(struct v3d_simulator_bo *sim_bo)
         struct v3d_simulator_file *sim_file = sim_bo->file;
 
         set_gmp_flags(sim_file, sim_bo->block->ofs, sim_bo->size, 0x0);
+
+        if (sim_bo->gem_vaddr)
+                munmap(sim_bo->gem_vaddr, sim_bo->size);
 
         mtx_lock(&sim_state.mutex);
         u_mmFreeMem(sim_bo->block);
@@ -221,39 +245,40 @@ v3d_get_simulator_bo(struct v3d_simulator_file *file, int gem_handle)
 }
 
 static int
-v3d_simulator_pin_bos(int fd, struct v3d_job *job)
+v3d_simulator_pin_bos(struct v3d_simulator_file *file,
+                      struct drm_v3d_submit_cl *submit)
 {
-        struct v3d_simulator_file *file = v3d_get_simulator_file_for_fd(fd);
+        uint32_t *bo_handles = (uint32_t *)(uintptr_t)submit->bo_handles;
 
-        set_foreach(job->bos, entry) {
-                struct v3d_bo *bo = (struct v3d_bo *)entry->key;
+        for (int i = 0; i < submit->bo_handle_count; i++) {
+                int handle = bo_handles[i];
                 struct v3d_simulator_bo *sim_bo =
-                        v3d_get_simulator_bo(file, bo->handle);
+                        v3d_get_simulator_bo(file, handle);
 
-                v3d_bo_map(bo);
-                memcpy(sim_bo->vaddr, bo->map, bo->size);
+                memcpy(sim_bo->sim_vaddr, sim_bo->gem_vaddr, sim_bo->size);
         }
 
         return 0;
 }
 
 static int
-v3d_simulator_unpin_bos(int fd, struct v3d_job *job)
+v3d_simulator_unpin_bos(struct v3d_simulator_file *file,
+                        struct drm_v3d_submit_cl *submit)
 {
-        struct v3d_simulator_file *file = v3d_get_simulator_file_for_fd(fd);
+        uint32_t *bo_handles = (uint32_t *)(uintptr_t)submit->bo_handles;
 
-        set_foreach(job->bos, entry) {
-                struct v3d_bo *bo = (struct v3d_bo *)entry->key;
+        for (int i = 0; i < submit->bo_handle_count; i++) {
+                int handle = bo_handles[i];
                 struct v3d_simulator_bo *sim_bo =
-                        v3d_get_simulator_bo(file, bo->handle);
+                        v3d_get_simulator_bo(file, handle);
 
-                if (*(uint32_t *)(sim_bo->vaddr +
+                memcpy(sim_bo->gem_vaddr, sim_bo->sim_vaddr, sim_bo->size);
+
+                if (*(uint32_t *)(sim_bo->sim_vaddr +
                                   sim_bo->size) != BO_SENTINEL) {
-                        fprintf(stderr, "Buffer overflow in %s\n", bo->name);
+                        fprintf(stderr, "Buffer overflow in handle %d\n",
+                                handle);
                 }
-
-                v3d_bo_map(bo);
-                memcpy(bo->map, sim_bo->vaddr, bo->size);
         }
 
         return 0;
@@ -268,7 +293,7 @@ v3d_simulator_flush(struct v3d_context *v3d,
         struct v3d_simulator_file *file = v3d_get_simulator_file_for_fd(fd);
         int ret;
 
-        ret = v3d_simulator_pin_bos(fd, job);
+        ret = v3d_simulator_pin_bos(file, submit);
         if (ret)
                 return ret;
 
@@ -277,7 +302,7 @@ v3d_simulator_flush(struct v3d_context *v3d,
         else
                 v3d33_simulator_flush(sim_state.v3d, submit, file->gmp->ofs);
 
-        ret = v3d_simulator_unpin_bos(fd, job);
+        ret = v3d_simulator_unpin_bos(file, submit);
         if (ret)
                 return ret;
 
