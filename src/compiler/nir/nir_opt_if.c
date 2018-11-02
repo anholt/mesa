@@ -391,6 +391,34 @@ evaluate_if_condition(nir_if *nif, nir_cursor cursor, bool *value)
    }
 }
 
+static nir_ssa_def *
+clone_alu_and_replace_src_defs(nir_builder *b, const nir_alu_instr *alu,
+                               nir_ssa_def **src_defs)
+{
+   nir_alu_instr *nalu = nir_alu_instr_create(b->shader, alu->op);
+   nalu->exact = alu->exact;
+
+   nir_ssa_dest_init(&nalu->instr, &nalu->dest.dest,
+                     alu->dest.dest.ssa.num_components,
+                     alu->dest.dest.ssa.bit_size, alu->dest.dest.ssa.name);
+
+   nalu->dest.saturate = alu->dest.saturate;
+   nalu->dest.write_mask = alu->dest.write_mask;
+
+   for (unsigned i = 0; i < nir_op_infos[alu->op].num_inputs; i++) {
+      assert(alu->src[i].src.is_ssa);
+      nalu->src[i].src = nir_src_for_ssa(src_defs[i]);
+      nalu->src[i].negate = alu->src[i].negate;
+      nalu->src[i].abs = alu->src[i].abs;
+      memcpy(nalu->src[i].swizzle, alu->src[i].swizzle,
+             sizeof(nalu->src[i].swizzle));
+   }
+
+   nir_builder_instr_insert(b, &nalu->instr);
+
+   return &nalu->dest.dest.ssa;;
+}
+
 /*
  * This propagates if condition evaluation down the chain of some alu
  * instructions. For example by checking the use of some of the following alu
@@ -456,7 +484,8 @@ propagate_condition_eval(nir_builder *b, nir_if *nif, nir_src *use_src,
          def[i] = alu->src[i].src.ssa;
       }
    }
-   nir_ssa_def *nalu = nir_build_alu(b, alu->op, def[0], def[1], def[2], def[3]);
+
+   nir_ssa_def *nalu = clone_alu_and_replace_src_defs(b, alu, def);
 
    /* Rewrite use to use new alu instruction */
    nir_src new_src = nir_src_for_ssa(nalu);
