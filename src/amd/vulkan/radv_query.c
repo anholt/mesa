@@ -755,10 +755,6 @@ static void radv_query_shader(struct radv_cmd_buffer *cmd_buffer,
 
 	radv_unaligned_dispatch(cmd_buffer, count, 1, 1);
 
-	cmd_buffer->state.flush_bits |= RADV_CMD_FLAG_INV_GLOBAL_L2 |
-	                                RADV_CMD_FLAG_INV_VMEM_L1 |
-	                                RADV_CMD_FLAG_CS_PARTIAL_FLUSH;
-
 	radv_meta_restore(&saved_state, cmd_buffer);
 }
 
