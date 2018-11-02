@@ -476,9 +476,6 @@ void v3d_query_init(struct pipe_context *pctx);
 
 void v3d_simulator_init(struct v3d_screen *screen);
 void v3d_simulator_destroy(struct v3d_screen *screen);
-int v3d_simulator_flush(struct v3d_context *v3d,
-                        struct drm_v3d_submit_cl *args,
-                        struct v3d_job *job);
 int v3d_simulator_ioctl(int fd, unsigned long request, void *arg);
 void v3d_simulator_open_from_handle(int fd, int handle, uint32_t size);
 

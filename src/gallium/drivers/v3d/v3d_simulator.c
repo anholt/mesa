@@ -284,12 +284,9 @@ v3d_simulator_unpin_bos(struct v3d_simulator_file *file,
         return 0;
 }
 
-int
-v3d_simulator_flush(struct v3d_context *v3d,
-                    struct drm_v3d_submit_cl *submit, struct v3d_job *job)
+static int
+v3d_simulator_submit_cl_ioctl(int fd, struct drm_v3d_submit_cl *submit)
 {
-        struct v3d_screen *screen = v3d->screen;
-        int fd = screen->fd;
         struct v3d_simulator_file *file = v3d_get_simulator_file_for_fd(fd);
         int ret;
 
@@ -298,9 +295,9 @@ v3d_simulator_flush(struct v3d_context *v3d,
                 return ret;
 
         if (sim_state.ver >= 41)
-                v3d41_simulator_flush(sim_state.v3d, submit, file->gmp->ofs);
+                v3d41_simulator_submit_cl_ioctl(sim_state.v3d, submit, file->gmp->ofs);
         else
-                v3d33_simulator_flush(sim_state.v3d, submit, file->gmp->ofs);
+                v3d33_simulator_submit_cl_ioctl(sim_state.v3d, submit, file->gmp->ofs);
 
         ret = v3d_simulator_unpin_bos(file, submit);
         if (ret)
@@ -407,6 +404,8 @@ int
 v3d_simulator_ioctl(int fd, unsigned long request, void *args)
 {
         switch (request) {
+        case DRM_IOCTL_V3D_SUBMIT_CL:
+                return v3d_simulator_submit_cl_ioctl(fd, args);
         case DRM_IOCTL_V3D_CREATE_BO:
                 return v3d_simulator_create_bo_ioctl(fd, args);
         case DRM_IOCTL_V3D_MMAP_BO:

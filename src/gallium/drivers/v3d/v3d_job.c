@@ -406,11 +406,7 @@ v3d_job_submit(struct v3d_context *v3d, struct v3d_job *job)
         if (!(V3D_DEBUG & V3D_DEBUG_NORAST)) {
                 int ret;
 
-#ifndef USE_V3D_SIMULATOR
-                ret = drmIoctl(v3d->fd, DRM_IOCTL_V3D_SUBMIT_CL, &job->submit);
-#else
-                ret = v3d_simulator_flush(v3d, &job->submit, job);
-#endif
+                ret = v3d_ioctl(v3d->fd, DRM_IOCTL_V3D_SUBMIT_CL, &job->submit);
                 static bool warned = false;
                 if (ret && !warned) {
                         fprintf(stderr, "Draw call returned %s.  "

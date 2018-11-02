@@ -139,8 +139,9 @@ v3dX(simulator_init_regs)(struct v3d_hw *v3d)
 }
 
 void
-v3dX(simulator_flush)(struct v3d_hw *v3d, struct drm_v3d_submit_cl *submit,
-                      uint32_t gmp_ofs)
+v3dX(simulator_submit_cl_ioctl)(struct v3d_hw *v3d,
+                                struct drm_v3d_submit_cl *submit,
+                                uint32_t gmp_ofs)
 {
         /* Completely reset the GMP. */
         V3D_WRITE(V3D_GMP_0_CFG,
