@@ -172,7 +172,7 @@ handle_state_base_address(struct aub_viewer_decode_ctx *ctx,
          surface_modify = iter.raw_value;
       } else if (strcmp(iter.name, "Dynamic State Base Address Modify Enable") == 0) {
          dynamic_modify = iter.raw_value;
-      } else if (strcmp(iter.name, "Insntruction Base Address Modify Enable") == 0) {
+      } else if (strcmp(iter.name, "Instruction Base Address Modify Enable") == 0) {
          instruction_modify = iter.raw_value;
       }
    }
