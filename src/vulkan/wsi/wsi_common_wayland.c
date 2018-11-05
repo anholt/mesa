@@ -456,7 +456,8 @@ wsi_wl_get_presentation_support(struct wsi_device *wsi_device,
 
    struct wsi_wl_display display;
    VkResult ret = wsi_wl_display_init(wsi, &display, wl_display, false);
-   wsi_wl_display_finish(&display);
+   if (ret == VK_SUCCESS)
+      wsi_wl_display_finish(&display);
 
    return ret == VK_SUCCESS;
 }
