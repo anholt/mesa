@@ -1283,6 +1283,8 @@ void radv_CmdCopyQueryPoolResults(
 				unsigned query = firstQuery + i;
 				uint64_t src_va = va + query * pool->stride + pool->stride - 4;
 
+				radeon_check_space(cmd_buffer->device->ws, cs, 7);
+
 				/* Waits on the upper word of the last DB entry */
 				radv_cp_wait_mem(cs, WAIT_REG_MEM_GREATER_OR_EQUAL,
 						 src_va, 0x80000000, 0xffffffff);
@@ -1359,6 +1361,8 @@ void radv_CmdCopyQueryPoolResults(
 			for(unsigned i = 0; i < queryCount; i++) {
 				unsigned query = firstQuery + i;
 				uint64_t src_va = va + query * pool->stride;
+
+				radeon_check_space(cmd_buffer->device->ws, cs, 7 * 4);
 
 				/* Wait on the upper word of all results. */
 				for (unsigned j = 0; j < 4; j++, src_va += 8) {
