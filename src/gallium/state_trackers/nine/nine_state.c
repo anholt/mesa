@@ -234,7 +234,12 @@ nine_csmt_destroy( struct NineDevice9 *device, struct csmt_context *ctx )
 
     nine_csmt_wait_processed(ctx);
     nine_queue_delete(ctx->pool);
+
+    mtx_destroy(&ctx->thread_resume);
+    mtx_destroy(&ctx->thread_running);
+
     mtx_destroy(&ctx->mutex_processed);
+    cnd_destroy(&ctx->event_processed);
 
     FREE(ctx);
 
