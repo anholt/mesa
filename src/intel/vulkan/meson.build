@@ -111,6 +111,8 @@ endforeach
 
 libanv_files = files(
   'anv_allocator.c',
+  'anv_android_stubs.c',
+  'anv_android.h',
   'anv_batch_chain.c',
   'anv_blorp.c',
   'anv_cmd_buffer.c',

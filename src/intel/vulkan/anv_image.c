@@ -631,14 +631,12 @@ anv_CreateImage(VkDevice device,
                 const VkAllocationCallbacks *pAllocator,
                 VkImage *pImage)
 {
-#ifdef ANDROID
    const VkNativeBufferANDROID *gralloc_info =
       vk_find_struct_const(pCreateInfo->pNext, NATIVE_BUFFER_ANDROID);
 
    if (gralloc_info)
       return anv_image_from_gralloc(device, pCreateInfo, gralloc_info,
                                     pAllocator, pImage);
-#endif
 
    return anv_image_create(device,
       &(struct anv_image_create_info) {
