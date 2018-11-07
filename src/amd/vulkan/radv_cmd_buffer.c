@@ -37,6 +37,8 @@
 
 #include "ac_debug.h"
 
+#include "addrlib/gfx9/chip/gfx9_enum.h"
+
 enum {
 	RADV_PREFETCH_VBO_DESCRIPTORS	= (1 << 0),
 	RADV_PREFETCH_VS		= (1 << 1),
@@ -1313,17 +1315,13 @@ radv_load_ds_clear_metadata(struct radv_cmd_buffer *cmd_buffer,
 	if (aspects & VK_IMAGE_ASPECT_DEPTH_BIT)
 		++reg_count;
 
-	radeon_emit(cs, PKT3(PKT3_COPY_DATA, 4, 0));
-	radeon_emit(cs, COPY_DATA_SRC_SEL(COPY_DATA_SRC_MEM) |
-			COPY_DATA_DST_SEL(COPY_DATA_REG) |
-			(reg_count == 2 ? COPY_DATA_COUNT_SEL : 0));
+	uint32_t reg = R_028028_DB_STENCIL_CLEAR + 4 * reg_offset;
+
+	radeon_emit(cs, PKT3(PKT3_LOAD_CONTEXT_REG, 3, 0));
 	radeon_emit(cs, va);
 	radeon_emit(cs, va >> 32);
-	radeon_emit(cs, (R_028028_DB_STENCIL_CLEAR + 4 * reg_offset) >> 2);
-	radeon_emit(cs, 0);
-
-	radeon_emit(cs, PKT3(PKT3_PFP_SYNC_ME, 0, 0));
-	radeon_emit(cs, 0);
+	radeon_emit(cs, (reg >> 2) - CONTEXT_SPACE_START);
+	radeon_emit(cs, reg_count);
 }
 
 /*
@@ -1443,17 +1441,26 @@ radv_load_color_clear_metadata(struct radv_cmd_buffer *cmd_buffer,
 
 	uint32_t reg = R_028C8C_CB_COLOR0_CLEAR_WORD0 + cb_idx * 0x3c;
 
-	radeon_emit(cs, PKT3(PKT3_COPY_DATA, 4, cmd_buffer->state.predicating));
-	radeon_emit(cs, COPY_DATA_SRC_SEL(COPY_DATA_SRC_MEM) |
-			COPY_DATA_DST_SEL(COPY_DATA_REG) |
-			COPY_DATA_COUNT_SEL);
-	radeon_emit(cs, va);
-	radeon_emit(cs, va >> 32);
-	radeon_emit(cs, reg >> 2);
-	radeon_emit(cs, 0);
+	if (cmd_buffer->device->physical_device->rad_info.chip_class >= VI) {
+		radeon_emit(cs, PKT3(PKT3_LOAD_CONTEXT_REG, 3, cmd_buffer->state.predicating));
+		radeon_emit(cs, va);
+		radeon_emit(cs, va >> 32);
+		radeon_emit(cs, (reg >> 2) - CONTEXT_SPACE_START);
+		radeon_emit(cs, 2);
+	} else {
+		/* TODO: Figure out how to use LOAD_CONTEXT_REG on SI/CIK. */
+		radeon_emit(cs, PKT3(PKT3_COPY_DATA, 4, cmd_buffer->state.predicating));
+		radeon_emit(cs, COPY_DATA_SRC_SEL(COPY_DATA_SRC_MEM) |
+				COPY_DATA_DST_SEL(COPY_DATA_REG) |
+				COPY_DATA_COUNT_SEL);
+		radeon_emit(cs, va);
+		radeon_emit(cs, va >> 32);
+		radeon_emit(cs, reg >> 2);
+		radeon_emit(cs, 0);
 
-	radeon_emit(cs, PKT3(PKT3_PFP_SYNC_ME, 0, cmd_buffer->state.predicating));
-	radeon_emit(cs, 0);
+		radeon_emit(cs, PKT3(PKT3_PFP_SYNC_ME, 0, cmd_buffer->state.predicating));
+		radeon_emit(cs, 0);
+	}
 }
 
 static void
