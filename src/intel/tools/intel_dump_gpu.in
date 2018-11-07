@@ -37,11 +37,6 @@ function add_arg() {
 
 while true; do
     case "$1" in
-        -o)
-            file=$2
-            add_arg "file=${file:-$(basename ${file}).aub}"
-            shift 2
-            ;;
         -v)
             add_arg "verbose=1"
             shift 1
@@ -49,6 +44,11 @@ while true; do
         -vv)
             add_arg "verbose=2"
             shift 1
+            ;;
+        -o)
+            file=$2
+            add_arg "file=${file:-$(basename ${file}).aub}"
+            shift 2
             ;;
         -o*)
             file=${1##-o}
