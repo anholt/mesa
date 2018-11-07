@@ -552,6 +552,9 @@ fs_visitor::optimize_frontfacing_ternary(nir_alu_instr *instr,
    if (fabsf(value1) != 1.0f || fabsf(value2) != 1.0f)
       return false;
 
+   /* nir_opt_algebraic should have gotten rid of bcsel(b, a, a) */
+   assert(value1 == -value2);
+
    fs_reg tmp = vgrf(glsl_type::int_type);
 
    if (devinfo->gen >= 6) {
