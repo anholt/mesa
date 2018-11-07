@@ -200,6 +200,27 @@ xa_is_filter_accelerated(struct xa_picture *pic)
     return 1;
 }
 
+/**
+ * xa_src_pict_is_accelerated - Check whether we support acceleration
+ * of the given src_pict type
+ *
+ * \param src_pic[in]: Pointer to a union xa_source_pict to check.
+ *
+ * \returns TRUE if accelerated, FALSE otherwise.
+ */
+static boolean
+xa_src_pict_is_accelerated(const union xa_source_pict *src_pic)
+{
+    if (!src_pic)
+        return TRUE;
+
+    if (src_pic->type == xa_src_pict_solid_fill ||
+        src_pic->type == xa_src_pict_float_solid_fill)
+        return TRUE;
+
+    return FALSE;
+}
+
 XA_EXPORT int
 xa_composite_check_accelerated(const struct xa_composite *comp)
 {
@@ -218,7 +239,8 @@ xa_composite_check_accelerated(const struct xa_composite *comp)
 	return -XA_ERR_INVAL;
     }
 
-    if (src_pic->src_pict &&src_pic->src_pict->type != xa_src_pict_solid_fill)
+    if (!xa_src_pict_is_accelerated(src_pic->src_pict) ||
+        (mask_pic && !xa_src_pict_is_accelerated(mask_pic->src_pict)))
         return -XA_ERR_INVAL;
 
     if (!blend_for_op(&blend, comp->op, comp->src, comp->mask, comp->dst))
@@ -307,6 +329,52 @@ xa_src_in_mask(float src[4], const float mask[4])
 	src[3] *= mask[3];
 }
 
+/**
+ * xa_handle_src_pict - Set up xa_context state and fragment shader
+ * input based on scr_pict type
+ *
+ * \param ctx[in, out]: Pointer to the xa context.
+ * \param src_pict[in]: Pointer to the union xa_source_pict to consider.
+ * \param is_mask[in]: Whether we're considering a mask picture.
+ *
+ * \returns TRUE if succesful, FALSE otherwise.
+ *
+ * This function computes some xa_context state used to determine whether
+ * to upload the solid color and also the solid color itself used as an input
+ * to the fragment shader.
+ */
+static boolean
+xa_handle_src_pict(struct xa_context *ctx,
+                   const union xa_source_pict *src_pict,
+                   boolean is_mask)
+{
+    float solid_color[4];
+
+    switch(src_pict->type) {
+    case xa_src_pict_solid_fill:
+        xa_pixel_to_float4(src_pict->solid_fill.color, solid_color);
+        break;
+    case xa_src_pict_float_solid_fill:
+        memcpy(solid_color, src_pict->float_solid_fill.color,
+               sizeof(solid_color));
+        break;
+    default:
+        return FALSE;
+    }
+
+    if (is_mask && ctx->has_solid_src)
+        xa_src_in_mask(ctx->solid_color, solid_color);
+    else
+        memcpy(ctx->solid_color, solid_color, sizeof(solid_color));
+
+    if (is_mask)
+        ctx->has_solid_mask = TRUE;
+    else
+        ctx->has_solid_src = TRUE;
+
+    return TRUE;
+}
+
 static int
 bind_shaders(struct xa_context *ctx, const struct xa_composite *comp)
 {
@@ -326,13 +394,10 @@ bind_shaders(struct xa_context *ctx, const struct xa_composite *comp)
         vs_traits |= VS_COMPOSITE;
 
 	if (src_pic->src_pict) {
-	    if (src_pic->src_pict->type == xa_src_pict_solid_fill) {
-               fs_traits |= FS_SRC_SRC;
-		vs_traits |= VS_SRC_SRC;
-		xa_pixel_to_float4(src_pic->src_pict->solid_fill.color,
-				   ctx->solid_color);
-		ctx->has_solid_src = TRUE;
-	    }
+            if (!xa_handle_src_pict(ctx, src_pic->src_pict, false))
+                return -XA_ERR_INVAL;
+            fs_traits |= FS_SRC_SRC;
+            vs_traits |= VS_SRC_SRC;
 	} else
            fs_traits |= picture_format_fixups(src_pic, 0);
     }
@@ -341,22 +406,15 @@ bind_shaders(struct xa_context *ctx, const struct xa_composite *comp)
 	vs_traits |= VS_MASK;
 	fs_traits |= FS_MASK;
         if (mask_pic->src_pict) {
-            if (mask_pic->src_pict->type == xa_src_pict_solid_fill) {
-                if (ctx->has_solid_src) {
-                    float solid_mask[4];
+            if (!xa_handle_src_pict(ctx, mask_pic->src_pict, true))
+                return -XA_ERR_INVAL;
 
-                    xa_pixel_to_float4(mask_pic->src_pict->solid_fill.color,
-                                       solid_mask);
-                    xa_src_in_mask(ctx->solid_color, solid_mask);
-                    vs_traits &= ~(VS_MASK);
-                    fs_traits &= ~(FS_MASK);
-                } else {
-                    xa_pixel_to_float4(mask_pic->src_pict->solid_fill.color,
-                                       ctx->solid_color);
-                    vs_traits |= VS_MASK_SRC;
-                    fs_traits |= FS_MASK_SRC;
-                }
-                ctx->has_solid_mask = TRUE;
+            if (ctx->has_solid_src) {
+                vs_traits &= ~VS_MASK;
+                fs_traits &= ~FS_MASK;
+            } else {
+                vs_traits |= VS_MASK_SRC;
+                fs_traits |= FS_MASK_SRC;
             }
         } else {
             if (mask_pic->wrap == xa_wrap_clamp_to_border &&
