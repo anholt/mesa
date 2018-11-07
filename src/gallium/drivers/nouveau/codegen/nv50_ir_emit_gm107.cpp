@@ -2738,6 +2738,7 @@ getTEXSMask(uint8_t mask)
    case 0xf: return 0x4;
    default:
       assert(!"invalid mask");
+      return 0;
    }
 }
 
