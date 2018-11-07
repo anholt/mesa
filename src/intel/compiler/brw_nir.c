@@ -740,6 +740,9 @@ brw_nir_link_shaders(const struct brw_compiler *compiler,
       *consumer = brw_nir_optimize(*consumer, compiler, c_is_scalar, false);
    }
 
+   if (nir_link_constant_varyings(*producer, *consumer))
+      *consumer = brw_nir_optimize(*consumer, compiler, c_is_scalar, false);
+
    NIR_PASS_V(*producer, nir_remove_dead_variables, nir_var_shader_out);
    NIR_PASS_V(*consumer, nir_remove_dead_variables, nir_var_shader_in);
 
