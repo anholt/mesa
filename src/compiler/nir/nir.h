@@ -952,6 +952,19 @@ nir_alu_instr_channel_used(const nir_alu_instr *instr, unsigned src,
    return (instr->dest.write_mask >> channel) & 1;
 }
 
+static inline nir_component_mask_t
+nir_alu_instr_src_read_mask(const nir_alu_instr *instr, unsigned src)
+{
+   nir_component_mask_t read_mask = 0;
+   for (unsigned c = 0; c < NIR_MAX_VEC_COMPONENTS; c++) {
+      if (!nir_alu_instr_channel_used(instr, src, c))
+         continue;
+
+      read_mask |= (1 << instr->src[src].swizzle[c]);
+   }
+   return read_mask;
+}
+
 /*
  * For instructions whose destinations are SSA, get the number of channels
  * used for a source
