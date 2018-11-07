@@ -45,6 +45,7 @@ gen_batch_decode_ctx_init(struct gen_batch_decode_ctx *ctx,
    ctx->fp = fp;
    ctx->flags = flags;
    ctx->max_vbo_decoded_lines = -1; /* No limit! */
+   ctx->engine = I915_ENGINE_CLASS_RENDER;
 
    if (xml_path == NULL)
       ctx->spec = gen_spec_load(devinfo);
@@ -192,10 +193,16 @@ ctx_print_buffer(struct gen_batch_decode_ctx *ctx,
    fprintf(ctx->fp, "\n");
 }
 
+static struct gen_group *
+gen_ctx_find_instruction(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
+{
+   return gen_spec_find_instruction(ctx->spec, ctx->engine, p);
+}
+
 static void
 handle_state_base_address(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
 
    struct gen_field_iterator iter;
    gen_field_iterator_init(&iter, inst, p, 0, false);
@@ -309,7 +316,7 @@ static void
 handle_media_interface_descriptor_load(struct gen_batch_decode_ctx *ctx,
                                        const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
    struct gen_group *desc =
       gen_spec_find_struct(ctx->spec, "INTERFACE_DESCRIPTOR_DATA");
 
@@ -373,7 +380,7 @@ static void
 handle_3dstate_vertex_buffers(struct gen_batch_decode_ctx *ctx,
                               const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
    struct gen_group *vbs = gen_spec_find_struct(ctx->spec, "VERTEX_BUFFER_STATE");
 
    struct gen_batch_decode_bo vb = {};
@@ -436,7 +443,7 @@ static void
 handle_3dstate_index_buffer(struct gen_batch_decode_ctx *ctx,
                             const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
 
    struct gen_batch_decode_bo ib = {};
    uint32_t ib_size = 0;
@@ -486,7 +493,7 @@ handle_3dstate_index_buffer(struct gen_batch_decode_ctx *ctx,
 static void
 decode_single_ksp(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
 
    uint64_t ksp = 0;
    bool is_simd8 = false; /* vertex shaders on Gen8+ only */
@@ -528,7 +535,7 @@ decode_single_ksp(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 static void
 decode_ps_kernels(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
 
    uint64_t ksp[3] = {0, 0, 0};
    bool enabled[3] = {false, false, false};
@@ -576,7 +583,7 @@ decode_ps_kernels(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 static void
 decode_3dstate_constant(struct gen_batch_decode_ctx *ctx, const uint32_t *p)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
    struct gen_group *body =
       gen_spec_find_struct(ctx->spec, "3DSTATE_CONSTANT_BODY");
 
@@ -658,7 +665,7 @@ decode_dynamic_state_pointers(struct gen_batch_decode_ctx *ctx,
                               const char *struct_type, const uint32_t *p,
                               int count)
 {
-   struct gen_group *inst = gen_spec_find_instruction(ctx->spec, p);
+   struct gen_group *inst = gen_ctx_find_instruction(ctx, p);
 
    uint32_t state_offset = 0;
 
@@ -802,7 +809,7 @@ gen_print_batch(struct gen_batch_decode_ctx *ctx,
    struct gen_group *inst;
 
    for (p = batch; p < end; p += length) {
-      inst = gen_spec_find_instruction(ctx->spec, p);
+      inst = gen_ctx_find_instruction(ctx, p);
       length = gen_group_get_length(inst, p);
       assert(inst == NULL || length > 0);
       length = MAX2(1, length);

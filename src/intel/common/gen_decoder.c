@@ -733,12 +733,15 @@ void gen_spec_destroy(struct gen_spec *spec)
 }
 
 struct gen_group *
-gen_spec_find_instruction(struct gen_spec *spec, const uint32_t *p)
+gen_spec_find_instruction(struct gen_spec *spec,
+                          enum drm_i915_gem_engine_class engine,
+                          const uint32_t *p)
 {
    hash_table_foreach(spec->commands, entry) {
       struct gen_group *command = entry->data;
       uint32_t opcode = *p & command->opcode_mask;
-      if (opcode == command->opcode)
+      if ((command->engine_mask & I915_ENGINE_CLASS_TO_MASK(engine)) &&
+           opcode == command->opcode)
          return command;
    }
 

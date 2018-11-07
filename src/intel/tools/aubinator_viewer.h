@@ -68,6 +68,7 @@ struct aub_viewer_decode_ctx {
 
    struct gen_spec *spec;
    struct gen_disasm *disasm;
+   enum drm_i915_gem_engine_class engine;
 
    struct aub_viewer_cfg *cfg;
    struct aub_viewer_decode_cfg *decode_cfg;

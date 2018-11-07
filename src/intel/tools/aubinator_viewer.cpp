@@ -706,7 +706,8 @@ display_batch_ring_write(void *user_data, enum drm_i915_gem_engine_class engine,
 }
 
 static void
-display_batch_execlist_write(void *user_data, enum drm_i915_gem_engine_class,
+display_batch_execlist_write(void *user_data,
+                             enum drm_i915_gem_engine_class engine,
                              uint64_t context_descriptor)
 {
    struct batch_window *window = (struct batch_window *) user_data;
@@ -732,6 +733,7 @@ display_batch_execlist_write(void *user_data, enum drm_i915_gem_engine_class,
 
    window->uses_ppgtt = true;
 
+   window->decode_ctx.engine = engine;
    aub_viewer_render_batch(&window->decode_ctx, commands,
                            ring_buffer_tail - ring_buffer_head,
                            ring_buffer_start);
