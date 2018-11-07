@@ -137,7 +137,7 @@ renderer_init_state(struct xa_context *r)
 }
 
 static inline void
-add_vertex_color(struct xa_context *r, float x, float y, float color[4])
+add_vertex_none(struct xa_context *r, float x, float y)
 {
     float *vertex = r->buffer + r->buffer_size;
 
@@ -146,12 +146,7 @@ add_vertex_color(struct xa_context *r, float x, float y, float color[4])
     vertex[2] = 0.f;		/*z */
     vertex[3] = 1.f;		/*w */
 
-    vertex[4] = color[0];	/*r */
-    vertex[5] = color[1];	/*g */
-    vertex[6] = color[2];	/*b */
-    vertex[7] = color[3];	/*a */
-
-    r->buffer_size += 8;
+    r->buffer_size += 4;
 }
 
 static inline void
@@ -554,27 +549,29 @@ void
 renderer_begin_solid(struct xa_context *r)
 {
     r->buffer_size = 0;
-    r->attrs_per_vertex = 2;
+    r->attrs_per_vertex = 1;
+    renderer_set_constants(r, PIPE_SHADER_FRAGMENT, r->solid_color,
+                           4 * sizeof(float));
 }
 
 void
 renderer_solid(struct xa_context *r,
-	       int x0, int y0, int x1, int y1, float *color)
+	       int x0, int y0, int x1, int y1)
 {
     /*
      * debug_printf("solid rect[(%d, %d), (%d, %d)], rgba[%f, %f, %f, %f]\n",
      * x0, y0, x1, y1, color[0], color[1], color[2], color[3]); */
 
-    renderer_draw_conditional(r, 4 * 8);
+    renderer_draw_conditional(r, 4 * 4);
 
     /* 1st vertex */
-    add_vertex_color(r, x0, y0, color);
+    add_vertex_none(r, x0, y0);
     /* 2nd vertex */
-    add_vertex_color(r, x1, y0, color);
+    add_vertex_none(r, x1, y0);
     /* 3rd vertex */
-    add_vertex_color(r, x1, y1, color);
+    add_vertex_none(r, x1, y1);
     /* 4th vertex */
-    add_vertex_color(r, x0, y1, color);
+    add_vertex_none(r, x0, y1);
 }
 
 void
@@ -588,6 +585,9 @@ renderer_begin_textures(struct xa_context *r)
 {
     r->attrs_per_vertex = 1 + r->num_bound_samplers;
     r->buffer_size = 0;
+    if (r->has_solid_src || r->has_solid_mask)
+       renderer_set_constants(r, PIPE_SHADER_FRAGMENT, r->solid_color,
+                              4 * sizeof(float));
 }
 
 void
@@ -617,11 +617,19 @@ renderer_texture(struct xa_context *r,
     switch(r->attrs_per_vertex) {
     case 2:
 	renderer_draw_conditional(r, 4 * 8);
-	add_vertex_data1(r,
-			 pos[0], pos[1], /* src */
-			 pos[4], pos[5], /* dst */
-			 width, height,
-			 sampler_view[0]->texture, src_matrix);
+        if (!r->has_solid_src) {
+           add_vertex_data1(r,
+                            pos[0], pos[1], /* src */
+                            pos[4], pos[5], /* dst */
+                            width, height,
+                            sampler_view[0]->texture, src_matrix);
+        } else {
+           add_vertex_data1(r,
+                            pos[2], pos[3], /* mask */
+                            pos[4], pos[5], /* dst */
+                            width, height,
+                            sampler_view[0]->texture, mask_matrix);
+        }
 	break;
     case 3:
 	renderer_draw_conditional(r, 4 * 12);
