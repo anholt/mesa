@@ -60,6 +60,10 @@ is_sha_nomination()
 is_fixes_nomination()
 {
 	is_sha_nomination "$1" "fixes:[[:space:]]*"
+	if test $? -eq 0; then
+		return 0
+	fi
+	is_sha_nomination "$1" "fixes[[:space:]]\+"
 }
 
 # Use the last branchpoint as our limit for the search
@@ -74,7 +78,7 @@ git log --reverse --pretty=medium --grep="cherry picked from commit" $latest_bra
 	sed -e 's/^[[:space:]]*(cherry picked from commit[[:space:]]*//' -e 's/)//' > already_picked
 
 # Grep for potential candidates
-git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev\|fixes:' $latest_branchpoint..origin/master |\
+git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev\|\<fixes\>' $latest_branchpoint..origin/master |\
 while read sha
 do
 	# Check to see whether the patch is on the ignore list.
