@@ -30,6 +30,9 @@
 
 #include "dev/gen_device_info.h"
 #include "util/hash_table.h"
+#include "util/bitset.h"
+
+#include "drm-uapi/i915_drm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +42,8 @@ struct gen_spec;
 struct gen_group;
 struct gen_field;
 union gen_field_value;
+
+#define I915_ENGINE_CLASS_TO_MASK(x) BITSET_BIT(x)
 
 static inline uint32_t gen_make_gen(uint32_t major, uint32_t minor)
 {
@@ -102,6 +107,7 @@ struct gen_group {
    struct gen_field *dword_length_field; /* <instruction> specific */
 
    uint32_t dw_length;
+   uint32_t engine_mask; /* <instruction> specific */
    uint32_t bias; /* <instruction> specific */
    uint32_t group_offset, group_count;
    uint32_t group_size;
