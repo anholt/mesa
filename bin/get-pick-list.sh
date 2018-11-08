@@ -16,6 +16,11 @@ is_stable_nomination()
 	git show --summary "$1" | grep -q -i -o "CC:.*mesa-stable"
 }
 
+is_typod_nomination()
+{
+	git show --summary "$1" | grep -q -i -o "CC:.*mesa-dev"
+}
+
 # Use the last branchpoint as our limit for the search
 latest_branchpoint=`git merge-base origin/master HEAD`
 
@@ -25,7 +30,7 @@ git log --reverse --pretty=medium --grep="cherry picked from commit" $latest_bra
 	sed -e 's/^[[:space:]]*(cherry picked from commit[[:space:]]*//' -e 's/)//' > already_picked
 
 # Grep for commits that were marked as a candidate for the stable tree.
-git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable' $latest_branchpoint..origin/master |\
+git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev' $latest_branchpoint..origin/master |\
 while read sha
 do
 	# Check to see whether the patch is on the ignore list.
@@ -42,6 +47,8 @@ do
 
 	if is_stable_nomination "$sha"; then
 		tag=stable
+	elif is_typod_nomination "$sha"; then
+		tag=typod
 	else
 		continue
 	fi
