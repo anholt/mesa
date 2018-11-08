@@ -1317,11 +1317,25 @@ radv_load_ds_clear_metadata(struct radv_cmd_buffer *cmd_buffer,
 
 	uint32_t reg = R_028028_DB_STENCIL_CLEAR + 4 * reg_offset;
 
-	radeon_emit(cs, PKT3(PKT3_LOAD_CONTEXT_REG, 3, 0));
-	radeon_emit(cs, va);
-	radeon_emit(cs, va >> 32);
-	radeon_emit(cs, (reg >> 2) - CONTEXT_SPACE_START);
-	radeon_emit(cs, reg_count);
+	if (cmd_buffer->device->physical_device->rad_info.chip_class >= VI) {
+		radeon_emit(cs, PKT3(PKT3_LOAD_CONTEXT_REG, 3, 0));
+		radeon_emit(cs, va);
+		radeon_emit(cs, va >> 32);
+		radeon_emit(cs, (reg >> 2) - CONTEXT_SPACE_START);
+		radeon_emit(cs, reg_count);
+	} else {
+		radeon_emit(cs, PKT3(PKT3_COPY_DATA, 4, 0));
+		radeon_emit(cs, COPY_DATA_SRC_SEL(COPY_DATA_SRC_MEM) |
+				COPY_DATA_DST_SEL(COPY_DATA_REG) |
+				(reg_count == 2 ? COPY_DATA_COUNT_SEL : 0));
+		radeon_emit(cs, va);
+		radeon_emit(cs, va >> 32);
+		radeon_emit(cs, reg >> 2);
+		radeon_emit(cs, 0);
+
+		radeon_emit(cs, PKT3(PKT3_PFP_SYNC_ME, 0, 0));
+		radeon_emit(cs, 0);
+	}
 }
 
 /*
