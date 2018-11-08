@@ -21,10 +21,12 @@ is_typod_nomination()
 	git show --summary "$1" | grep -q -i -o "CC:.*mesa-dev"
 }
 
-is_fixes_nomination()
+# Helper to handle various mistypos of the fixes tag.
+# The tag string itself is passed as argument and normalised within.
+is_sha_nomination()
 {
 	fixes=`git show --pretty=medium -s $1 | tr -d "\n" | \
-		sed -e 's/fixes:[[:space:]]*/\nfixes:/Ig' | \
+		sed -e 's/'"$2"'/\nfixes:/Ig' | \
 		grep -Eo 'fixes:[a-f0-9]{8,40}'`
 
 	fixes_count=`echo "$fixes" | wc -l`
@@ -53,6 +55,11 @@ is_fixes_nomination()
 		fi
 	done
 	return 1
+}
+
+is_fixes_nomination()
+{
+	is_sha_nomination "$1" "fixes:[[:space:]]*"
 }
 
 # Use the last branchpoint as our limit for the search
