@@ -97,7 +97,7 @@ handle_mem_write(void *user_data, uint64_t phys_addr,
 }
 
 static void
-handle_ring_write(void *user_data, enum gen_engine engine,
+handle_ring_write(void *user_data, enum drm_i915_gem_engine_class engine,
                   const void *ring_data, uint32_t ring_data_len)
 {
    struct aub_file *file = (struct aub_file *) user_data;
@@ -695,7 +695,7 @@ update_batch_window(struct batch_window *window, bool reset, int exec_idx)
 }
 
 static void
-display_batch_ring_write(void *user_data, enum gen_engine engine,
+display_batch_ring_write(void *user_data, enum drm_i915_gem_engine_class engine,
                          const void *data, uint32_t data_len)
 {
    struct batch_window *window = (struct batch_window *) user_data;
@@ -706,7 +706,7 @@ display_batch_ring_write(void *user_data, enum gen_engine engine,
 }
 
 static void
-display_batch_execlist_write(void *user_data, enum gen_engine engine,
+display_batch_execlist_write(void *user_data, enum drm_i915_gem_engine_class,
                              uint64_t context_descriptor)
 {
    struct batch_window *window = (struct batch_window *) user_data;
