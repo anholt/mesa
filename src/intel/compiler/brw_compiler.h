@@ -195,6 +195,7 @@ struct brw_sampler_prog_key_data {
    uint32_t y_uv_image_mask;
    uint32_t yx_xuxv_image_mask;
    uint32_t xy_uxvx_image_mask;
+   uint32_t ayuv_image_mask;
 };
 
 /**
