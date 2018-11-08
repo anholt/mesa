@@ -278,8 +278,7 @@ si_emit_graphics(struct radv_physical_device *physical_device,
 		radeon_set_sh_reg(cs, R_00B21C_SPI_SHADER_PGM_RSRC3_GS,
 				  S_00B21C_CU_EN(0xffff) | S_00B21C_WAVE_LIMIT(0x3F));
 
-		if (physical_device->rad_info.num_good_compute_units /
-		    (physical_device->rad_info.max_se * physical_device->rad_info.max_sh_per_se) <= 4) {
+		if (physical_device->rad_info.num_good_cu_per_sh <= 4) {
 			/* Too few available compute units per SH. Disallowing
 			 * VS to run on CU0 could hurt us more than late VS
 			 * allocation would help.
