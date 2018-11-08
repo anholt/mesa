@@ -30,10 +30,10 @@ is_sha_nomination()
 		grep -Eo 'fixes:[a-f0-9]{8,40}'`
 
 	fixes_count=`echo "$fixes" | wc -l`
-	if [ $fixes_count -eq 0 ] ; then
+	if test $fixes_count -eq 0; then
 		return 0
 	fi
-	while [ $fixes_count -gt 0 ] ; do
+	while test $fixes_count -gt 0; do
 		# Treat only the current line
 		id=`echo "$fixes" | tail -n $fixes_count | head -n 1 | cut -d : -f 2`
 		fixes_count=$(($fixes_count-1))
@@ -41,7 +41,7 @@ is_sha_nomination()
 		# Bail out if we cannot find suitable id.
 		# Any specific validation the $id is valid and not some junk, is
 		# implied with the follow up code
-		if [ "x$id" = x ] ; then
+		if test "x$id" = x; then
 			continue
 		fi
 
@@ -87,7 +87,7 @@ git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev\|\<fi
 while read sha
 do
 	# Check to see whether the patch is on the ignore list.
-	if [ -f bin/.cherry-ignore ] ; then
+	if test -f bin/.cherry-ignore; then
 		if grep -q ^$sha bin/.cherry-ignore ; then
 			continue
 		fi
