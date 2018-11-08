@@ -7,6 +7,14 @@
 # $ bin/get-pick-list.sh
 # $ bin/get-pick-list.sh > picklist
 # $ bin/get-pick-list.sh | tee picklist
+#
+# The output is as follows:
+# [nomination_type] commit_sha commit summary
+
+is_stable_nomination()
+{
+	git show --summary "$1" | grep -q -i -o "CC:.*mesa-stable"
+}
 
 # Use the last branchpoint as our limit for the search
 latest_branchpoint=`git merge-base origin/master HEAD`
@@ -32,6 +40,13 @@ do
 		continue
 	fi
 
+	if is_stable_nomination "$sha"; then
+		tag=stable
+	else
+		continue
+	fi
+
+	printf "[ %8s ] " "$tag"
 	git --no-pager show --summary --oneline $sha
 done
 
