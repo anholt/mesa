@@ -25,7 +25,7 @@ is_fixes_nomination()
 {
 	fixes=`git show --pretty=medium -s $1 | tr -d "\n" | \
 		sed -e 's/fixes:[[:space:]]*/\nfixes:/Ig' | \
-		grep "fixes:" | sed -e 's/\(fixes:[a-zA-Z0-9]*\).*$/\1/'`
+		grep -Eo 'fixes:[a-f0-9]{8,40}'`
 
 	fixes_count=`echo "$fixes" | wc -l`
 	if [ $fixes_count -eq 0 ] ; then
