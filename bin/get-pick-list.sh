@@ -21,16 +21,53 @@ is_typod_nomination()
 	git show --summary "$1" | grep -q -i -o "CC:.*mesa-dev"
 }
 
+is_fixes_nomination()
+{
+	fixes=`git show --pretty=medium -s $1 | tr -d "\n" | \
+		sed -e 's/fixes:[[:space:]]*/\nfixes:/Ig' | \
+		grep "fixes:" | sed -e 's/\(fixes:[a-zA-Z0-9]*\).*$/\1/'`
+
+	fixes_count=`echo "$fixes" | wc -l`
+	if [ $fixes_count -eq 0 ] ; then
+		return 0
+	fi
+	while [ $fixes_count -gt 0 ] ; do
+		# Treat only the current line
+		id=`echo "$fixes" | tail -n $fixes_count | head -n 1 | cut -d : -f 2`
+		fixes_count=$(($fixes_count-1))
+
+		# Bail out if we cannot find suitable id.
+		# Any specific validation the $id is valid and not some junk, is
+		# implied with the follow up code
+		if [ "x$id" = x ] ; then
+			continue
+		fi
+
+		#Check if the offending commit is in branch.
+
+		# Be that cherry-picked ...
+		# ... or landed before the branchpoint.
+		if grep -q ^$id already_picked ||
+		   grep -q ^$id already_landed ; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 # Use the last branchpoint as our limit for the search
 latest_branchpoint=`git merge-base origin/master HEAD`
 
-# Grep for commits with "cherry picked from commit" in the commit message.
+# List all the commits between day 1 and the branch point...
+git log --reverse --pretty=%H $latest_branchpoint > already_landed
+
+# ... and the ones cherry-picked.
 git log --reverse --pretty=medium --grep="cherry picked from commit" $latest_branchpoint..HEAD |\
 	grep "cherry picked from commit" |\
 	sed -e 's/^[[:space:]]*(cherry picked from commit[[:space:]]*//' -e 's/)//' > already_picked
 
-# Grep for commits that were marked as a candidate for the stable tree.
-git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev' $latest_branchpoint..origin/master |\
+# Grep for potential candidates
+git log --reverse --pretty=%H -i --grep='^CC:.*mesa-stable\|^CC:.*mesa-dev\|fixes:' $latest_branchpoint..origin/master |\
 while read sha
 do
 	# Check to see whether the patch is on the ignore list.
@@ -49,6 +86,8 @@ do
 		tag=stable
 	elif is_typod_nomination "$sha"; then
 		tag=typod
+	elif is_fixes_nomination "$sha"; then
+		tag=fixes
 	else
 		continue
 	fi
@@ -58,3 +97,4 @@ do
 done
 
 rm -f already_picked
+rm -f already_landed
