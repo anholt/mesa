@@ -32,7 +32,7 @@ do
 		continue
 	fi
 
-	git log -n1 --pretty=oneline $sha | cat
+	git --no-pager show --summary --oneline $sha
 done
 
 rm -f already_picked
