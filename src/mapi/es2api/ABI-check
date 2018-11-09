@@ -28,7 +28,6 @@ FUNCS=$($NM -D --defined-only $LIB | grep -o 'T gl.*' | cut -c 3- | while read f
 glActiveShaderProgram
 glActiveTexture
 glAttachShader
-glBeginConditionalRenderNV
 glBeginQuery
 glBeginTransformFeedback
 glBindAttribLocation
@@ -124,7 +123,6 @@ glEGLImageTargetTexture2DOES
 glEnable
 glEnableVertexAttribArray
 glEnablei
-glEndConditionalRenderNV
 glEndQuery
 glEndTransformFeedback
 glFenceSync
