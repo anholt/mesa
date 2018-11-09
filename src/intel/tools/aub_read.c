@@ -219,27 +219,21 @@ handle_memtrace_reg_write(struct aub_read *read, const uint32_t *p)
    case 0x2510: /* render elsq0 lo */
       read->render_elsp[3] = value;
       return;
-      break;
    case 0x2514: /* render elsq0 hi */
       read->render_elsp[2] = value;
       return;
-      break;
    case 0x12510: /* video elsq0 lo */
       read->video_elsp[3] = value;
       return;
-      break;
    case 0x12514: /* video elsq0 hi */
       read->video_elsp[2] = value;
       return;
-      break;
    case 0x22510: /* blitter elsq0 lo */
       read->blitter_elsp[3] = value;
       return;
-      break;
    case 0x22514: /* blitter elsq0 hi */
       read->blitter_elsp[2] = value;
       return;
-      break;
    case 0x2550: /* render elsc */
       engine = GEN_ENGINE_RENDER;
       context_descriptor = (uint64_t)read->render_elsp[2] << 32 |
