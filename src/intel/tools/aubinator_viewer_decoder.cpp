@@ -651,10 +651,10 @@ decode_dynamic_state_pointers(struct aub_viewer_decode_ctx *ctx,
 
    for (int i = 0; i < count; i++) {
       ImGui::Text("%s %d", struct_type, i);
-      aub_viewer_print_group(ctx, state, state_offset, state_map);
+      aub_viewer_print_group(ctx, state, state_addr, state_map);
 
       state_addr += state->dw_length * 4;
-      state_map += state->dw_length;
+      state_map += state->dw_length * 4;
    }
 }
 
