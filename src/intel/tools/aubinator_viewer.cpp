@@ -730,14 +730,14 @@ display_batch_execlist_write(void *user_data,
    struct gen_batch_decode_bo ring_bo =
       aub_mem_get_ggtt_bo(&window->mem, ring_buffer_start);
    assert(ring_bo.size > 0);
-   void *commands = (uint8_t *)ring_bo.map + (ring_buffer_start - ring_bo.addr);
+   void *commands = (uint8_t *)ring_bo.map + (ring_buffer_start - ring_bo.addr) + ring_buffer_head;
 
    window->uses_ppgtt = true;
 
    window->decode_ctx.engine = engine;
    aub_viewer_render_batch(&window->decode_ctx, commands,
                            MIN2(ring_buffer_tail - ring_buffer_head, ring_buffer_length),
-                           ring_buffer_start);
+                           ring_buffer_start + ring_buffer_head);
 }
 
 static void

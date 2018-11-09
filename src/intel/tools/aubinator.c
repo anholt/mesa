@@ -150,7 +150,7 @@ handle_execlist_write(void *user_data, enum drm_i915_gem_engine_class engine, ui
    struct gen_batch_decode_bo ring_bo = aub_mem_get_ggtt_bo(&mem,
                                                             ring_buffer_start);
    assert(ring_bo.size > 0);
-   void *commands = (uint8_t *)ring_bo.map + (ring_buffer_start - ring_bo.addr);
+   void *commands = (uint8_t *)ring_bo.map + (ring_buffer_start - ring_bo.addr) + ring_buffer_head;
 
    if (context_descriptor & 0x100 /* ppgtt */) {
       batch_ctx.get_bo = aub_mem_get_ppgtt_bo;
@@ -161,7 +161,7 @@ handle_execlist_write(void *user_data, enum drm_i915_gem_engine_class engine, ui
    batch_ctx.engine = engine;
    gen_print_batch(&batch_ctx, commands,
                    MIN2(ring_buffer_tail - ring_buffer_head, ring_buffer_length),
-                   0);
+                   ring_bo.addr + ring_buffer_head);
    aub_mem_clear_bo_maps(&mem);
 }
 
