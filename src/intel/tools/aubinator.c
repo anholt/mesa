@@ -142,6 +142,7 @@ handle_execlist_write(void *user_data, enum drm_i915_gem_engine_class engine, ui
    uint32_t ring_buffer_head = context[5];
    uint32_t ring_buffer_tail = context[7];
    uint32_t ring_buffer_start = context[9];
+   uint32_t ring_buffer_length = (context[11] & 0x1ff000) + 4096;
 
    mem.pml4 = (uint64_t)context[49] << 32 | context[51];
    batch_ctx.user_data = &mem;
@@ -158,7 +159,8 @@ handle_execlist_write(void *user_data, enum drm_i915_gem_engine_class engine, ui
    }
 
    batch_ctx.engine = engine;
-   gen_print_batch(&batch_ctx, commands, ring_buffer_tail - ring_buffer_head,
+   gen_print_batch(&batch_ctx, commands,
+                   MIN2(ring_buffer_tail - ring_buffer_head, ring_buffer_length),
                    0);
    aub_mem_clear_bo_maps(&mem);
 }

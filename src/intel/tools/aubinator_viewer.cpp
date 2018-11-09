@@ -723,6 +723,7 @@ display_batch_execlist_write(void *user_data,
    uint32_t ring_buffer_head = context_img[5];
    uint32_t ring_buffer_tail = context_img[7];
    uint32_t ring_buffer_start = context_img[9];
+   uint32_t ring_buffer_length = (context_img[11] & 0x1ff000) + 4096;
 
    window->mem.pml4 = (uint64_t)context_img[49] << 32 | context_img[51];
 
@@ -735,7 +736,7 @@ display_batch_execlist_write(void *user_data,
 
    window->decode_ctx.engine = engine;
    aub_viewer_render_batch(&window->decode_ctx, commands,
-                           ring_buffer_tail - ring_buffer_head,
+                           MIN2(ring_buffer_tail - ring_buffer_head, ring_buffer_length),
                            ring_buffer_start);
 }
 
