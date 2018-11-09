@@ -2236,6 +2236,10 @@ const struct function gles2_functions_possible[] = {
    /* GL_NV_conservative_raster_pre_snap_triangles */
    { "glConservativeRasterParameteriNV", 20, -1 },
 
+   /* GL_NV_conditional_render */
+   { "glBeginConditionalRenderNV", 20, -1 },
+   { "glEndConditionalRenderNV", 20, -1 },
+
    { NULL, 0, -1 }
 };
 
