@@ -311,7 +311,6 @@ msm_submit_flush(struct fd_submit *submit, int in_fence_fd,
 	finalize_current_cmd(msm_submit->primary);
 	append_ring(msm_submit->ring_set, msm_submit->primary);
 
-	struct set_entry *entry;
 	unsigned nr_cmds = 0;
 	unsigned nr_objs = 0;
 
@@ -578,7 +577,6 @@ append_stateobj_rings(struct msm_submit *submit, struct fd_ringbuffer *target)
 
 	debug_assert(target->flags & _FD_RINGBUFFER_OBJECT);
 
-	struct set_entry *entry;
 	set_foreach(msm_target->u.ring_set, entry) {
 		struct fd_ringbuffer *ring = (void *)entry->key;
 
