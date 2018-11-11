@@ -552,10 +552,18 @@ ralloc_vasprintf_rewrite_tail(char **str, size_t *start, const char *fmt,
  */
 
 #define MIN_LINEAR_BUFSIZE 2048
-#define SUBALLOC_ALIGNMENT sizeof(uintptr_t)
+#define SUBALLOC_ALIGNMENT 8
 #define LMAGIC 0x87b9c7d3
 
-struct linear_header {
+struct
+#ifdef _MSC_VER
+ __declspec(align(8))
+#elif defined(__LP64__)
+ __attribute__((aligned(16)))
+#else
+ __attribute__((aligned(8)))
+#endif
+   linear_header {
 #ifndef NDEBUG
    unsigned magic;   /* for debugging */
 #endif
@@ -647,6 +655,8 @@ linear_alloc_child(void *parent, unsigned size)
    ptr = (linear_size_chunk *)((char*)&latest[1] + latest->offset);
    ptr->size = size;
    latest->offset += full_size;
+
+   assert((uintptr_t)&ptr[1] % SUBALLOC_ALIGNMENT == 0);
    return &ptr[1];
 }
 
