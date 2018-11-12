@@ -138,7 +138,7 @@ vtn_access_link_as_ssa(struct vtn_builder *b, struct vtn_access_link link,
       nir_ssa_def *src0 = vtn_ssa_value(b, link.id)->def;
       if (src0->bit_size != 32)
          src0 = nir_u2u32(&b->nb, src0);
-      return nir_imul(&b->nb, src0, nir_imm_int(&b->nb, stride));
+      return nir_imul_imm(&b->nb, src0, stride);
    }
 }
 
@@ -332,8 +332,7 @@ vtn_ssa_offset_pointer_dereference(struct vtn_builder *b,
       case GLSL_TYPE_STRUCT: {
          vtn_assert(deref_chain->link[idx].mode == vtn_access_mode_literal);
          unsigned member = deref_chain->link[idx].id;
-         nir_ssa_def *mem_offset = nir_imm_int(&b->nb, type->offsets[member]);
-         offset = nir_iadd(&b->nb, offset, mem_offset);
+         offset = nir_iadd_imm(&b->nb, offset, type->offsets[member]);
          type = type->members[member];
          access |= type->access;
          break;
@@ -717,7 +716,7 @@ _vtn_block_load_store(struct vtn_builder *b, nir_intrinsic_op op, bool load,
 
          for (unsigned i = 0; i < num_ops; i++) {
             nir_ssa_def *elem_offset =
-               nir_iadd(&b->nb, offset, nir_imm_int(&b->nb, i * col_stride));
+               nir_iadd_imm(&b->nb, offset, i * col_stride);
             _vtn_load_store_tail(b, op, load, index, elem_offset,
                                  access_offset, access_size,
                                  &(*inout)->elems[i],
@@ -747,8 +746,7 @@ _vtn_block_load_store(struct vtn_builder *b, nir_intrinsic_op op, bool load,
             nir_ssa_def *per_comp[4];
             for (unsigned i = 0; i < elems; i++) {
                nir_ssa_def *elem_offset =
-                  nir_iadd(&b->nb, offset,
-                                   nir_imm_int(&b->nb, i * type->stride));
+                  nir_iadd_imm(&b->nb, offset, i * type->stride);
                struct vtn_ssa_value *comp, temp_val;
                if (!load) {
                   temp_val.def = nir_channel(&b->nb, (*inout)->def, i);
@@ -775,7 +773,7 @@ _vtn_block_load_store(struct vtn_builder *b, nir_intrinsic_op op, bool load,
       unsigned elems = glsl_get_length(type->type);
       for (unsigned i = 0; i < elems; i++) {
          nir_ssa_def *elem_off =
-            nir_iadd(&b->nb, offset, nir_imm_int(&b->nb, i * type->stride));
+            nir_iadd_imm(&b->nb, offset, i * type->stride);
          _vtn_block_load_store(b, op, load, index, elem_off,
                                access_offset, access_size,
                                type->array_element,
@@ -789,7 +787,7 @@ _vtn_block_load_store(struct vtn_builder *b, nir_intrinsic_op op, bool load,
       unsigned elems = glsl_get_length(type->type);
       for (unsigned i = 0; i < elems; i++) {
          nir_ssa_def *elem_off =
-            nir_iadd(&b->nb, offset, nir_imm_int(&b->nb, type->offsets[i]));
+            nir_iadd_imm(&b->nb, offset, type->offsets[i]);
          _vtn_block_load_store(b, op, load, index, elem_off,
                                access_offset, access_size,
                                type->members[i],

@@ -127,8 +127,7 @@ get_io_offset(nir_builder *b, nir_deref_instr *deref,
          unsigned size = type_size((*p)->type);
 
          nir_ssa_def *mul =
-            nir_imul(b, nir_imm_int(b, size),
-                     nir_ssa_for_src(b, (*p)->arr.index, 1));
+            nir_imul_imm(b, nir_ssa_for_src(b, (*p)->arr.index, 1), size);
 
          offset = nir_iadd(b, offset, mul);
       } else if ((*p)->deref_type == nir_deref_type_struct) {
@@ -139,7 +138,7 @@ get_io_offset(nir_builder *b, nir_deref_instr *deref,
          for (unsigned i = 0; i < (*p)->strct.index; i++) {
             field_offset += type_size(glsl_get_struct_field(parent->type, i));
          }
-         offset = nir_iadd(b, offset, nir_imm_int(b, field_offset));
+         offset = nir_iadd_imm(b, offset, field_offset);
       } else {
          unreachable("Unsupported deref type");
       }

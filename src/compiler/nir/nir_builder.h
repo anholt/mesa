@@ -553,6 +553,18 @@ nir_channels(nir_builder *b, nir_ssa_def *def, nir_component_mask_t mask)
    return nir_swizzle(b, def, swizzle, num_channels, false);
 }
 
+static inline nir_ssa_def *
+nir_iadd_imm(nir_builder *build, nir_ssa_def *x, uint64_t y)
+{
+   return nir_iadd(build, x, nir_imm_intN_t(build, y, x->bit_size));
+}
+
+static inline nir_ssa_def *
+nir_imul_imm(nir_builder *build, nir_ssa_def *x, uint64_t y)
+{
+   return nir_imul(build, x, nir_imm_intN_t(build, y, x->bit_size));
+}
+
 /**
  * Turns a nir_src into a nir_ssa_def * so it can be passed to
  * nir_build_alu()-based builder calls.
