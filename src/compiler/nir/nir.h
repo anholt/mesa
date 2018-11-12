@@ -3017,7 +3017,15 @@ typedef struct nir_lower_bitmap_options {
 void nir_lower_bitmap(nir_shader *shader, const nir_lower_bitmap_options *options);
 
 bool nir_lower_atomics_to_ssbo(nir_shader *shader, unsigned ssbo_offset);
-bool nir_lower_to_source_mods(nir_shader *shader);
+
+typedef enum  {
+   nir_lower_int_source_mods = 1 << 0,
+   nir_lower_float_source_mods = 1 << 1,
+   nir_lower_all_source_mods = (1 << 2) - 1
+} nir_lower_to_source_mods_flags;
+
+
+bool nir_lower_to_source_mods(nir_shader *shader, nir_lower_to_source_mods_flags options);
 
 bool nir_lower_gs_intrinsics(nir_shader *shader);
 
