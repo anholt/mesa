@@ -623,6 +623,13 @@ _vtn_load_store_tail(struct vtn_builder *b, nir_intrinsic_op op, bool load,
    nir_intrinsic_instr *instr = nir_intrinsic_instr_create(b->nb.shader, op);
    instr->num_components = glsl_get_vector_elements(type);
 
+   /* Booleans usually shouldn't show up in external memory in SPIR-V.
+    * However, they do for certain older GLSLang versions and can for shared
+    * memory when we lower access chains internally.
+    */
+   const unsigned data_bit_size = glsl_type_is_boolean(type) ? 32 :
+                                  glsl_get_bit_size(type);
+
    int src = 0;
    if (!load) {
       nir_intrinsic_set_write_mask(instr, (1 << instr->num_components) - 1);
@@ -654,8 +661,7 @@ _vtn_load_store_tail(struct vtn_builder *b, nir_intrinsic_op op, bool load,
 
    if (load) {
       nir_ssa_dest_init(&instr->instr, &instr->dest,
-                        instr->num_components,
-                        glsl_get_bit_size(type), NULL);
+                        instr->num_components, data_bit_size, NULL);
       (*inout)->def = &instr->dest.ssa;
    }
 
