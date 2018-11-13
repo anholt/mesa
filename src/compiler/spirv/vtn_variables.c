@@ -646,6 +646,12 @@ _vtn_load_store_tail(struct vtn_builder *b, nir_intrinsic_op op, bool load,
       nir_intrinsic_set_access(instr, access);
    }
 
+   /* With extensions like relaxed_block_layout, we really can't guarantee
+    * much more than scalar alignment.
+    */
+   if (op != nir_intrinsic_load_push_constant)
+      nir_intrinsic_set_align(instr, data_bit_size / 8, 0);
+
    if (index)
       instr->src[src++] = nir_src_for_ssa(index);
 
