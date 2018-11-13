@@ -192,47 +192,55 @@ add_vertex_2tex(struct xa_context *r,
 }
 
 static void
+compute_src_coords(float sx, float sy, struct pipe_resource *src,
+                   const float *src_matrix,
+                   float width, float height,
+                   float tc0[2], float tc1[2], float tc2[2], float tc3[2])
+{
+    tc0[0] = sx;
+    tc0[1] = sy;
+    tc1[0] = (sx + width);
+    tc1[1] = sy;
+    tc2[0] = (sx + width);
+    tc2[1] = (sy + height);
+    tc3[0] = sx;
+    tc3[1] = (sy + height);
+
+    if (src_matrix) {
+	map_point((float *)src_matrix, tc0[0], tc0[1], &tc0[0], &tc0[1]);
+	map_point((float *)src_matrix, tc1[0], tc1[1], &tc1[0], &tc1[1]);
+	map_point((float *)src_matrix, tc2[0], tc2[1], &tc2[0], &tc2[1]);
+	map_point((float *)src_matrix, tc3[0], tc3[1], &tc3[0], &tc3[1]);
+    }
+
+    tc0[0] /= src->width0;
+    tc1[0] /= src->width0;
+    tc2[0] /= src->width0;
+    tc3[0] /= src->width0;
+    tc0[1] /= src->height0;
+    tc1[1] /= src->height0;
+    tc2[1] /= src->height0;
+    tc3[1] /= src->height0;
+}
+
+static void
 add_vertex_data1(struct xa_context *r,
                  float srcX, float srcY,  float dstX, float dstY,
                  float width, float height,
                  struct pipe_resource *src, const float *src_matrix)
 {
-    float s0, t0, s1, t1, s2, t2, s3, t3;
-    float pt0[2], pt1[2], pt2[2], pt3[2];
+    float tc0[2], tc1[2], tc2[2], tc3[2];
 
-    pt0[0] = srcX;
-    pt0[1] = srcY;
-    pt1[0] = (srcX + width);
-    pt1[1] = srcY;
-    pt2[0] = (srcX + width);
-    pt2[1] = (srcY + height);
-    pt3[0] = srcX;
-    pt3[1] = (srcY + height);
-
-    if (src_matrix) {
-	map_point((float *)src_matrix, pt0[0], pt0[1], &pt0[0], &pt0[1]);
-	map_point((float *)src_matrix, pt1[0], pt1[1], &pt1[0], &pt1[1]);
-	map_point((float *)src_matrix, pt2[0], pt2[1], &pt2[0], &pt2[1]);
-	map_point((float *)src_matrix, pt3[0], pt3[1], &pt3[0], &pt3[1]);
-    }
-
-    s0 =  pt0[0] / src->width0;
-    s1 =  pt1[0] / src->width0;
-    s2 =  pt2[0] / src->width0;
-    s3 =  pt3[0] / src->width0;
-    t0 =  pt0[1] / src->height0;
-    t1 =  pt1[1] / src->height0;
-    t2 =  pt2[1] / src->height0;
-    t3 =  pt3[1] / src->height0;
-
+    compute_src_coords(srcX, srcY, src, src_matrix, width, height,
+                       tc0, tc1, tc2, tc3);
     /* 1st vertex */
-    add_vertex_1tex(r, dstX, dstY, s0, t0);
+    add_vertex_1tex(r, dstX, dstY, tc0[0], tc0[1]);
     /* 2nd vertex */
-    add_vertex_1tex(r, dstX + width, dstY, s1, t1);
+    add_vertex_1tex(r, dstX + width, dstY, tc1[0], tc1[1]);
     /* 3rd vertex */
-    add_vertex_1tex(r, dstX + width, dstY + height, s2, t2);
+    add_vertex_1tex(r, dstX + width, dstY + height, tc2[0], tc2[1]);
     /* 4th vertex */
-    add_vertex_1tex(r, dstX, dstY + height, s3, t3);
+    add_vertex_1tex(r, dstX, dstY + height, tc3[0], tc3[1]);
 }
 
 static void
@@ -243,53 +251,26 @@ add_vertex_data2(struct xa_context *r,
                  struct pipe_resource *mask,
                  const float *src_matrix, const float *mask_matrix)
 {
-    float src_s0, src_t0, src_s1, src_t1;
-    float mask_s0, mask_t0, mask_s1, mask_t1;
-    float spt0[2], spt1[2];
-    float mpt0[2], mpt1[2];
+    float spt0[2], spt1[2], spt2[2], spt3[2];
+    float mpt0[2], mpt1[2], mpt2[2], mpt3[2];
 
-    spt0[0] = srcX;
-    spt0[1] = srcY;
-    spt1[0] = srcX + width;
-    spt1[1] = srcY + height;
-
-    mpt0[0] = maskX;
-    mpt0[1] = maskY;
-    mpt1[0] = maskX + width;
-    mpt1[1] = maskY + height;
-
-    if (src_matrix) {
-	map_point((float *)src_matrix, spt0[0], spt0[1], &spt0[0], &spt0[1]);
-	map_point((float *)src_matrix, spt1[0], spt1[1], &spt1[0], &spt1[1]);
-    }
-
-    if (mask_matrix) {
-	map_point((float *)mask_matrix, mpt0[0], mpt0[1], &mpt0[0], &mpt0[1]);
-	map_point((float *)mask_matrix, mpt1[0], mpt1[1], &mpt1[0], &mpt1[1]);
-    }
-
-    src_s0 = spt0[0] / src->width0;
-    src_t0 = spt0[1] / src->height0;
-    src_s1 = spt1[0] / src->width0;
-    src_t1 = spt1[1] / src->height0;
-
-    mask_s0 = mpt0[0] / mask->width0;
-    mask_t0 = mpt0[1] / mask->height0;
-    mask_s1 = mpt1[0] / mask->width0;
-    mask_t1 = mpt1[1] / mask->height0;
+    compute_src_coords(srcX, srcY, src, src_matrix, width, height,
+                       spt0, spt1, spt2, spt3);
+    compute_src_coords(maskX, maskY, mask, mask_matrix, width, height,
+                       mpt0, mpt1, mpt2, mpt3);
 
     /* 1st vertex */
     add_vertex_2tex(r, dstX, dstY,
-		    src_s0, src_t0, mask_s0, mask_t0);
+		    spt0[0], spt0[1], mpt0[0], mpt0[1]);
     /* 2nd vertex */
     add_vertex_2tex(r, dstX + width, dstY,
-		    src_s1, src_t0, mask_s1, mask_t0);
+		    spt1[0], spt1[1], mpt1[0], mpt1[1]);
     /* 3rd vertex */
     add_vertex_2tex(r, dstX + width, dstY + height,
-		    src_s1, src_t1, mask_s1, mask_t1);
+		    spt2[0], spt2[1], mpt2[0], mpt2[1]);
     /* 4th vertex */
     add_vertex_2tex(r, dstX, dstY + height,
-		    src_s0, src_t1, mask_s0, mask_t1);
+		    spt3[0], spt3[1], mpt3[0], mpt3[1]);
 }
 
 static void
