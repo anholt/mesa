@@ -714,6 +714,8 @@ brw_preprocess_nir(const struct brw_compiler *compiler, nir_shader *nir)
       brw_nir_no_indirect_mask(compiler, nir->info.stage);
    OPT(nir_lower_indirect_derefs, indirect_mask);
 
+   OPT(brw_nir_lower_mem_access_bit_sizes);
+
    /* Get rid of split copies */
    nir = brw_nir_optimize(nir, compiler, is_scalar, false);
 

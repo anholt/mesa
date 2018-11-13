@@ -500,15 +500,17 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
    case nir_intrinsic_store_ssbo: {
       assert(devinfo->gen >= 7);
 
+      /* brw_nir_lower_mem_access_bit_sizes takes care of this */
+      assert(nir_src_bit_size(instr->src[0]) == 32);
+      assert(nir_intrinsic_write_mask(instr) ==
+             (1 << instr->num_components) - 1);
+
       src_reg surf_index = get_nir_ssbo_intrinsic_index(instr);
       src_reg offset_reg = retype(get_nir_src_imm(instr->src[2]),
                                   BRW_REGISTER_TYPE_UD);
 
       /* Value */
       src_reg val_reg = get_nir_src(instr->src[0], BRW_REGISTER_TYPE_F, 4);
-
-      /* Writemask */
-      unsigned write_mask = instr->const_index[0];
 
       /* IvyBridge does not have a native SIMD4x2 untyped write message so untyped
        * writes will use SIMD8 mode. In order to hide this and keep symmetry across
@@ -551,91 +553,17 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
       const vec4_builder bld = vec4_builder(this).at_end()
                                .annotate(current_annotation, base_ir);
 
-      unsigned type_slots = nir_src_bit_size(instr->src[0]) / 32;
-      if (type_slots == 2) {
-         dst_reg tmp = dst_reg(this, glsl_type::dvec4_type);
-         shuffle_64bit_data(tmp, retype(val_reg, tmp.type), true);
-         val_reg = src_reg(retype(tmp, BRW_REGISTER_TYPE_F));
-      }
-
-      uint8_t swizzle[4] = { 0, 0, 0, 0};
-      int num_channels = 0;
-      unsigned skipped_channels = 0;
-      int num_components = instr->num_components;
-      for (int i = 0; i < num_components; i++) {
-         /* Read components Z/W of a dvec from the appropriate place. We will
-          * also have to adjust the swizzle (we do that with the '% 4' below)
-          */
-         if (i == 2 && type_slots == 2)
-            val_reg = byte_offset(val_reg, REG_SIZE);
-
-         /* Check if this channel needs to be written. If so, record the
-          * channel we need to take the data from in the swizzle array
-          */
-         int component_mask = 1 << i;
-         int write_test = write_mask & component_mask;
-         if (write_test) {
-            /* If we are writing doubles we have to write 2 channels worth of
-             * of data (64 bits) for each double component.
-             */
-            swizzle[num_channels++] = (i * type_slots) % 4;
-            if (type_slots == 2)
-               swizzle[num_channels++] = (i * type_slots + 1) % 4;
-         }
-
-         /* If we don't have to write this channel it means we have a gap in the
-          * vector, so write the channels we accumulated until now, if any. Do
-          * the same if this was the last component in the vector, if we have
-          * enough channels for a full vec4 write or if we have processed
-          * components XY of a dvec (since components ZW are not in the same
-          * SIMD register)
-          */
-         if (!write_test || i == num_components - 1 || num_channels == 4 ||
-             (i == 1 && type_slots == 2)) {
-            if (num_channels > 0) {
-               /* We have channels to write, so update the offset we need to
-                * write at to skip the channels we skipped, if any.
-                */
-               if (skipped_channels > 0) {
-                  if (offset_reg.file == IMM) {
-                     offset_reg.ud += 4 * skipped_channels;
-                  } else {
-                     emit(ADD(dst_reg(offset_reg), offset_reg,
-                              brw_imm_ud(4 * skipped_channels)));
-                  }
-               }
-
-               /* Swizzle the data register so we take the data from the channels
-                * we need to write and send the write message. This will write
-                * num_channels consecutive dwords starting at offset.
-                */
-               val_reg.swizzle =
-                  BRW_SWIZZLE4(swizzle[0], swizzle[1], swizzle[2], swizzle[3]);
-               emit_untyped_write(bld, surf_index, offset_reg, val_reg,
-                                  1 /* dims */, num_channels /* size */,
-                                  BRW_PREDICATE_NONE);
-
-               /* If we have to do a second write we will have to update the
-                * offset so that we jump over the channels we have just written
-                * now.
-                */
-               skipped_channels = num_channels;
-
-               /* Restart the count for the next write message */
-               num_channels = 0;
-            }
-
-            /* If we didn't write the channel, increase skipped count */
-            if (!write_test)
-               skipped_channels += type_slots;
-         }
-      }
-
+      emit_untyped_write(bld, surf_index, offset_reg, val_reg,
+                         1 /* dims */, instr->num_components /* size */,
+                         BRW_PREDICATE_NONE);
       break;
    }
 
    case nir_intrinsic_load_ssbo: {
       assert(devinfo->gen >= 7);
+
+      /* brw_nir_lower_mem_access_bit_sizes takes care of this */
+      assert(nir_dest_bit_size(instr->dest) == 32);
 
       src_reg surf_index = get_nir_ssbo_intrinsic_index(instr);
       src_reg offset_reg = retype(get_nir_src_imm(instr->src[1]),
@@ -645,36 +573,10 @@ vec4_visitor::nir_emit_intrinsic(nir_intrinsic_instr *instr)
       const vec4_builder bld = vec4_builder(this).at_end()
          .annotate(current_annotation, base_ir);
 
-      src_reg read_result;
+      src_reg read_result = emit_untyped_read(bld, surf_index, offset_reg,
+                                              1 /* dims */, 4 /* size*/,
+                                              BRW_PREDICATE_NONE);
       dst_reg dest = get_nir_dest(instr->dest);
-      if (type_sz(dest.type) < 8) {
-         read_result = emit_untyped_read(bld, surf_index, offset_reg,
-                                         1 /* dims */, 4 /* size*/,
-                                         BRW_PREDICATE_NONE);
-      } else {
-         src_reg shuffled = src_reg(this, glsl_type::dvec4_type);
-
-         src_reg temp;
-         temp = emit_untyped_read(bld, surf_index, offset_reg,
-                                  1 /* dims */, 4 /* size*/,
-                                  BRW_PREDICATE_NONE);
-         emit(MOV(dst_reg(retype(shuffled, temp.type)), temp));
-
-         if (offset_reg.file == IMM)
-            offset_reg.ud += 16;
-         else
-            emit(ADD(dst_reg(offset_reg), offset_reg, brw_imm_ud(16)));
-
-         temp = emit_untyped_read(bld, surf_index, offset_reg,
-                                  1 /* dims */, 4 /* size*/,
-                                  BRW_PREDICATE_NONE);
-         emit(MOV(dst_reg(retype(byte_offset(shuffled, REG_SIZE), temp.type)),
-                  temp));
-
-         read_result = src_reg(this, glsl_type::dvec4_type);
-         shuffle_64bit_data(dst_reg(read_result), shuffled, false);
-      }
-
       read_result.type = dest.type;
       read_result.swizzle = brw_swizzle_for_size(instr->num_components);
       emit(MOV(dest, read_result));

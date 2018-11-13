@@ -78,6 +78,7 @@ libintel_compiler_files = files(
   'brw_nir_attribute_workarounds.c',
   'brw_nir_lower_cs_intrinsics.c',
   'brw_nir_lower_image_load_store.c',
+  'brw_nir_lower_mem_access_bit_sizes.c',
   'brw_nir_opt_peephole_ffma.c',
   'brw_nir_tcs_workarounds.c',
   'brw_packed_float.c',
