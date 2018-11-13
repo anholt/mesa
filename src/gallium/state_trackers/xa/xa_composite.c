@@ -112,12 +112,6 @@ blend_for_op(struct xa_composite_blend *blend,
     boolean supported = FALSE;
 
     /*
-     * No component alpha yet.
-     */
-    if (mask_pic && mask_pic->component_alpha)
-	return FALSE;
-
-    /*
      * our default in case something goes wrong
      */
     *blend = xa_blends[XA_BLEND_OP_OVER];
@@ -129,6 +123,12 @@ blend_for_op(struct xa_composite_blend *blend,
             break;
 	}
     }
+
+    /*
+     * No component alpha yet.
+     */
+    if (mask_pic && mask_pic->component_alpha && blend->alpha_src)
+	return FALSE;
 
     if (!dst_pic->srf)
 	return supported;
@@ -224,15 +224,9 @@ xa_src_pict_is_accelerated(const union xa_source_pict *src_pic)
 XA_EXPORT int
 xa_composite_check_accelerated(const struct xa_composite *comp)
 {
-    struct xa_composite_blend blend;
     struct xa_picture *src_pic = comp->src;
     struct xa_picture *mask_pic = comp->mask;
-
-    /*
-     * No component alpha yet.
-     */
-    if (mask_pic && mask_pic->component_alpha)
-	return -XA_ERR_INVAL;
+    struct xa_composite_blend blend;
 
     if (!xa_is_filter_accelerated(src_pic) ||
 	!xa_is_filter_accelerated(comp->mask)) {
@@ -244,6 +238,12 @@ xa_composite_check_accelerated(const struct xa_composite *comp)
         return -XA_ERR_INVAL;
 
     if (!blend_for_op(&blend, comp->op, comp->src, comp->mask, comp->dst))
+	return -XA_ERR_INVAL;
+
+    /*
+     * No component alpha yet.
+     */
+    if (mask_pic && mask_pic->component_alpha && blend.alpha_src)
 	return -XA_ERR_INVAL;
 
     return XA_ERR_NONE;
@@ -382,9 +382,14 @@ bind_shaders(struct xa_context *ctx, const struct xa_composite *comp)
     struct xa_shader shader;
     struct xa_picture *src_pic = comp->src;
     struct xa_picture *mask_pic = comp->mask;
+    struct xa_picture *dst_pic = comp->dst;
 
     ctx->has_solid_src = FALSE;
     ctx->has_solid_mask = FALSE;
+
+    if (dst_pic && xa_format_type(dst_pic->pict_format) !=
+        xa_format_type(xa_surface_format(dst_pic->srf)))
+       return -XA_ERR_INVAL;
 
     if (src_pic) {
 	if (src_pic->wrap == xa_wrap_clamp_to_border && src_pic->has_transform)
@@ -405,6 +410,8 @@ bind_shaders(struct xa_context *ctx, const struct xa_composite *comp)
     if (mask_pic) {
 	vs_traits |= VS_MASK;
 	fs_traits |= FS_MASK;
+        if (mask_pic->component_alpha)
+           fs_traits |= FS_CA;
         if (mask_pic->src_pict) {
             if (!xa_handle_src_pict(ctx, mask_pic->src_pict, true))
                 return -XA_ERR_INVAL;

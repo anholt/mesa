@@ -82,6 +82,7 @@ print_fs_traits(int fs_traits)
 	"FS_SRC_LUMINANCE",	/* = 1 << 11, */
 	"FS_MASK_LUMINANCE",	/* = 1 << 12, */
 	"FS_DST_LUMINANCE",     /* = 1 << 13, */
+        "FS_CA",                /* = 1 << 14, */
     };
     int i, k;
 
@@ -107,12 +108,20 @@ src_in_mask(struct ureg_program *ureg,
 	    struct ureg_dst dst,
 	    struct ureg_src src,
 	    struct ureg_src mask,
-	    unsigned mask_luminance)
+	    unsigned mask_luminance, boolean component_alpha)
 {
     if (mask_luminance)
-        ureg_MUL(ureg, dst, src, ureg_scalar(mask, TGSI_SWIZZLE_X));
-    else
+        if (component_alpha) {
+            ureg_MOV(ureg, dst, src);
+            ureg_MUL(ureg, ureg_writemask(dst, TGSI_WRITEMASK_W),
+                     src, ureg_scalar(mask, TGSI_SWIZZLE_X));
+        } else {
+            ureg_MUL(ureg, dst, src, ureg_scalar(mask, TGSI_SWIZZLE_X));
+        }
+    else if (!component_alpha)
         ureg_MUL(ureg, dst, src, ureg_scalar(mask, TGSI_SWIZZLE_W));
+    else
+        ureg_MUL(ureg, dst, src, mask);
 }
 
 static struct ureg_src
@@ -347,6 +356,7 @@ create_fs(struct pipe_context *pipe, unsigned fs_traits)
     unsigned dst_luminance = (fs_traits & FS_DST_LUMINANCE) != 0;
     unsigned is_src_src = (fs_traits & FS_SRC_SRC) != 0;
     unsigned is_mask_src = (fs_traits & FS_MASK_SRC) != 0;
+    boolean component_alpha = (fs_traits & FS_CA) != 0;
     unsigned cur_sampler = 0;
     unsigned cur_constant = 0;
 
@@ -391,7 +401,7 @@ create_fs(struct pipe_context *pipe, unsigned fs_traits)
                    &cur_sampler);
 
 	src_in_mask(ureg, (dst_luminance) ? src : out, ureg_src(src),
-		    ureg_src(mask), mask_luminance);
+		    ureg_src(mask), mask_luminance, component_alpha);
 
 	ureg_release_temporary(ureg, mask);
     }

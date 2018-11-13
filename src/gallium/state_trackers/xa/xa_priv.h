@@ -166,6 +166,7 @@ enum xa_fs_traits {
     FS_SRC_LUMINANCE = 1 << 11,
     FS_MASK_LUMINANCE = 1 << 12,
     FS_DST_LUMINANCE = 1 << 13,
+    FS_CA = 1 << 14,
 };
 
 struct xa_shader {
