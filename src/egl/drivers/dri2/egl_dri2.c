@@ -2310,7 +2310,7 @@ dri2_check_dma_buf_format(const _EGLImageAttribs *attrs)
 {
    unsigned plane_n = dri2_num_fourcc_format_planes(attrs->DMABufFourCC.Value);
    if (plane_n == 0) {
-      _eglError(EGL_BAD_ATTRIBUTE, "invalid format");
+      _eglError(EGL_BAD_MATCH, "unknown drm fourcc format");
       return 0;
    }
 
