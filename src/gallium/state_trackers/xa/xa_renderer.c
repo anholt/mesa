@@ -46,14 +46,14 @@ renderer_set_constants(struct xa_context *r,
 		       int shader_type, const float *params, int param_bytes);
 
 static inline boolean
-is_affine(float *matrix)
+is_affine(const float *matrix)
 {
     return floatIsZero(matrix[2]) && floatIsZero(matrix[5])
 	&& floatsEqual(matrix[8], 1);
 }
 
 static inline void
-map_point(float *mat, float x, float y, float *out_x, float *out_y)
+map_point(const float *mat, float x, float y, float *out_x, float *out_y)
 {
     if (!mat) {
 	*out_x = x;
@@ -192,25 +192,25 @@ add_vertex_2tex(struct xa_context *r,
 }
 
 static void
-compute_src_coords(float sx, float sy, struct pipe_resource *src,
+compute_src_coords(float sx, float sy, const struct pipe_resource *src,
                    const float *src_matrix,
                    float width, float height,
                    float tc0[2], float tc1[2], float tc2[2], float tc3[2])
 {
     tc0[0] = sx;
     tc0[1] = sy;
-    tc1[0] = (sx + width);
+    tc1[0] = sx + width;
     tc1[1] = sy;
-    tc2[0] = (sx + width);
-    tc2[1] = (sy + height);
+    tc2[0] = sx + width;
+    tc2[1] = sy + height;
     tc3[0] = sx;
-    tc3[1] = (sy + height);
+    tc3[1] = sy + height;
 
     if (src_matrix) {
-	map_point((float *)src_matrix, tc0[0], tc0[1], &tc0[0], &tc0[1]);
-	map_point((float *)src_matrix, tc1[0], tc1[1], &tc1[0], &tc1[1]);
-	map_point((float *)src_matrix, tc2[0], tc2[1], &tc2[0], &tc2[1]);
-	map_point((float *)src_matrix, tc3[0], tc3[1], &tc3[0], &tc3[1]);
+	map_point(src_matrix, tc0[0], tc0[1], &tc0[0], &tc0[1]);
+	map_point(src_matrix, tc1[0], tc1[1], &tc1[0], &tc1[1]);
+	map_point(src_matrix, tc2[0], tc2[1], &tc2[0], &tc2[1]);
+	map_point(src_matrix, tc3[0], tc3[1], &tc3[0], &tc3[1]);
     }
 
     tc0[0] /= src->width0;
@@ -227,7 +227,7 @@ static void
 add_vertex_data1(struct xa_context *r,
                  float srcX, float srcY,  float dstX, float dstY,
                  float width, float height,
-                 struct pipe_resource *src, const float *src_matrix)
+                 const struct pipe_resource *src, const float *src_matrix)
 {
     float tc0[2], tc1[2], tc2[2], tc3[2];
 
