@@ -538,6 +538,7 @@ nir_get_io_offset_src(nir_intrinsic_instr *instr)
    switch (instr->intrinsic) {
    case nir_intrinsic_load_input:
    case nir_intrinsic_load_output:
+   case nir_intrinsic_load_shared:
    case nir_intrinsic_load_uniform:
       return &instr->src[0];
    case nir_intrinsic_load_ubo:
@@ -546,6 +547,7 @@ nir_get_io_offset_src(nir_intrinsic_instr *instr)
    case nir_intrinsic_load_per_vertex_output:
    case nir_intrinsic_load_interpolated_input:
    case nir_intrinsic_store_output:
+   case nir_intrinsic_store_shared:
       return &instr->src[1];
    case nir_intrinsic_store_ssbo:
    case nir_intrinsic_store_per_vertex_output:
