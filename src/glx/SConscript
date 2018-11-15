@@ -24,8 +24,9 @@ env.Prepend(CPPPATH = [
 
 env.Append(CPPDEFINES = [
     '_REENTRANT',
-    #('DEFAULT_DRIVER_DIR', 'DRI_DRIVER_SEARCH_DIR')
 ])
+
+env.Append(CPPDEFINES = ['DEFAULT_DRIVER_DIR=\\"/usr/local/lib/dri\\"'])
 
 env.Prepend(LIBS = [
     libloader,

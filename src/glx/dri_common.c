@@ -77,11 +77,6 @@ dri_message(int level, const char *f, ...)
 #define GL_LIB_NAME "libGL.so.1"
 #endif
 
-#ifndef DEFAULT_DRIVER_DIR
-/* this is normally defined in Mesa/configs/default with DRI_DRIVER_SEARCH_PATH */
-#define DEFAULT_DRIVER_DIR "/usr/local/lib/dri"
-#endif
-
 /**
  * Try to \c dlopen the named driver.
  *
