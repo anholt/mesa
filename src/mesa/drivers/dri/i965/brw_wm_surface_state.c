@@ -1499,18 +1499,6 @@ update_buffer_image_param(struct brw_context *brw,
    param->stride[0] = _mesa_get_format_bytes(u->_ActualFormat);
 }
 
-static unsigned
-get_image_num_layers(const struct intel_mipmap_tree *mt, GLenum target,
-                     unsigned level)
-{
-   if (target == GL_TEXTURE_CUBE_MAP)
-      return 6;
-
-   return target == GL_TEXTURE_3D ?
-      minify(mt->surf.logical_level0_px.depth, level) :
-      mt->surf.logical_level0_px.array_len;
-}
-
 static void
 update_image_surface(struct brw_context *brw,
                      struct gl_image_unit *u,
@@ -1541,14 +1529,29 @@ update_image_surface(struct brw_context *brw,
       } else {
          struct intel_texture_object *intel_obj = intel_texture_object(obj);
          struct intel_mipmap_tree *mt = intel_obj->mt;
-         const unsigned num_layers = u->Layered ?
-            get_image_num_layers(mt, obj->Target, u->Level) : 1;
+
+         unsigned base_layer, num_layers;
+         if (u->Layered) {
+            if (obj->Target == GL_TEXTURE_3D) {
+               base_layer = 0;
+               num_layers = minify(mt->surf.logical_level0_px.depth, u->Level);
+            } else {
+               assert(obj->Immutable || obj->MinLayer == 0);
+               base_layer = obj->MinLayer;
+               num_layers = obj->Immutable ?
+                                obj->NumLayers :
+                                mt->surf.logical_level0_px.array_len;
+            }
+         } else {
+            base_layer = obj->MinLayer + u->_Layer;
+            num_layers = 1;
+         }
 
          struct isl_view view = {
             .format = format,
             .base_level = obj->MinLevel + u->Level,
             .levels = 1,
-            .base_array_layer = obj->MinLayer + u->_Layer,
+            .base_array_layer = base_layer,
             .array_len = num_layers,
             .swizzle = ISL_SWIZZLE_IDENTITY,
             .usage = ISL_SURF_USAGE_STORAGE_BIT,
