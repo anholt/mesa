@@ -197,7 +197,7 @@ EGL_FUNCTIONS = (
     _eglFunc("eglDupNativeFenceFDANDROID",           "display"),
 
     # EGL_ANDROID_blob_cache
-    ("eglSetBlobCacheFuncsANDROID",          "display"),
+    _eglFunc("eglSetBlobCacheFuncsANDROID",          "display"),
 
     # EGL_EXT_image_dma_buf_import_modifiers
     _eglFunc("eglQueryDmaBufFormatsEXT",             "display"),
