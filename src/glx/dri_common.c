@@ -77,6 +77,9 @@ dri_message(int level, const char *f, ...)
 #define GL_LIB_NAME "libGL.so.1"
 #endif
 
+static const __DRIextension **
+driGetDriverExtensions(void *handle, const char *driver_name);
+
 /**
  * Try to \c dlopen the named driver.
  *
@@ -85,12 +88,14 @@ dri_message(int level, const char *f, ...)
  * order to find the driver.
  *
  * \param driverName - a name like "i965", "radeon", "nouveau", etc.
+ * \param out_driver_handle - Address to return the resulting dlopen() handle.
  *
  * \returns
- * A handle from \c dlopen, or \c NULL if driver file not found.
+ * The __DRIextension entrypoint table for the driver, or \c NULL if driver
+ * file not found.
  */
-_X_HIDDEN void *
-driOpenDriver(const char *driverName)
+_X_HIDDEN const __DRIextension **
+driOpenDriver(const char *driverName, void **out_driver_handle)
 {
    void *glhandle, *handle;
    const char *libPaths, *p, *next;
@@ -148,10 +153,18 @@ driOpenDriver(const char *driverName)
    if (glhandle)
       dlclose(glhandle);
 
-   return handle;
+   const __DRIextension **extensions = driGetDriverExtensions(handle,
+                                                              driverName);
+   if (!extensions) {
+      dlclose(handle);
+      handle = NULL;
+   }
+
+   *out_driver_handle = handle;
+   return extensions;
 }
 
-_X_HIDDEN const __DRIextension **
+static const __DRIextension **
 driGetDriverExtensions(void *handle, const char *driver_name)
 {
    const __DRIextension **extensions = NULL;
