@@ -41,6 +41,8 @@
 #ifdef MAJOR_IN_SYSMACROS
 #include <sys/sysmacros.h>
 #endif
+#include <GL/gl.h>
+#include <GL/internal/dri_interface.h>
 #include "loader.h"
 
 #ifdef HAVE_LIBDRM
@@ -491,14 +493,6 @@ loader_set_logger(void (*logger)(int level, const char *fmt, ...))
 {
    log_ = logger;
 }
-
-/* XXX: Local definition to avoid pulling the heavyweight GL/gl.h and
- * GL/internal/dri_interface.h
- */
-
-#ifndef __DRI_DRIVER_GET_EXTENSIONS
-#define __DRI_DRIVER_GET_EXTENSIONS "__driDriverGetExtensions"
-#endif
 
 char *
 loader_get_extensions_name(const char *driver_name)
