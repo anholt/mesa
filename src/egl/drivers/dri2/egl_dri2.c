@@ -900,6 +900,8 @@ dri2_initialize(_EGLDriver *drv, _EGLDisplay *disp)
       return EGL_TRUE;
    }
 
+   loader_set_logger(_eglLog);
+
    switch (disp->Platform) {
    case _EGL_PLATFORM_SURFACELESS:
       ret = dri2_initialize_surfaceless(drv, disp);
