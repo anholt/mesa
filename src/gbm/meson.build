@@ -37,7 +37,6 @@ incs_gbm = [
 if with_dri2
   files_gbm += files('backends/dri/gbm_dri.c', 'backends/dri/gbm_driint.h')
   deps_gbm += dep_libdrm # TODO: pthread-stubs
-  args_gbm += '-DDEFAULT_DRIVER_DIR="@0@"'.format(dri_search_path)
 endif
 if with_platform_wayland
   deps_gbm += dep_wayland_server

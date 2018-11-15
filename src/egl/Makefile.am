@@ -119,8 +119,7 @@ AM_CFLAGS += \
 	-I$(top_srcdir)/src/egl/drivers/dri2 \
 	-I$(top_srcdir)/src/gbm/backends/dri \
 	-I$(top_builddir)/src/egl/wayland/wayland-drm \
-	-I$(top_srcdir)/src/egl/wayland/wayland-drm \
-	-DDEFAULT_DRIVER_DIR=\"$(DRI_DRIVER_SEARCH_DIR)\"
+	-I$(top_srcdir)/src/egl/wayland/wayland-drm
 
 nodist_libEGL_common_la_SOURCES = \
 	$(dri2_backend_GENERATED_FILES)

@@ -26,8 +26,6 @@ env.Append(CPPDEFINES = [
     '_REENTRANT',
 ])
 
-env.Append(CPPDEFINES = ['DEFAULT_DRIVER_DIR=\\"/usr/local/lib/dri\\"'])
-
 env.Prepend(LIBS = [
     libloader,
     mesautil,
